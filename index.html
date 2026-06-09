@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rapport de Maintenance Préventive</title>
+    <style>
+        :root {
+            --primary: #1a1a1a;
+            --accent: #c5a059;
+            --bg: #f5f5f7;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--primary);
+            margin: 0;
+            padding: 15px;
+        }
+
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        header h1 { 
+            margin: 0 0 15px 0; 
+            font-size: 1.4rem; 
+            color: var(--accent); 
+        }
+
+        .header-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .header-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-group label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            min-width: 110px;
+            font-weight: normal;
+            margin: 0;
+        }
+
+        .header-group input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            height: auto;
+            flex: 1;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        .input-scan-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1rem;
+            background-color: #fff;
+            height: 45px;
+        }
+
+        textarea { height: auto; }
+
+        .btn-scan {
+            width: auto;
+            padding: 0 15px;
+            background: #1a1a1a;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        .capture-hidden {
+            display: none;
+        }
+
+        .label-preview-container {
+            margin-top: 5px;
+            display: none;
+        }
+
+        .label-preview {
+            max-width: 100%;
+            height: auto;
+            max-height: 120px;
+            border-radius: 6px;
+            border: 1px dashed var(--accent);
+            object-fit: contain;
+        }
+
+        .field-grayed {
+            background-color: #f0f2f5;
+            border: 1px solid #ced4da;
+        }
+
+        .grid-status {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .status-box {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #eee;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-add { background: var(--accent); color: white; margin-top: 10px; }
+        .btn-export { background: #2b579a; color: white; margin-top: 20px; }
+
+        .photo-container {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .photo-preview {
+            width: 70px;
+            height: 70px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 2px solid var(--accent);
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th { background: #eee; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Visite de Maintenance Préventive</h1>
+        <div class="header-inputs">
+            <div class="header-group">
+                <label for="headerSite">Site :</label>
+                <input type="text" id="headerSite" placeholder="Saisir le site...">
+            </div>
+            <div class="header-group">
+                <label for="headerZone">Zone :</label>
+                <input type="text" id="headerZone" placeholder="Saisir la zone...">
+            </div>
+            <div class="header-group">
+                <label for="headerIntervenant">Intervenant(s) :</label>
+                <input type="text" id="headerIntervenant" placeholder="Nom des intervenants...">
+            </div>
+            <div class="header-group">
+                <label for="headerDate">Date de visite :</label>
+                <input type="date" id="headerDate">
+            </div>
+        </div>
+    </header>
+
+    <div class="card">
+        <h3>Saisie Machine</h3>
+        <form id="maintenanceForm" onsubmit="return false;">
+            
+            <div class="form-group">
+                <label for="printerType">Machine Type & ID</label>
+                <div class="input-scan-group">
+                    <div class="input-row">
+                        <input type="text" id="printerType" placeholder="Saisir le Type...">
+                        <button type="button" class="btn-scan" onclick="triggerCapture('printerType')">📷 Photo</button>
+                    </div>
+                    <input type="file" id="capture-printerType" class="capture-hidden" accept="image/*" capture="environment" onchange="previewLabel(this, 'preview-printerType')">
+                    <div id="container-preview-printerType" class="label-preview-container">
+                        <img id="preview-printerType" class="label-preview" src="" alt="Aperçu étiquette">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="option">Option</label>
+                <input type="text" id="option" class="field-grayed" placeholder="">
+            </div>
+
+            <div class="form-group">
+                <label for="serial">S/N (Numéro de série)</label>
+                <div class="input-scan-group">
+                    <div class="input-row">
+                        <input type="text" id="serial" placeholder="Saisir le S/N...">
+                        <button type="button" class="btn-scan" onclick="triggerCapture('serial')">📷 Photo</button>
+                    </div>
+                    <input type="file" id="capture-serial" class="capture-hidden" accept="image/*" capture="environment" onchange="previewLabel(this, 'preview-serial')">
+                    <div id="container-preview-serial" class="label-preview-container">
+                        <img id="preview-serial" class="label-preview" src="" alt="Aperçu S/N">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Vérifications</label>
+                <div class="grid-status">
+                    <div class="status-box">
+                        <label style="font-size:0.8rem;">Cellules</label>
+                        <select id="cellules">
+                            <option value=""></option>
+                            <option value="OK">OK</option>
+                            <option value="NOK">NOK</option>
+                        </select>
+                    </div>
+                    <div class="status-box">
+                        <label style="font-size:0.8rem;">Etat dot</label>
+                        <select id="etatDot">
+                            <option value=""></option>
+                            <option value="OK">OK</option>
+                            <option value="NOK">NOK</option>
+                        </select>
+                    </div>
+                    <div class="status-box">
+                        <label style="font-size:0.8rem;">Pressing roller</label>
+                        <select id="roller">
+                            <option value=""></option>
+                            <option value="OK">OK</option>
+                            <option value="NOK">NOK</option>
+                        </select>
+                    </div>
+                    <div class="status-box">
+                        <label style="font-size:0.8rem;">Impression</label>
+                        <select id="impression">
+                            <option value=""></option>
+                            <option value="OK">OK</option>
+                            <option value="NOK">NOK</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="etatGeneral">Etat Général</label>
+                <select id="etatGeneral">
+                    <option value=""></option>
+                    <option value="OK">OK</option>
+                    <option value="VOIR REM">VOIR REM</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="remarque">Remarque</label>
+                <textarea id="remarque" rows="2" placeholder=""></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="photo">Ajouter des photos de panne (Optionnel)</label>
+                <input type="file" id="photo" accept="image/*" capture="environment" multiple style="padding:5px; height:auto;">
+                <div class="photo-container" id="previewContainer"></div>
+            </div>
+
+            <button type="button" class="btn-add" id="addBtn">Ajouter la ligne</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>Lignes enregistrées (<span id="count">0</span>)</h3>
+        <div class="table-container">
+            <table id="summaryTable">
+                <thead>
+                    <tr>
+                        <th>Machine Type & ID</th>
+                        <th>Option</th>
+                        <th>S/N</th>
+                        <th>Cellules</th>
+                        <th>Etat dot</th>
+                        <th>Pressing roller</th>
+                        <th>Impression</th>
+                        <th>Etat Général</th>
+                        <th>Remarque</th>
+                        <th>Photos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        <button type="button" class="btn-export" id="exportBtn">Exporter le rapport en Word (.doc)</button>
+    </div>
+
+    <script>
+        const reportData = [];
+        const previewContainer = document.getElementById('previewContainer');
+        let currentPhotos = [];
+        
+        // Variables pour mémoriser les images temporaires des étiquettes
+        let currentPrinterTypeImg = "";
+        let currentSerialImg = "";
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('headerDate').value = today;
+        });
+
+        function triggerCapture(targetId) {
+            document.getElementById('capture-' + targetId).click();
+        }
+
+        // Affiche la photo de l'étiquette directement sous le champ pour recopie visuelle confortable
+        function previewLabel(fileInput, imgPreviewId) {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById(imgPreviewId);
+                img.src = e.target.result;
+                document.getElementById('container-' + imgPreviewId).style.display = 'block';
+                
+                // Sauvegarde de l'image pour le rapport final
+                if(imgPreviewId === 'preview-printerType') {
+                    currentPrinterTypeImg = e.target.result;
+                } else {
+                    currentSerialImg = e.target.result;
+                }
+                
+                // Met le focus sur le champ pour saisir directement au clavier avec la photo juste en dessous
+                const targetInputId = imgPreviewId.replace('preview-', '');
+                document.getElementById(targetInputId).focus();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Gestionnaire des photos de pannes jointes au rapport final
+        document.getElementById('photo').addEventListener('change', function(e) {
+            previewContainer.innerHTML = '';
+            currentPhotos = [];
+            const files = e.target.files;
+            
+            for(let file of files) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = document.createElement('img');
+                    img.src = event.target.result;
+                    img.classList.add('photo-preview');
+                    previewContainer.appendChild(img);
+                    currentPhotos.push(event.target.result);
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Bouton d'ajout d'une ligne
+        document.getElementById('addBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            try {
+                const entry = {
+                    type: document.getElementById('printerType').value,
+                    option: document.getElementById('option').value,
+                    serial: document.getElementById('serial').value,
+                    cellules: document.getElementById('cellules').value,
+                    etatDot: document.getElementById('etatDot').value,
+                    roller: document.getElementById('roller').value,
+                    impression: document.getElementById('impression').value,
+                    general: document.getElementById('etatGeneral').value,
+                    remarque: document.getElementById('remarque').value,
+                    // On fusionne les photos de pannes et les photos des étiquettes pour ne rien perdre dans le Word
+                    photos: [...currentPhotos]
+                };
+                
+                if(currentPrinterTypeImg) entry.photos.push(currentPrinterTypeImg);
+                if(currentSerialImg) entry.photos.push(currentSerialImg);
+
+                reportData.push(entry);
+                updateTable();
+                
+                // Réinitialisation du formulaire machine et masquage des aperçus d'étiquettes
+                document.getElementById('printerType').value = '';
+                document.getElementById('option').value = '';
+                document.getElementById('serial').value = '';
+                document.getElementById('cellules').value = '';
+                document.getElementById('etatDot').value = '';
+                document.getElementById('roller').value = '';
+                document.getElementById('impression').value = '';
+                document.getElementById('etatGeneral').value = '';
+                document.getElementById('remarque').value = '';
+                document.getElementById('photo').value = '';
+                
+                document.getElementById('container-preview-printerType').style.display = 'none';
+                document.getElementById('container-preview-serial').style.display = 'none';
+                
+                previewContainer.innerHTML = '';
+                currentPhotos = [];
+                currentPrinterTypeImg = "";
+                currentSerialImg = "";
+
+            } catch (error) {
+                alert("Erreur lors de l'ajout : " + error.message);
+            }
+        });
+
+        function updateTable() {
+            const tbody = document.querySelector('#summaryTable tbody');
+            tbody.innerHTML = '';
+            document.getElementById('count').innerText = reportData.length;
+
+            reportData.forEach(data => {
+                const photoIcon = (data.photos && data.photos.length > 0) ? `${data.photos.length} 📸` : '';
+                const row = `<tr>
+                    <td>${data.type || ''}</td>
+                    <td>${data.option || ''}</td>
+                    <td>${data.serial || ''}</td>
+                    <td>${data.cellules || ''}</td>
+                    <td>${data.etatDot || ''}</td>
+                    <td>${data.roller || ''}</td>
+                    <td>${data.impression || ''}</td>
+                    <td>${data.general || ''}</td>
+                    <td>${data.remarque || ''}</td>
+                    <td>${photoIcon}</td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+
+        // Export Word (.doc)
+        document.getElementById('exportBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            if(reportData.length === 0) return alert('Aucune donnée à exporter');
+
+            const site = document.getElementById('headerSite').value || 'N/A';
+            const zone = document.getElementById('headerZone').value || 'N/A';
+            const intervenant = document.getElementById('headerIntervenant').value || 'N/A';
+            const dateVisite = document.getElementById('headerDate').value || 'N/A';
+
+            let wordHtml = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <meta charset="utf-8">
+                <title>Rapport de Maintenance</title>
+                <style>
+                    body { font-family: Arial, sans-serif; font-size: 11pt; color: #333333; }
+                    h1 { color: #1a1a1a; font-size: 18pt; border-bottom: 2px solid #c5a059; padding-bottom: 5px; }
+                    h2 { color: #1a1a1a; font-size: 14pt; margin-top: 20px; }
+                    .meta-table { width: 100%; margin-bottom: 25px; }
+                    .meta-table td { padding: 5px; font-size: 11pt; }
+                    .meta-label { font-weight: bold; width: 150px; color: #555; }
+                    .main-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                    .main-table th { background-color: #f2f2f2; border: 1px solid #cccccc; padding: 8px; font-size: 10pt; font-weight: bold; text-align: left; }
+                    .main-table td { border: 1px solid #cccccc; padding: 8px; font-size: 10pt; vertical-align: top; }
+                    .photo-gallery { margin-top: 15px; }
+                    .photo-title { font-weight: bold; margin-top: 12px; color: #c5a059; font-size: 10pt; }
+                    .word-img { max-width: 280px; height: auto; margin-right: 10px; margin-top: 5px; border: 1px solid #ddd; }
+                </style>
+            </head>
+            <body>
+                <h1>Rapport Visite de Maintenance Préventive</h1>
+                <table class="meta-table">
+                    <tr><td class="meta-label">Site :</td><td>${site}</td></tr>
+                    <tr><td class="meta-label">Zone :</td><td>${zone}</td></tr>
+                    <tr><td class="meta-label">Intervenant(s) :</td><td>${intervenant}</td></tr>
+                    <tr><td class="meta-label">Date de visite :</td><td>${dateVisite}</td></tr>
+                </table>
+
+                <h2>Tableau des Révisions Machines</h2>
+                <table class="main-table">
+                    <thead>
+                        <tr>
+                            <th>Machine Type & ID</th>
+                            <th>Option</th>
+                            <th>S/N</th>
+                            <th>Cellules</th>
+                            <th>Etat dot</th>
+                            <th>Pressing roller</th>
+                            <th>Impression</th>
+                            <th>Etat Général</th>
+                            <th>Remarque</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            let photoSectionsHtml = "<h2>Photos Jointes au Rapport (Pannes & Étiquettes)</h2><div class='photo-gallery'>";
+            let hasPhotos = false;
+
+            reportData.forEach(r => {
+                wordHtml += `
+                    <tr>
+                        <td>${r.type || ''}</td>
+                        <td>${r.option || ''}</td>
+                        <td>${r.serial || ''}</td>
+                        <td>${r.cellules || ''}</td>
+                        <td>${r.etatDot || ''}</td>
+                        <td>${r.roller || ''}</td>
+                        <td>${r.impression || ''}</td>
+                        <td>${r.general || ''}</td>
+                        <td>${r.remarque || ''}</td>
+                    </tr>
+                `;
+
+                if (r.photos && r.photos.length > 0) {
+                    hasPhotos = true;
+                    photoSectionsHtml += `<div class="photo-title">📸 Pièces jointes pour : ${r.type || 'Machine Spécifique'} (S/N: ${r.serial || 'N/A'})</div>`;
+                    r.photos.forEach(imgBase64 => {
+                        photoSectionsHtml += `<img class="word-img" src="${imgBase64}" />`;
+                    });
+                }
+            });
+
+            wordHtml += "</tbody></table>";
+
+            if (hasPhotos) {
+                photoSectionsHtml += "</div>";
+                wordHtml += "<br><br>" + photoSectionsHtml;
+            }
+
+            wordHtml += "</body></html>";
+
+            const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            
+            const filename = `Rapport_Maintenance_${site.replace(/[^a-z0-9]/gi, '_')}.doc`;
+            link.setAttribute("download", filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    </script>
+</body>
+</html>
