@@ -243,13 +243,13 @@
             
             <div class="form-group">
                 <label for="printerZone">Zone / Secteur (Facultatif)</label>
-                <input type="text" id="printerZone" placeholder="Ex: LOGISTIQUE 1, SECTEUR BOL, PRODUCTION...">
+                <input type="text" id="printerZone" placeholder="Ex: LOGISTIQUE 1, SECTEUR BOL...">
             </div>
 
             <div class="form-group">
                 <label for="printerType">Imprimante (Modèle)</label>
                 <div class="input-scan-group">
-                    <input type="text" id="printerType" placeholder="Ex: ZT420, ZT411...">
+                    <input type="text" id="printerType" placeholder="Ex: ZT420, ZT231...">
                     <button type="button" class="btn-scan" onclick="startScanner('printerType')">📷 Scan</button>
                 </div>
             </div>
@@ -262,7 +262,7 @@
             <div class="form-group">
                 <label for="serial">S/N (Numéro de série)</label>
                 <div class="input-scan-group">
-                    <input type="text" id="serial" placeholder="Flasher le S/N...">
+                    <input type="text" id="serial" placeholder="Flasher le S/N ou le QR...">
                     <button type="button" class="btn-scan" onclick="startScanner('serial')">📷 Scan</button>
                 </div>
             </div>
@@ -373,30 +373,63 @@
             document.getElementById('headerDate').value = today;
         });
 
-        // Fonction d'analyse et filtrage intelligent des codes-barres pour trier S/N et Part Number
-        function cleanBarcodeData(rawValue, targetField) {
-            let value = rawValue.trim();
-            
-            // Si on cherche le numéro de série (S/N)
-            if (targetField === 'serial') {
-                // Si le code lu commence par un préfixe connu de pièce détachée, on l'isole ou on l'ignore au profit du vrai S/N
-                if (value.startsWith("PF4I") || value.startsWith("ZT23") || value.includes("-T1E")) {
-                    // C'est un Part Number / Item No, pas le S/N. On demande un ajustement subtil visuel
-                    return null; 
+        // PARSEUR ET EXTRACTEUR ULTRA-INTELLIGENT POUR MAC-ADRESS/DATA-MATRIX/QR ZEBRA & HONEYWELL
+        function processScannedBarcode(rawValue) {
+            let cleanStr = rawValue.trim();
+
+            // Si c'est un QR Code / DataMatrix de type Macro industriel (Zebra / Intermec)
+            if (cleanStr.includes("[)>") || cleanStr.startsWith("05") || cleanStr.includes("06") || cleanStr.includes("3056T")) {
+                
+                let detectedSN = "";
+                let detectedModel = "Zebra Machine";
+
+                // Extraction du S/N (Souvent précédé de 'S' ou '2S' ou 'T' dans la chaîne industrielle)
+                // Recherche d'un pattern type S/N Zebra (Ex: T3J231701883 ou 18J...) ou Honeywell (3070...)
+                const snRegexes = [
+                    /[0-9]{2}[Jj][0-9]{9}/,          // Format classique Zebra 18J152104710
+                    /[A-Za-z][0-9][A-Za-z][0-9]{8}/, // Format Zebra moderne T3J231701883
+                    /307009[0-9]{5}/                 // Format Honeywell/Intermec de votre photo
+                ];
+
+                for (let regex of snRegexes) {
+                    let match = cleanStr.match(regex);
+                    if (match) {
+                        detectedSN = match[0];
+                        break;
+                    }
                 }
-                // Nettoyage si le lecteur embarque des caractères parasites de contrôle
-                value = value.replace(/^(S|s|S\/N|s\/n)\s*:/, "");
-                return value;
-            }
-            
-            // Si on cherche le Modèle / Type
-            if (targetField === 'printerType') {
-                if (value.startsWith("ZT23")) return "ZT230/ZT231";
-                if (value.startsWith("PF4I")) return "Intermec PF4i";
-                return value;
+
+                // Auto-détection intelligente du Modèle basé sur la chaîne brute
+                if (cleanStr.toUpperCase().includes("ZT231")) detectedModel = "ZT231";
+                else if (cleanStr.toUpperCase().includes("ZT420")) detectedModel = "ZT420";
+                else if (cleanStr.toUpperCase().includes("ZT421")) detectedModel = "ZT421";
+                else if (cleanStr.toUpperCase().includes("ZT411")) detectedModel = "ZT411";
+                else if (cleanStr.toUpperCase().includes("PF4I")) detectedModel = "Intermec PF4i";
+                else if (detectedSN.startsWith("T3J") || detectedSN.startsWith("99J")) detectedModel = "ZT231 / ZT421";
+                else if (detectedSN.startsWith("18J")) detectedModel = "ZT420";
+
+                // Si on a trouvé le S/N, on peuple directement les deux champs à la fois !
+                if (detectedSN) {
+                    document.getElementById('serial').value = detectedSN;
+                    if (!document.getElementById('printerType').value) {
+                        document.getElementById('printerType').value = detectedModel;
+                    }
+                    return true;
+                }
             }
 
-            return value;
+            // Si c'est un code-barres 1D classique mais mal orienté
+            if (cleanStr.startsWith("S:") || cleanStr.startsWith("s:")) {
+                cleanStr = cleanStr.substring(2).trim();
+            }
+
+            // Remplissage standard selon le bouton cliqué si ce n'était pas le QR global
+            if (activeTargetId) {
+                document.getElementById(activeTargetId).value = cleanStr;
+                return true;
+            }
+
+            return false;
         }
 
         async function startScanner(targetId) {
@@ -417,13 +450,9 @@
                     scanInterval = setInterval(async () => {
                         try {
                             const barcodes = await detector.detect(video);
-                            if (barcodes.length > 0 && activeTargetId) {
-                                const detectedValue = barcodes[0].rawValue;
-                                const filteredValue = cleanBarcodeData(detectedValue, activeTargetId);
-                                
-                                // On n'applique la valeur que si elle correspond au type de champ attendu
-                                if (filteredValue !== null) {
-                                    document.getElementById(activeTargetId).value = filteredValue;
+                            if (barcodes.length > 0) {
+                                const isProcessed = processScannedBarcode(barcodes[0].rawValue);
+                                if (isProcessed) {
                                     if (navigator.vibrate) navigator.vibrate(80);
                                     stopScanner();
                                 }
@@ -433,7 +462,7 @@
                         }
                     }, 150);
                 } else {
-                    alert("Moteur de scan indisponible. Essayez de mettre à jour Chrome Mobile.");
+                    alert("Moteur de scan indisponible.");
                 }
 
             } catch (err) {
@@ -473,9 +502,7 @@
 
             const zones = [];
             reportData.forEach(item => {
-                if (!zones.includes(item.zone)) {
-                    zones.push(item.zone);
-                }
+                if (!zones.includes(item.zone)) zones.push(item.zone);
             });
 
             zones.forEach(zoneName => {
@@ -568,11 +595,9 @@
 
             zones.forEach(zoneName => {
                 const zoneData = reportData.filter(item => item.zone === zoneName);
-                
                 if (zoneName !== "") {
                     wordHtml += `<tr><td colspan="9" class="zone-title-td">${zoneName.toUpperCase()}</td></tr>`;
                 }
-
                 zoneData.forEach(r => {
                     wordHtml += `<tr><td><b>${r.imprimante}</b></td><td>${r.serial}</td><td>${r.ip}</td><td>${r.cellules}</td><td>${r.etatDot}</td><td>${r.roller}</td><td>${r.impression}</td><td>${r.general}</td><td>${r.remarque}</td></tr>`;
                     if(r.photos.length > 0) {
