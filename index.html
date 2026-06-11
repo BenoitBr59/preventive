@@ -130,7 +130,6 @@
             padding: 10px;
         }
 
-        /* Style imposé pour le lecteur universel */
         #reader {
             width: 100%;
             background: #000;
@@ -375,18 +374,21 @@
             document.getElementById('headerDate').value = today;
         });
 
-        // PARSEUR ET EXTRACTEUR PAR PREFIXES CONSTRUCTEURS
+        // PARSEUR ET EXTRACTEUR INTELLIGENT DE CODES
         function processScannedBarcode(rawValue) {
             let cleanStr = rawValue.trim();
+            const upperStr = cleanStr.toUpperCase();
 
-            if (cleanStr.includes("[)>") || cleanStr.startsWith("05") || cleanStr.includes("06") || cleanStr.includes("3056T")) {
+            // CAS 1 : Chaîne globale complexe industrielle (QR Code ou DataMatrix de la plaque constructeur)
+            if (cleanStr.includes("[)>") || cleanStr.startsWith("05") || cleanStr.includes("06") || cleanStr.includes("3056T") || cleanStr.includes("T3J") || cleanStr.includes("PF4I")) {
                 let detectedSN = "";
                 let detectedModel = "Zebra Machine";
 
+                // Extraction précise du Numéro de Série par Expressions Régulières adaptées à votre matériel
                 const snRegexes = [
-                    /[0-9]{2}[Jj][0-9]{9}/,          
-                    /[A-Za-z][0-9][A-Za-z][0-9]{8}/, 
-                    /307009[0-9]{5}/                 
+                    /[0-9]{2}[Jj][0-9]{9}/,          // ex: 18J152104710
+                    /[A-Za-z][0-9][A-Za-z][0-9]{8}/, // ex: T3J231701883
+                    /307009[0-9]{5}/                 // ex: 30700900007 (Intermec)
                 ];
 
                 for (let regex of snRegexes) {
@@ -397,19 +399,14 @@
                     }
                 }
 
-                const upperStr = cleanStr.toUpperCase();
-                if (upperStr.includes("ZT231")) detectedModel = "ZT231";
+                // Détermination du modèle via le code produit ou les racines de numéros de série
+                if (upperStr.includes("ZT231") || upperStr.includes("T3J")) detectedModel = "ZT231";
                 else if (upperStr.includes("ZT411")) detectedModel = "ZT411";
-                else if (upperStr.includes("ZT421")) detectedModel = "ZT421";
-                else if (upperStr.includes("ZT420")) detectedModel = "ZT420";
-                else if (upperStr.includes("PF4I")) detectedModel = "Intermec PF4i";
-                else if (detectedSN) {
-                    if (detectedSN.startsWith("T3J")) detectedModel = "ZT231";
-                    else if (detectedSN.startsWith("99J")) detectedModel = "ZT421";
-                    else if (detectedSN.startsWith("18J")) detectedModel = "ZT420";
-                    else if (detectedSN.startsWith("307")) detectedModel = "Intermec PF4i";
-                }
+                else if (upperStr.includes("ZT421") || upperStr.includes("99J")) detectedModel = "ZT421";
+                else if (upperStr.includes("ZT420") || upperStr.includes("18J")) detectedModel = "ZT420";
+                else if (upperStr.includes("PF4I") || upperStr.includes("307009")) detectedModel = "Intermec PF4i";
 
+                // Si on a réussi à isoler les éléments, on remplit tout d'un coup de manière couplée
                 if (detectedSN) {
                     document.getElementById('serial').value = detectedSN;
                     document.getElementById('printerType').value = detectedModel;
@@ -417,18 +414,21 @@
                 }
             }
 
+            // CAS 2 : Code-barres simple 1D ou texte isolé nettoyé (Boutons individuels)
             if (cleanStr.startsWith("S:") || cleanStr.startsWith("s:")) {
                 cleanStr = cleanStr.substring(2).trim();
+            }
+            if (cleanStr.startsWith("Serial # ")) {
+                cleanStr = cleanStr.replace("Serial # ", "").trim();
             }
 
             if (activeTargetId) {
                 if (activeTargetId === 'printerType') {
-                    const checkUpper = cleanStr.toUpperCase();
-                    if (checkUpper.startsWith("ZT231")) cleanStr = "ZT231";
-                    else if (checkUpper.startsWith("ZT411")) cleanStr = "ZT411";
-                    else if (checkUpper.startsWith("ZT421")) cleanStr = "ZT421";
-                    else if (checkUpper.startsWith("ZT420")) cleanStr = "ZT420";
-                    else if (checkUpper.startsWith("PF4I")) cleanStr = "Intermec PF4i";
+                    if (upperStr.startsWith("ZT231") || upperStr.startsWith("T3J")) cleanStr = "ZT231";
+                    else if (upperStr.startsWith("ZT411")) cleanStr = "ZT411";
+                    else if (upperStr.startsWith("ZT421") || upperStr.startsWith("99J")) cleanStr = "ZT421";
+                    else if (upperStr.startsWith("ZT420") || upperStr.startsWith("18J")) cleanStr = "ZT420";
+                    else if (upperStr.startsWith("PF4I") || upperStr.startsWith("307")) cleanStr = "Intermec PF4i";
                 }
                 document.getElementById(activeTargetId).value = cleanStr;
                 return true;
@@ -441,20 +441,27 @@
             activeTargetId = targetId;
             document.getElementById('scanner-zone').style.display = 'block';
 
-            // Initialisation du scanner autonome sur la zone "reader"
             html5QrcodeScanner = new Html5Qrcode("reader");
             
-            // Configuration forcée sur la caméra arrière (environment) avec lecture QR + Codes-barres
+            // Configuration complète : formats de détection ouverts aux QR ET aux codes barres 1D standard (Zebra/Intermec)
             html5QrcodeScanner.start(
                 { facingMode: "environment" }, 
                 {
-                    fps: 15,
+                    fps: 20, // Plus rapide pour accrocher les lignes des codes-barres
                     qrbox: function(viewfinderWidth, viewfinderHeight) {
-                        return { width: viewfinderWidth * 0.75, height: viewfinderHeight * 0.5 };
-                    }
+                        return { width: viewfinderWidth * 0.85, height: viewfinderHeight * 0.6 };
+                    },
+                    // Activation explicite des formats industriels 1D et 2D
+                    formatsToSupport: [ 
+                        Html5QrcodeSupportedFormats.QR_CODE,
+                        Html5QrcodeSupportedFormats.DATA_MATRIX,
+                        Html5QrcodeSupportedFormats.CODE_128,
+                        Html5QrcodeSupportedFormats.CODE_39,
+                        Html5QrcodeSupportedFormats.EAN_8,
+                        Html5QrcodeSupportedFormats.EAN_13
+                    ]
                 },
                 (decodedText) => {
-                    // Quand un code est capturé
                     const success = processScannedBarcode(decodedText);
                     if (success) {
                         if (navigator.vibrate) navigator.vibrate(80);
@@ -462,10 +469,10 @@
                     }
                 },
                 (errorMessage) => {
-                    // Erreurs de recherche passives (ignorées pour éviter les alertes en continu)
+                    // Recherche passive continue
                 }
             ).catch((err) => {
-                alert("Erreur d'accès à l'appareil photo. Assurez-vous d'avoir autorisé la caméra ou rechargez la page.");
+                alert("Erreur d'accès à la caméra. Vérifiez vos autorisations système.");
                 document.getElementById('scanner-zone').style.display = 'none';
             });
         }
@@ -476,7 +483,6 @@
                     document.getElementById('scanner-zone').style.display = 'none';
                     html5QrcodeScanner = null;
                 }).catch((err) => {
-                    console.error("Erreur à l'arrêt : ", err);
                     document.getElementById('scanner-zone').style.display = 'none';
                     html5QrcodeScanner = null;
                 });
