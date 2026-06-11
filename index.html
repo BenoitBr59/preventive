@@ -340,7 +340,7 @@
 
             <div class="form-group">
                 <label for="remarque">Remarques / Actions à mener</label>
-                <textarea id="remarque" rows="2" placeholder="Saisir les remarques... Commencer par 'Tête à changer' ou 'Prévoir' pour mettre en évidence."></textarea>
+                <textarea id="remarque" rows="2" placeholder="Saisir les remarques..."></textarea>
             </div>
 
             <div class="form-group">
@@ -360,8 +360,7 @@
                 <thead>
                     <tr>
                         <th>Imprimante Type & ID</th>
-                        <th>S/N</th>
-                        <th>@ IP</th>
+                        <th>S/N <br> @ IP</th>
                         <th>Cellules</th>
                         <th>Etat dot</th>
                         <th>Pressing Roller</th>
@@ -391,30 +390,37 @@
             document.getElementById('headerIntervenant').value = "Pascal CARTON & Benoit BRACKMAN";
         });
 
-        // RESTRUCTURATION DU NETTOYAGE DES S/N USINE CONSTATÉS SUR VOS CAPTURES
+        // FILTRAGE ET STABILISATION AVANCÉE DES CODES BARRES REBELLES
         function processScannedBarcode(rawValue) {
             let cleanStr = rawValue.trim();
 
-            // Extraction intelligente si présence du préfixe GS1/Factory étendu complet ([)>05800...)
+            // 1. Détection des blocs GS1 d'usine complexes ([)>05...)
             if (cleanStr.startsWith("[)>") || cleanStr.includes("05800") || cleanStr.includes("3056T")) {
-                // Recherche d'un motif de S/N Zebra classique (ex: T3J, 18J, 99J, 52J) ou Intermec (307)
-                const patterns = /(T3J\d+|18J\d+|99J\d+|52J\d+|307\d+)/i;
+                // Extraction chirurgicale des formats S/N Zebra & Intermec courants
+                const patterns = /(T3J\d{9,12}|18J\d{9,12}|99J\d{9,12}|52J\d{9,12}|307\d{8,11})/i;
                 const match = cleanStr.match(patterns);
                 if (match) {
                     cleanStr = match[1].toUpperCase();
                 } else {
-                    // Nettoyage générique de secours
+                    // Nettoyage de secours basé sur le délimiteur usine standard
                     cleanStr = cleanStr.replace(/^.*?3056T/i, '');
                     cleanStr = cleanStr.replace(/[^a-zA-Z0-9]/g, '');
                 }
             }
 
-            // Nettoyages des préfixes standards 1D
-            if (cleanStr.startsWith("S:") || cleanStr.startsWith("s:")) {
-                cleanStr = cleanStr.substring(2).trim();
+            // 2. Nettoyage générique des préfixes de données 1D (S:, P:, 1P, Q, etc.)
+            cleanStr = cleanStr.replace(/^(S:|s:|P:|p:|1P|1p|Q|K)/, '').trim();
+            if (cleanStr.toUpperCase().startsWith("SERIAL #")) {
+                cleanStr = cleanStr.replace(/SERIAL #\s*/i, "").trim();
             }
-            if (cleanStr.startsWith("Serial # ")) {
-                cleanStr = cleanStr.replace("Serial # ", "").trim();
+
+            // 3. Validation de structure pour éviter d'injecter des données corrompues ou partielles
+            // Accepte les structures S/N Zebra (commençant par T3J, 18J, 99J, 52J, etc.) et Intermec (commençant par 3)
+            const isValidSerialNumber = /^(T3J|18J|99J|52J|307|110|410|\d{4})\w+/i.test(cleanStr);
+
+            // Si on scanne le S/N mais que le code intercepté n'est pas cohérent, on demande confirmation passive ou on laisse passer si manuel
+            if (activeTargetId === 'serial' && !isValidSerialNumber && rawValue.length < 5) {
+                return false; // Rejette la capture instable du flux vidéo continu
             }
 
             if (activeTargetId) {
@@ -440,23 +446,19 @@
         function startScanner(targetId) {
             activeTargetId = targetId;
             document.getElementById('scanner-zone').style.display = 'block';
-            
             html5QrcodeScanner = new Html5Qrcode("reader");
             
             const config = {
-                fps: 25,
+                fps: 30, // Augmenté pour une meilleure accroche et stabilité
                 videoConstraints: {
                     facingMode: "environment",
                     width: { ideal: 1280 },
                     height: { ideal: 720 }
                 },
                 qrbox: function(viewfinderWidth, viewfinderHeight) {
-                    return { width: Math.floor(viewfinderWidth * 0.90), height: Math.floor(viewfinderHeight * 0.20) };
+                    return { width: Math.floor(viewfinderWidth * 0.90), height: Math.floor(viewfinderHeight * 0.22) };
                 },
-                formatsToSupport: [ 
-                    Html5QrcodeSupportedFormats.CODE_128,
-                    Html5QrcodeSupportedFormats.CODE_39
-                ]
+                formatsToSupport: [Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39]
             };
 
             html5QrcodeScanner.start(
@@ -509,7 +511,7 @@
         }
 
         function proposerSaisieAlternative() {
-            const promptDernierSecours = prompt("Code superposé difficile à isoler automatiquement.\nSaisissez manuellement la valeur de l'étiquette :");
+            const promptDernierSecours = prompt("Code superposé ou abîmé.\nSaisissez ou modifiez la valeur de l'étiquette ici :");
             if (promptDernierSecours && promptDernierSecours.trim() !== "") {
                 processScannedBarcode(promptDernierSecours);
                 stopScanner();
@@ -574,22 +576,21 @@
                 const displayName = zoneName === "" ? "SANS ZONE" : zoneName.toUpperCase();
                 
                 tbody.innerHTML += `<tr>
-                    <td colspan="10" class="zone-header-row">${displayName}</td>
+                    <td colspan="9" class="zone-header-row">${displayName}</td>
                 </tr>`;
 
                 zoneData.forEach(data => {
                     const photoIcon = (data.photos && data.photos.length > 0) ? `${data.photos.length} 📸` : '';
                     tbody.innerHTML += `<tr>
                         <td><b>${data.imprimante}</b></td>
-                        <td>${data.serial}</td>
-                        <td>${data.ip}</td>
-                        <td>${data.cellules}</td>
-                        <td>${data.etatDot}</td>
-                        <td>${data.roller}</td>
-                        <td>${data.impression}</td>
-                        <td>${data.general}</td>
+                        <td style="text-align:center;"><b>${data.serial}</b><br><span style="color:#555; font-size:0.8rem;">${data.ip}</span></td>
+                        <td style="text-align:center;">${data.cellules}</td>
+                        <td style="text-align:center;">${data.etatDot}</td>
+                        <td style="text-align:center;">${data.roller}</td>
+                        <td style="text-align:center;">${data.impression}</td>
+                        <td style="text-align:center;">${data.general}</td>
                         <td>${formatRemarqueHTML(data.remarque)}</td>
-                        <td>${photoIcon}</td>
+                        <td style="text-align:center;">${photoIcon}</td>
                     </tr>`;
                 });
             });
@@ -638,7 +639,7 @@
             currentPhotos = [];
         });
 
-        // RESTAURATION STRICTE ET CONFORME DE L'EXPORTATION DE VOTRE RAPPORT WORD
+        // GENERATION WORD ROBUSTE ET PARFAITEMENT CENTRÉE
         document.getElementById('exportBtn').addEventListener('click', function(e) {
             e.preventDefault();
             if(reportData.length === 0) return alert('Aucune donnée à exporter');
@@ -655,10 +656,15 @@
                 .title-doc { font-size: 18pt; font-weight: bold; color: #1a1a1a; margin-bottom: 2px; }
                 .subtitle-doc { font-size: 14pt; font-weight: bold; color: #c5a059; margin-top: 0; margin-bottom: 15px; }
                 .meta-box { font-size: 11pt; margin-bottom: 25px; line-height: 1.5; }
-                .main-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; }
-                .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 6px 8px; font-size: 10pt; font-weight: bold; text-align: left; }
-                .main-table td { border: 1px solid #cccccc; padding: 6px 8px; font-size: 9.5pt; vertical-align: top; }
-                .zone-title-td { background-color: #dfd5c2; font-weight: bold; font-size: 11pt; color: #1a1a1a; padding: 7px 8px; border: 1px solid #555555; text-transform: uppercase; }
+                
+                .main-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; table-layout: fixed; }
+                .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 6px 4px; font-size: 9.5pt; font-weight: bold; text-align: center; }
+                
+                .main-table td { border: 1px solid #cccccc; padding: 6px 4px; font-size: 9pt; vertical-align: middle; }
+                .cell-left { text-align: left; }
+                .cell-center { text-align: center; }
+                
+                .zone-title-td { background-color: #dfd5c2; font-weight: bold; font-size: 10.5pt; color: #1a1a1a; padding: 7px 8px; border: 1px solid #555555; text-transform: uppercase; text-align: left; }
                 .action-required { font-weight: bold; color: #b30000; }
                 .conseils-box { background: #fafafa; border-left: 4px solid #c5a059; padding: 10px; margin-top: 30px; font-size: 10pt; }
                 .word-img { max-width: 450px; height: auto; margin: 10px 0; border: 1px solid #777777; }
@@ -676,15 +682,14 @@
             <table class="main-table">
                 <thead>
                     <tr>
-                        <th>Imprimante</th>
-                        <th>S/N</th>
-                        <th>@ IP</th>
-                        <th>Cellules</th>
-                        <th>Etat dot</th>
-                        <th>Pressing Roller</th>
-                        <th>Impression</th>
-                        <th>Etat Général</th>
-                        <th>Remarques</th>
+                        <th style="width: 19%;">Imprimante</th>
+                        <th style="width: 16%;">S/N<br>@ IP</th>
+                        <th style="width: 8%;">Cellules</th>
+                        <th style="width: 11%;">Etat dot</th>
+                        <th style="width: 10%;">Pressing Roller</th>
+                        <th style="width: 9%;">Impression</th>
+                        <th style="width: 8%;">Etat Gén.</th>
+                        <th style="width: 19%;">Remarques</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -692,7 +697,6 @@
             let photosHtml = `<div class="annexe-title">Annexes : Suivi visuel & Défauts constatés</div>`;
             let hasPhotos = false;
 
-            // Tri et regroupement par Zone/Secteur pour l'export Word
             const zones = [];
             reportData.forEach(item => {
                 if (!zones.includes(item.zone)) zones.push(item.zone);
@@ -702,7 +706,7 @@
                 const zoneData = reportData.filter(item => item.zone === zoneName);
                 const displayName = zoneName === "" ? "SANS SECTEUR" : zoneName.toUpperCase();
                 
-                wordHtml += `<tr><td colspan="9" class="zone-title-td">${displayName}</td></tr>`;
+                wordHtml += `<tr><td colspan="8" class="zone-title-td">${displayName}</td></tr>`;
                 
                 zoneData.forEach(r => {
                     let formattedRemarque = r.remarque;
@@ -713,15 +717,14 @@
                     }
 
                     wordHtml += `<tr>
-                        <td><b>${r.imprimante}</b></td>
-                        <td>${r.serial}</td>
-                        <td>${r.ip}</td>
-                        <td>${r.cellules}</td>
-                        <td>${r.etatDot}</td>
-                        <td>${r.roller}</td>
-                        <td>${r.impression}</td>
-                        <td>${r.general}</td>
-                        <td>${formattedRemarque}</td>
+                        <td class="cell-left"><b>${r.imprimante}</b></td>
+                        <td class="cell-center"><b>${r.serial}</b><br><span style="color:#444; font-size:8pt;">${r.ip}</span></td>
+                        <td class="cell-center">${r.cellules}</td>
+                        <td class="cell-center">${r.etatDot}</td>
+                        <td class="cell-center">${r.roller}</td>
+                        <td class="cell-center">${r.impression}</td>
+                        <td class="cell-center">${r.general}</td>
+                        <td class="cell-left">${formattedRemarque}</td>
                     </tr>`;
 
                     if(r.photos && r.photos.length > 0) {
@@ -734,7 +737,6 @@
 
             wordHtml += `</tbody></table>`;
             
-            // Réintégration du bloc officiel de recommandations de fin de page
             wordHtml += `<div class="conseils-box">
                 <p><b>Remarque :</b> Le texte en couleur ou mis en évidence dans la colonne Remarques est porté à votre attention pour action.</p>
                 <ul>
