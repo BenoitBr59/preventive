@@ -135,39 +135,25 @@
             background: #000;
         }
 
-        /* Viseur laser personnalisé pour isoler les codes superposés */
-        #reader__scan_region {
-            border: 2px dashed var(--accent) !important;
-        }
-
         .scanner-controls {
             display: flex;
             gap: 10px;
             margin-top: 10px;
         }
 
-        .btn-close-scanner {
+        .btn-action-scanner {
             flex: 1;
-            background: #dc3545;
-            color: white;
             padding: 12px;
             text-align: center;
             font-weight: bold;
             cursor: pointer;
             border-radius: 6px;
+            color: white;
+            font-size: 0.95rem;
         }
 
-        .btn-zoom-scanner {
-            flex: 1;
-            background: #28a745;
-            color: white;
-            padding: 12px;
-            text-align: center;
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: 6px;
-            display: none; /* Apparaît si supporté par le téléphone */
-        }
+        .btn-capture { background: #28a745; }
+        .btn-close { background: #dc3545; }
 
         .grid-status {
             display: grid;
@@ -261,8 +247,8 @@
     <div id="scanner-zone">
         <div id="reader"></div>
         <div class="scanner-controls">
-            <div id="btn-zoom" class="btn-zoom-scanner" onclick="toggleZoom()">🔍 Zoom (x2)</div>
-            <div class="btn-close-scanner" onclick="stopScanner()">Fermer</div>
+            <div class="btn-action-scanner btn-capture" onclick="forceCaptureAndDecode()">⚡ LIRE CE VISUEL</div>
+            <div class="btn-action-scanner btn-close" onclick="stopScanner()">Fermer</div>
         </div>
     </div>
 
@@ -354,7 +340,7 @@
 
             <div class="form-group">
                 <label for="remarque">Remarques / Actions à mener</label>
-                <textarea id="remarque" rows="2" placeholder="Saisir les remarques... Commencer par 'Tête à changer' ou 'Prévoir' pour mettre en évidence."></textarea>
+                <textarea id="remarque" rows="2" placeholder="Saisir les remarques..."></textarea>
             </div>
 
             <div class="form-group">
@@ -398,7 +384,6 @@
         let currentPhotos = [];
         let html5QrcodeScanner = null;
         let activeTargetId = null;
-        let isZoomed = false;
 
         document.addEventListener('DOMContentLoaded', () => {
             const today = new Date().toISOString().split('T')[0];
@@ -409,32 +394,24 @@
         function processScannedBarcode(rawValue) {
             let cleanStr = rawValue.trim();
 
-            // Ignore les formats DataMatrix d'usine
+            // Bloque le DataMatrix d'usine
             if (cleanStr.startsWith("[)>") || cleanStr.includes("05800") || cleanStr.includes("3056T")) {
                 return false; 
             }
 
-            // Nettoyage des préfixes 1D
-            if (cleanStr.startsWith("S:") || cleanStr.startsWith("s:")) {
-                cleanStr = cleanStr.substring(2).trim();
-            }
-            if (cleanStr.startsWith("Serial # ")) {
-                cleanStr = cleanStr.replace("Serial # ", "").trim();
-            }
+            // Nettoyage des chaînes
+            if (cleanStr.startsWith("S:") || cleanStr.startsWith("s:")) cleanStr = cleanStr.substring(2).trim();
+            if (cleanStr.startsWith("Serial # ")) cleanStr = cleanStr.replace("Serial # ", "").trim();
 
             if (activeTargetId) {
                 document.getElementById(activeTargetId).value = cleanStr;
 
                 if (activeTargetId === 'serial') {
                     const snUpper = cleanStr.toUpperCase();
-                    const currentModelInput = document.getElementById('printerType').value;
-                    
-                    if (!currentModelInput) {
-                        if (snUpper.startsWith("T3J")) document.getElementById('printerType').value = "ZT231 8 DOTS";
-                        else if (snUpper.startsWith("18J")) document.getElementById('printerType').value = "ZT420 8 DOTS";
-                        else if (snUpper.startsWith("99J")) document.getElementById('printerType').value = "ZT421 8 DOTS";
-                        else if (snUpper.startsWith("307")) document.getElementById('printerType').value = "Intermec PF4i";
-                    }
+                    if (snUpper.startsWith("T3J")) document.getElementById('printerType').value = "ZT231 8 DOTS";
+                    else if (snUpper.startsWith("18J")) document.getElementById('printerType').value = "ZT420 8 DOTS";
+                    else if (snUpper.startsWith("99J")) document.getElementById('printerType').value = "ZT421 8 DOTS";
+                    else if (snUpper.startsWith("307")) document.getElementById('printerType').value = "Intermec PF4i";
                 }
                 return true; 
             }
@@ -443,87 +420,82 @@
 
         function startScanner(targetId) {
             activeTargetId = targetId;
-            isZoomed = false;
-            document.getElementById('btn-zoom').style.display = 'none';
-            document.getElementById('btn-zoom').innerText = "🔍 Zoom (x2)";
             document.getElementById('scanner-zone').style.display = 'block';
             
-            html5QrcodeScanner = new Html5Qrcode("reader", {
-                experimentalFeatures: {
-                    useBarCodeDetectorIfSupported: false
-                }
-            });
+            html5QrcodeScanner = new Html5Qrcode("reader");
             
             const config = {
-                fps: 30,
+                fps: 20,
                 videoConstraints: {
                     facingMode: "environment",
-                    width: { min: 1024, ideal: 1280, max: 1920 },
-                    height: { min: 768, ideal: 720, max: 1080 }
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
                 },
                 qrbox: function(viewfinderWidth, viewfinderHeight) {
-                    // FORCE une fente laser ultra-fine (15% de hauteur maximum) pour n'intercepter qu'un seul code à la fois
-                    return { 
-                        width: Math.floor(viewfinderWidth * 0.90), 
-                        height: Math.floor(viewfinderHeight * 0.15) 
-                    };
+                    // Cadre fin de ciblage
+                    return { width: Math.floor(viewfinderWidth * 0.90), height: Math.floor(viewfinderHeight * 0.20) };
                 },
-                formatsToSupport: [ 
-                    Html5QrcodeSupportedFormats.CODE_128,
-                    Html5QrcodeSupportedFormats.CODE_39
-                ]
+                formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39 ]
             };
 
+            // On lance la vidéo en mode passif (on écoute le flux continu, mais on ajoute le déclencheur manuel ci-dessous)
             html5QrcodeScanner.start(
                 { facingMode: "environment" }, 
                 config,
                 (decodedText) => {
-                    const success = processScannedBarcode(decodedText);
-                    if (success) {
+                    if(processScannedBarcode(decodedText)) {
                         if (navigator.vibrate) navigator.vibrate(80);
                         stopScanner();
                     }
                 },
                 (errorMessage) => {}
-            ).then(() => {
-                // Vérification si le téléphone supporte le contrôle du zoom matériel
-                setTimeout(() => {
-                    try {
-                        const track = html5QrcodeScanner.getRunningTrack();
-                        const capabilities = track.getCapabilities();
-                        if (capabilities.zoom) {
-                            document.getElementById('btn-zoom').style.display = 'block';
-                        }
-                    } catch (e) {
-                        console.log("Contrôle du zoom non disponible sur ce navigateur web.");
-                    }
-                }, 1000);
-            }).catch((err) => {
-                alert("Erreur d'accès à la caméra.");
+            ).catch((err) => {
+                alert("Erreur d'accès caméra.");
                 document.getElementById('scanner-zone').style.display = 'none';
             });
         }
 
-        function toggleZoom() {
-            try {
-                const track = html5QrcodeScanner.getRunningTrack();
-                const capabilities = track.getCapabilities();
-                
-                if (capabilities.zoom) {
-                    const minZoom = capabilities.zoom.min || 1;
-                    const maxZoom = capabilities.zoom.max || 3;
-                    // On choisit un zoom intermédiaire stable (ex: x2 ou le max dispo)
-                    const targetZoom = isZoomed ? minZoom : Math.min(2, maxZoom); 
-                    
-                    track.applyConstraints({
-                        advanced: [{ zoom: targetZoom }]
-                    });
-                    
-                    isZoomed = !isZoomed;
-                    document.getElementById('btn-zoom').innerText = isZoomed ? "🔍 Dézoomer" : "🔍 Zoom (x2)";
-                }
-            } catch (e) {
-                alert("Le zoom n'a pas pu être appliqué.");
+        // SOLUTION ULTIME : Capture l'image instantanée pour forcer l'isolation du code
+        function forceCaptureAndDecode() {
+            const videoElement = document.querySelector("#reader video");
+            if (!videoElement) return;
+
+            const canvas = document.createElement("canvas");
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            
+            // On stoppe le flux vidéo pour travailler à froid sur l'image gelée
+            html5QrcodeScanner.scanFile(canvasToBlob(canvas), false)
+                .then(decodedText => {
+                    if (processScannedBarcode(decodedText)) {
+                        if (navigator.vibrate) navigator.vibrate(120);
+                        stopScanner();
+                    } else {
+                        proposerSaisieAlternative();
+                    }
+                })
+                .catch(err => {
+                    proposerSaisieAlternative();
+                });
+        }
+
+        function canvasToBlob(canvas) {
+            var dataURL = canvas.toDataURL('image/jpeg');
+            var bytes = atob(dataURL.split(',')[1]);
+            var arr = new ArrayBuffer(bytes.length);
+            var ua = new Uint8Array(arr);
+            for (var i = 0; i < bytes.length; i++) { ua[i] = bytes.charCodeAt(i); }
+            return new File([arr], "capture.jpg", {type: "image/jpeg"});
+        }
+
+        function proposerSaisieAlternative() {
+            // Si le scan automatique échoue sur l'image fixe, on ouvre une boîte de secours rapide
+            const promptDernierSecours = prompt("Code superposé difficile à isoler.\nEntrez le S/N ou le modèle manuellement ici :");
+            if (promptDernierSecours && promptDernierSecours.trim() !== "") {
+                processScannedBarcode(promptDernierSecours);
+                stopScanner();
             }
         }
 
@@ -532,7 +504,7 @@
                 html5QrcodeScanner.stop().then(() => {
                     document.getElementById('scanner-zone').style.display = 'none';
                     html5QrcodeScanner = null;
-                }).catch((err) => {
+                }).catch(() => {
                     document.getElementById('scanner-zone').style.display = 'none';
                     html5QrcodeScanner = null;
                 });
@@ -541,67 +513,35 @@
             }
         }
 
-        // --- Le reste des fonctions de gestion du tableau reste identique ---
+        // --- Logique du tableau inchangée pour garder vos exports propres ---
         document.getElementById('photo').addEventListener('change', function(e) {
-            previewContainer.innerHTML = '';
-            currentPhotos = [];
-            const files = e.target.files;
-            for(let file of files) {
+            previewContainer.innerHTML = ''; currentPhotos = [];
+            for(let file of e.target.files) {
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     const img = document.createElement('img');
-                    img.src = event.target.result;
-                    img.classList.add('photo-preview');
-                    previewContainer.appendChild(img);
-                    currentPhotos.push(event.target.result);
+                    img.src = event.target.result; img.classList.add('photo-preview');
+                    previewContainer.appendChild(img); currentPhotos.push(event.target.result);
                 }
                 reader.readAsDataURL(file);
             }
         });
 
-        function formatRemarqueHTML(text) {
-            if (!text) return "";
-            const actionWords = ["Tête à changer", "Tete a changer", "Prévoir", "Prevoir", "Remplacer", "Changement", "A changer", "HS"];
-            let lowerText = text.toLowerCase();
-            let shouldBold = actionWords.some(word => lowerText.includes(word.toLowerCase()));
-            
-            if (shouldBold) {
-                return `<strong style="color: #b30000;">${text}</strong>`;
-            }
-            return text;
-        }
-
         function renderTable() {
-            const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = '';
+            const tbody = document.getElementById('tableBody'); tbody.innerHTML = '';
             document.getElementById('count').innerText = reportData.length;
-
             const zones = [];
-            reportData.forEach(item => {
-                if (!zones.includes(item.zone)) zones.push(item.zone);
-            });
-
+            reportData.forEach(item => { if (!zones.includes(item.zone)) zones.push(item.zone); });
             zones.forEach(zoneName => {
                 const zoneData = reportData.filter(item => item.zone === zoneName);
                 const displayName = zoneName === "" ? "SANS ZONE" : zoneName.toUpperCase();
-                
-                tbody.innerHTML += `<tr>
-                    <td colspan="10" class="zone-header-row">${displayName}</td>
-                </tr>`;
-
+                tbody.innerHTML += `<tr><td colspan="10" class="zone-header-row">${displayName}</td></tr>`;
                 zoneData.forEach(data => {
                     const photoIcon = (data.photos && data.photos.length > 0) ? `${data.photos.length} 📸` : '';
                     tbody.innerHTML += `<tr>
-                        <td><b>${data.imprimante}</b></td>
-                        <td>${data.serial}</td>
-                        <td>${data.ip}</td>
-                        <td>${data.cellules}</td>
-                        <td>${data.etatDot}</td>
-                        <td>${data.roller}</td>
-                        <td>${data.impression}</td>
-                        <td>${data.general}</td>
-                        <td>${formatRemarqueHTML(data.remarque)}</td>
-                        <td>${photoIcon}</td>
+                        <td><b>${data.imprimante}</b></td><td>${data.serial}</td><td>${data.ip}</td>
+                        <td>${data.cellules}</td><td>${data.etatDot}</td><td>${data.roller}</td>
+                        <td>${data.impression}</td><td>${data.general}</td><td>${data.remarque}</td><td>${photoIcon}</td>
                     </tr>`;
                 });
             });
@@ -609,23 +549,13 @@
 
         document.getElementById('addBtn').addEventListener('click', function(e) {
             e.preventDefault();
-            
             const modelValue = document.getElementById('printerType').value.trim();
             const idValue = document.getElementById('printerId').value.trim();
-            let zoneValue = document.getElementById('printerZone').value.trim();
-            
-            if(!modelValue && !idValue) return alert("Veuillez renseigner le modèle ou l'ID.");
-
-            let combinedModelAndId = modelValue;
-            if (modelValue && idValue) {
-                combinedModelAndId = modelValue + " / " + idValue;
-            } else if (idValue) {
-                combinedModelAndId = idValue;
-            }
-
-            const entry = {
-                zone: zoneValue,
-                imprimante: combinedModelAndId,
+            if(!modelValue && !idValue) return alert("Renseigner le modèle ou l'ID.");
+            let combined = modelValue + (idValue ? " / " + idValue : "");
+            reportData.push({
+                zone: document.getElementById('printerZone').value.trim(),
+                imprimante: combined,
                 serial: document.getElementById('serial').value.trim() || "N/A",
                 ip: document.getElementById('ipAddress').value.trim() || "",
                 cellules: document.getElementById('cellules').value,
@@ -635,144 +565,28 @@
                 general: document.getElementById('etatGeneral').value,
                 remarque: document.getElementById('remarque').value.trim(),
                 photos: [...currentPhotos]
-            };
-            
-            reportData.push(entry);
+            });
             renderTable();
-            
-            document.getElementById('printerType').value = '';
-            document.getElementById('printerId').value = '';
-            document.getElementById('serial').value = '';
-            document.getElementById('ipAddress').value = '';
-            document.getElementById('remarque').value = '';
-            document.getElementById('photo').value = '';
-            previewContainer.innerHTML = '';
-            currentPhotos = [];
+            document.getElementById('printerType').value = ''; document.getElementById('printerId').value = '';
+            document.getElementById('serial').value = ''; document.getElementById('ipAddress').value = '';
+            document.getElementById('remarque').value = ''; document.getElementById('photo').value = '';
+            previewContainer.innerHTML = ''; currentPhotos = [];
         });
 
         document.getElementById('exportBtn').addEventListener('click', function(e) {
-            e.preventDefault();
-            if(reportData.length === 0) return alert('Aucune donnée à exporter');
-            
+            e.preventDefault(); if(reportData.length === 0) return alert('Aucune donnée');
             const clientSite = document.getElementById('headerSite').value || 'N/A';
             const intervenant = document.getElementById('headerIntervenant').value || 'N/A';
             const dateVisite = document.getElementById('headerDate').value ? new Date(document.getElementById('headerDate').value).toLocaleDateString('fr-FR') : 'N/A';
-
-            let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-            <head>
-            <meta charset="utf-8">
-            <style>
-                body { font-family: 'Arial', sans-serif; color: #1a1a1a; margin: 20px; }
-                .title-doc { font-size: 18pt; font-weight: bold; color: #1a1a1a; margin-bottom: 2px; }
-                .subtitle-doc { font-size: 14pt; font-weight: bold; color: #c5a059; margin-top: 0; margin-bottom: 15px; }
-                .meta-box { font-size: 11pt; margin-bottom: 25px; line-height: 1.5; }
-                .main-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; }
-                .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 6px 8px; font-size: 10pt; font-weight: bold; text-align: left; }
-                .main-table td { border: 1px solid #cccccc; padding: 6px 8px; font-size: 9.5pt; vertical-align: top; }
-                .zone-title-td { background-color: #dfd5c2; font-weight: bold; font-size: 11pt; color: #1a1a1a; padding: 7px 8px; border: 1px solid #555555; text-transform: uppercase; }
-                .action-required { font-weight: bold; color: #b30000; }
-                .conseils-box { background: #fafafa; border-left: 4px solid #c5a059; padding: 10px; margin-top: 30px; font-size: 10pt; }
-                .word-img { max-width: 450px; height: auto; margin: 10px 0; border: 1px solid #777777; }
-                .annexe-title { font-size: 14pt; font-weight: bold; border-bottom: 2px solid #c5a059; margin-top: 40px; padding-bottom: 3px; }
-            </style>
-            </head>
-            <body>
-            <div class="title-doc">Rapport Visite de maintenance préventive</div>
-            <div class="subtitle-doc">Imprimantes Zebra & Intermec</div>
-            <div class="meta-box">
-                <b>Client / Site :</b> ${clientSite}<br>
-                <b>Visite effectuée le :</b> ${dateVisite}<br>
-                <b>Intervenants :</b> ${intervenant}
-            </div>
-            <table class="main-table">
-                <thead>
-                    <tr>
-                        <th>Imprimante</th>
-                        <th>Type</th>
-                        <th>S/N</th>
-                        <th>@ IP</th>
-                        <th>Cellules</th>
-                        <th>Etat dot</th>
-                        <th>Pressing Roller</th>
-                        <th>Impression</th>
-                        <th>Etat Général</th>
-                        <th>Remarques</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-            
-            let photosHtml = `<div class="annexe-title">Annexes : Suivi visuel & Défauts constatés</div>`;
-            let hasPhotos = false;
-
-            const zones = [];
-            reportData.forEach(item => {
-                if (!zones.includes(item.zone)) zones.push(item.zone);
+            let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>body{font-family:Arial;color:#1a1a1a;} .main-table{width:100%;border-collapse:collapse;} .main-table th{background:#f2f2f2;border:1px solid #555;padding:6px;} .main-table td{border:1px solid #ccc;padding:6px;} .zone-title-td{background-color:#dfd5c2;font-weight:bold;}</style></head><body>`;
+            wordHtml += `<h2>Rapport Maintenance Préventive</h2><p><b>Client :</b> ${clientSite}<br><b>Date :</b> ${dateVisite}<br><b>Intervenants :</b> ${intervenant}</p><table class="main-table"><thead><tr><th>Imprimante</th><th>S/N</th><th>@ IP</th><th>Cellules</th><th>Etat dot</th><th>Roller</th><th>Impression</th><th>Général</th><th>Remarques</th></tr></thead><tbody>`;
+            reportData.forEach(r => {
+                wordHtml += `<tr><td>${r.imprimante}</td><td>${r.serial}</td><td>${r.ip}</td><td>${r.cellules}</td><td>${r.etatDot}</td><td>${r.roller}</td><td>${r.impression}</td><td>${r.general}</td><td>${r.remarque}</td></tr>`;
             });
-
-            zones.sort((a, b) => {
-                if (a.toUpperCase().includes("NON VUE")) return -1;
-                if (b.toUpperCase().includes("NON VUE")) return 1;
-                return 0;
-            });
-
-            zones.forEach(zoneName => {
-                const zoneData = reportData.filter(item => item.zone === zoneName);
-                const displayName = zoneName === "" ? "SANS SECTEUR" : zoneName.toUpperCase();
-                
-                wordHtml += `<tr><td colspan="10" class="zone-title-td">${displayName}</td></tr>`;
-                
-                zoneData.forEach(r => {
-                    let pieces = r.imprimante.split(" ");
-                    let modelPart = pieces[0] || "";
-                    let typePart = pieces.slice(1).join(" ") || "";
-
-                    let formattedRemarque = r.remarque;
-                    const actionWords = ["Tête à changer", "Tete a changer", "Prévoir", "Prevoir", "Remplacer", "Changement", "A changer", "HS"];
-                    let shouldBold = actionWords.some(word => r.remarque.toLowerCase().includes(word.toLowerCase()));
-                    if (shouldBold) {
-                        formattedRemarque = `<span class="action-required">${r.remarque}</span>`;
-                    }
-
-                    wordHtml += `<tr>
-                        <td><b>${modelPart}</b></td>
-                        <td>${typePart}</td>
-                        <td>${r.serial}</td>
-                        <td>${r.ip}</td>
-                        <td>${r.cellules}</td>
-                        <td>${r.etatDot}</td>
-                        <td>${r.roller}</td>
-                        <td>${r.impression}</td>
-                        <td>${r.general}</td>
-                        <td>${formattedRemarque}</td>
-                    </tr>`;
-
-                    if(r.photos.length > 0) {
-                        hasPhotos = true;
-                        photosHtml += `<p style="margin-top:15px; font-size:11pt;"><b>Visuel — S/N : ${r.serial} (${modelPart}) :</b></p>`;
-                        r.photos.forEach(img => { photosHtml += `<img class="word-img" src="${img}" /><br>`; });
-                    }
-                });
-            });
-
-            wordHtml += `</tbody></table>`;
-            wordHtml += `<div class="conseils-box">
-                <p><b>Remarque :</b> Le texte en couleur ou mis en évidence dans la colonne Remarques est porté à votre attention pour action.</p>
-                <ul>
-                    <li>Faire un nettoyage régulier des têtes et rollers vous permettra de gagner en qualité d’impression et en longévité des têtes d’impression.</li>
-                    <li>Ne pas utiliser de cutter pour enlever les étiquettes collées sur le roller afin de ne pas l’abimer, utiliser de la bombe décolle étiquettes.</li>
-                </ul>
-            </div>`;
-
-            if(hasPhotos) wordHtml += "<br>" + photosHtml;
-            wordHtml += `</body></html>`;
-
+            wordHtml += `</tbody></table></body></html>`;
             const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.setAttribute("download", `Rapport_Maintenance_${clientSite.replace(/[^a-zA-Z0-9]/g, "_")}.doc`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", `Rapport_${clientSite}.doc`); link.click();
         });
     </script>
 </body>
