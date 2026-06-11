@@ -119,7 +119,6 @@
             font-size: 0.9rem;
         }
 
-        /* Zone vidéo du scanner */
         #scanner-zone {
             display: none;
             margin: 15px 0;
@@ -194,6 +193,7 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 0.85rem;
+            margin-bottom: 20px;
         }
 
         th, td {
@@ -203,6 +203,13 @@
         }
 
         th { background: #eee; }
+        
+        .zone-header-row {
+            background-color: #dfd5c2 !important;
+            font-weight: bold;
+            color: #1a1a1a;
+            font-size: 0.95rem;
+        }
     </style>
 </head>
 <body>
@@ -211,16 +218,12 @@
         <h1>Visite de Maintenance Préventive</h1>
         <div class="header-inputs">
             <div class="header-group">
-                <label for="headerSite">Site :</label>
-                <input type="text" id="headerSite" placeholder="Saisir le site...">
-            </div>
-            <div class="header-group">
-                <label for="headerZone">Zone :</label>
-                <input type="text" id="headerZone" placeholder="Saisir la zone...">
+                <label for="headerSite">Client / Site :</label>
+                <input type="text" id="headerSite" placeholder="Nom du client ou du site...">
             </div>
             <div class="header-group">
                 <label for="headerIntervenant">Intervenant(s) :</label>
-                <input type="text" id="headerIntervenant" placeholder="Nom des intervenants...">
+                <input type="text" id="headerIntervenant" placeholder="Ex: Pascal CARTON & Benoit BRACKMAN...">
             </div>
             <div class="header-group">
                 <label for="headerDate">Date de visite :</label>
@@ -239,62 +242,67 @@
         <form id="maintenanceForm" onsubmit="return false;">
             
             <div class="form-group">
-                <label for="printerType">Machine Type</label>
+                <label for="printerZone">Zone / Secteur (Facultatif)</label>
+                <input type="text" id="printerZone" placeholder="Ex: LOGISTIQUE 1, SECTEUR BOL, PRODUCTION...">
+            </div>
+
+            <div class="form-group">
+                <label for="printerType">Imprimante (Modèle)</label>
                 <div class="input-scan-group">
-                    <input type="text" id="printerType" placeholder="Saisir ou flasher le type...">
+                    <input type="text" id="printerType" placeholder="Ex: ZT420, ZT411...">
                     <button type="button" class="btn-scan" onclick="startScanner('printerType')">📷 Scan</button>
                 </div>
             </div>
 
             <div class="form-group">
-                <label for="printerId">Machine ID</label>
+                <label for="printerId">Machine ID (Optionnel)</label>
                 <input type="text" id="printerId" placeholder="Saisir l'ID au clavier...">
-            </div>
-
-            <div class="form-group">
-                <label for="option">Option</label>
-                <input type="text" id="option" style="background-color: #f0f2f5; border: 1px solid #ced4da;" placeholder="">
             </div>
 
             <div class="form-group">
                 <label for="serial">S/N (Numéro de série)</label>
                 <div class="input-scan-group">
-                    <input type="text" id="serial" placeholder="Saisir ou flasher...">
+                    <input type="text" id="serial" placeholder="Flasher le S/N...">
                     <button type="button" class="btn-scan" onclick="startScanner('serial')">📷 Scan</button>
                 </div>
             </div>
 
             <div class="form-group">
-                <label>Vérifications</label>
+                <label for="ipAddress">@ IP</label>
+                <input type="text" id="ipAddress" placeholder="Ex: 172.16.82.52">
+            </div>
+
+            <div class="form-group">
+                <label>Vérifications terrain</label>
                 <div class="grid-status">
                     <div class="status-box">
                         <label style="font-size:0.8rem;">Cellules</label>
                         <select id="cellules">
-                            <option value=""></option>
                             <option value="OK">OK</option>
                             <option value="NOK">NOK</option>
+                            <option value="Non vu">Non vu</option>
                         </select>
                     </div>
                     <div class="status-box">
                         <label style="font-size:0.8rem;">Etat dot</label>
                         <select id="etatDot">
-                            <option value=""></option>
                             <option value="OK">OK</option>
+                            <option value="Défaut dots">Défaut dots / HS</option>
                             <option value="NOK">NOK</option>
                         </select>
                     </div>
                     <div class="status-box">
-                        <label style="font-size:0.8rem;">Pressing roller</label>
+                        <label style="font-size:0.8rem;">Pressing Roller</label>
                         <select id="roller">
-                            <option value=""></option>
                             <option value="OK">OK</option>
+                            <option value="Cutter">Cutter (Coup de cutter)</option>
+                            <option value="Coups de cutter">Coups de cutter</option>
                             <option value="NOK">NOK</option>
                         </select>
                     </div>
                     <div class="status-box">
                         <label style="font-size:0.8rem;">Impression</label>
                         <select id="impression">
-                            <option value=""></option>
                             <option value="OK">OK</option>
                             <option value="NOK">NOK</option>
                         </select>
@@ -305,46 +313,46 @@
             <div class="form-group">
                 <label for="etatGeneral">Etat Général</label>
                 <select id="etatGeneral">
-                    <option value=""></option>
                     <option value="OK">OK</option>
-                    <option value="VOIR REM">VOIR REM</option>
+                    <option value="Voir Rem">Voir Rem</option>
+                    <option value="Non vu">Non vu</option>
                 </select>
             </div>
 
             <div class="form-group">
-                <label for="remarque">Remarque</label>
-                <textarea id="remarque" rows="2" placeholder=""></textarea>
+                <label for="remarque">Remarques / Actions à mener</label>
+                <textarea id="remarque" rows="2" placeholder="Saisir les remarques ou défauts constatés..."></textarea>
             </div>
 
             <div class="form-group">
-                <label for="photo">Ajouter des photos de panne (Optionnel)</label>
+                <label for="photo">Photos des défauts / panne (Optionnel)</label>
                 <input type="file" id="photo" accept="image/*" capture="environment" multiple style="padding:5px; height:auto;">
                 <div class="photo-container" id="previewContainer"></div>
             </div>
 
-            <button type="button" class="btn-add" id="addBtn">Ajouter la ligne</button>
+            <button type="button" class="btn-add" id="addBtn">Ajouter au tableau</button>
         </form>
     </div>
 
     <div class="card">
-        <h3>Lignes enregistrées (<span id="count">0</span>)</h3>
+        <h3>Imprimantes enregistrées (<span id="count">0</span>)</h3>
         <div class="table-container">
             <table id="summaryTable">
                 <thead>
                     <tr>
-                        <th>Machine Type & ID</th>
-                        <th>Option</th>
+                        <th>Imprimante Type & ID</th>
                         <th>S/N</th>
+                        <th>@ IP</th>
                         <th>Cellules</th>
                         <th>Etat dot</th>
-                        <th>Pressing roller</th>
+                        <th>Pressing Roller</th>
                         <th>Impression</th>
                         <th>Etat Général</th>
-                        <th>Remarque</th>
+                        <th>Remarques</th>
                         <th>Photos</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="tableBody">
                 </tbody>
             </table>
         </div>
@@ -366,7 +374,7 @@
         });
 
         async function startScanner(targetId) {
-            activeTargetId = targetId; // Réassignation critique réparée ici
+            activeTargetId = targetId;
             const video = document.getElementById('video');
             const scannerZone = document.getElementById('scanner-zone');
 
@@ -393,11 +401,11 @@
                         }
                     }, 150);
                 } else {
-                    alert("Votre navigateur Chrome nécessite une mise à jour pour le scan automatique natif.");
+                    alert("Moteur de scan indisponible ou navigateur non compatible.");
                 }
 
             } catch (err) {
-                alert("Impossible d'accéder à la caméra : " + err.message);
+                alert("Erreur caméra : " + err.message);
             }
         }
 
@@ -426,49 +434,89 @@
             }
         });
 
+        // Fonction pour rafraîchir l'affichage du tableau avec regroupement par zone
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            document.getElementById('count').innerText = reportData.length;
+
+            // Extraire toutes les zones uniques de manière ordonnée
+            const zones = [];
+            reportData.forEach(item => {
+                if (!zones.includes(item.zone)) {
+                    zones.push(item.zone);
+                }
+            });
+
+            // Parcourir chaque zone pour générer les lignes du tableau
+            zones.forEach(zoneName => {
+                const zoneData = reportData.filter(item => item.zone === zoneName);
+                
+                // Si l'utilisateur a défini une zone, on ajoute une ligne d'intertitre colorée
+                if (zoneName !== "") {
+                    tbody.innerHTML += `<tr>
+                        <td colspan="10" class="zone-header-row">${zoneName.toUpperCase()}</td>
+                    </tr>`;
+                }
+
+                zoneData.forEach(data => {
+                    const photoIcon = (data.photos && data.photos.length > 0) ? `${data.photos.length} 📸` : '';
+                    tbody.innerHTML += `<tr>
+                        <td><b>${data.imprimante}</b></td>
+                        <td>${data.serial}</td>
+                        <td>${data.ip}</td>
+                        <td>${data.cellules}</td>
+                        <td>${data.etatDot}</td>
+                        <td>${data.roller}</td>
+                        <td>${data.impression}</td>
+                        <td>${data.general}</td>
+                        <td>${data.remarque}</td>
+                        <td>${photoIcon}</td>
+                    </tr>`;
+                });
+            });
+        }
+
         document.getElementById('addBtn').addEventListener('click', function(e) {
             e.preventDefault();
             
-            const typeValue = document.getElementById('printerType').value.trim();
+            const modelValue = document.getElementById('printerType').value.trim();
             const idValue = document.getElementById('printerId').value.trim();
+            const zoneValue = document.getElementById('printerZone').value.trim();
             
-            let combinedTypeAndId = "";
-            if (typeValue && idValue) {
-                combinedTypeAndId = typeValue + " / " + idValue;
-            } else {
-                combinedTypeAndId = typeValue || idValue || "";
+            if(!modelValue && !idValue) return alert("Veuillez saisir au moins le modèle ou l'ID de la machine.");
+
+            let combinedModelAndId = modelValue;
+            if (modelValue && idValue) {
+                combinedModelAndId = modelValue + " / " + idValue;
+            } else if (idValue) {
+                combinedModelAndId = idValue;
             }
 
             const entry = {
-                typeAndId: combinedTypeAndId,
-                option: document.getElementById('option').value,
-                serial: document.getElementById('serial').value,
+                zone: zoneValue, // Stocke la zone pour le tri
+                imprimante: combinedModelAndId,
+                serial: document.getElementById('serial').value.trim() || "N/A",
+                ip: document.getElementById('ipAddress').value.trim() || "",
                 cellules: document.getElementById('cellules').value,
                 etatDot: document.getElementById('etatDot').value,
                 roller: document.getElementById('roller').value,
                 impression: document.getElementById('impression').value,
                 general: document.getElementById('etatGeneral').value,
-                remarque: document.getElementById('remarque').value,
+                remarque: document.getElementById('remarque').value.trim(),
                 photos: [...currentPhotos]
             };
             
             reportData.push(entry);
+            renderTable();
             
-            const tbody = document.querySelector('#summaryTable tbody');
-            tbody.innerHTML = '';
-            document.getElementById('count').innerText = reportData.length;
-            reportData.forEach(data => {
-                const photoIcon = (data.photos && data.photos.length > 0) ? `${data.photos.length} 📸` : '';
-                tbody.innerHTML += `<tr>
-                    <td>${data.typeAndId}</td><td>${data.option}</td><td>${data.serial}</td>
-                    <td>${data.cellules}</td><td>${data.etatDot}</td><td>${data.roller}</td>
-                    <td>${data.impression}</td><td>${data.general}</td><td>${data.remarque}</td><td>${photoIcon}</td>
-                </tr>`;
-            });
-            
-            document.getElementById('maintenanceForm').reset();
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('headerDate').value = today;
+            // On réinitialise les champs de la machine tout en conservant la zone écrite par confort (si saisie à la chaîne)
+            document.getElementById('printerType').value = '';
+            document.getElementById('printerId').value = '';
+            document.getElementById('serial').value = '';
+            document.getElementById('ipAddress').value = '';
+            document.getElementById('remarque').value = '';
+            document.getElementById('photo').value = '';
             previewContainer.innerHTML = '';
             currentPhotos = [];
         });
@@ -476,31 +524,47 @@
         document.getElementById('exportBtn').addEventListener('click', function(e) {
             e.preventDefault();
             if(reportData.length === 0) return alert('Aucune donnée à exporter');
-            const site = document.getElementById('headerSite').value || 'N/A';
-            const zone = document.getElementById('headerZone').value || 'N/A';
+            
+            const clientSite = document.getElementById('headerSite').value || 'N/A';
             const intervenant = document.getElementById('headerIntervenant').value || 'N/A';
-            const dateVisite = document.getElementById('headerDate').value || 'N/A';
+            const dateVisite = document.getElementById('headerDate').value ? new Date(document.getElementById('headerDate').value).toLocaleDateString('fr-FR') : 'N/A';
 
-            let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>body { font-family: Arial, sans-serif; } h1 { color: #1a1a1a; border-bottom: 2px solid #c5a059; } .main-table { width: 100%; border-collapse: collapse; } .main-table th { background: #f2f2f2; border: 1px solid #ccc; padding: 8px; } .main-table td { border: 1px solid #ccc; padding: 8px; } .word-img { max-width: 280px; height: auto; margin: 5px; }</style></head><body><h1>Rapport Visite de Maintenance Préventive</h1><p><b>Site :</b> ${site} | <b>Zone :</b> ${zone} | <b>Intervenant :</b> ${intervenant} | <b>Date :</b> ${dateVisite}</p><table class="main-table"><thead><tr><th>Machine Type & ID</th><th>Option</th><th>S/N</th><th>Cellules</th><th>Etat dot</th><th>Pressing roller</th><th>Impression</th><th>Etat Général</th><th>Remarque</th></tr></thead><tbody>`;
-            let photosHtml = "<h2>Photos Jointes</h2>";
+            let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>body { font-family: Arial, sans-serif; } h1 { color: #1a1a1a; border-bottom: 2px solid #c5a059; font-size: 16pt; margin-bottom: 5px; } .main-table { width: 100%; border-collapse: collapse; margin-top: 15px; } .main-table th { background: #f2f2f2; border: 1px solid #777; padding: 6px; font-size: 10pt; font-weight: bold; text-align: left; } .main-table td { border: 1px solid #ccc; padding: 6px; font-size: 9.5pt; } .zone-title-td { background-color: #e6dec9; font-weight: bold; font-size: 10.5pt; color: #1a1a1a; padding: 8px 6px; } .word-img { max-width: 320px; height: auto; margin: 10px 0; border: 1px solid #666; }</style></head><body><h1>Rapport Visite de Maintenance Préventive</h1><p><b>Client / Site :</b> ${clientSite}<br><b>Intervenant(s) :</b> ${intervenant}<br><b>Date de visite :</b> ${dateVisite}</p><table class="main-table"><thead><tr><th>Imprimante Type & ID</th><th>S/N</th><th>@ IP</th><th>Cellules</th><th>Etat dot</th><th>Pressing Roller</th><th>Impression</th><th>Etat Général</th><th>Remarques</th></tr></thead><tbody>`;
+            
+            let photosHtml = "<h2>Annexes : Photos & Constats terrain</h2>";
             let hasPhotos = false;
 
-            reportData.forEach(r => {
-                wordHtml += `<tr><td>${r.typeAndId}</td><td>${r.option}</td><td>${r.serial}</td><td>${r.cellules}</td><td>${r.etatDot}</td><td>${r.roller}</td><td>${r.impression}</td><td>${r.general}</td><td>${r.remarque}</td></tr>`;
-                if(r.photos.length > 0) {
-                    hasPhotos = true;
-                    photosHtml += `<p><b>Photos pour S/N ${r.serial} :</b></p>`;
-                    r.photos.forEach(img => { photosHtml += `<img class="word-img" src="${img}" />`; });
-                }
+            // Groupement par zone également pour l'export Word (.doc)
+            const zones = [];
+            reportData.forEach(item => {
+                if (!zones.includes(item.zone)) zones.push(item.zone);
             });
+
+            zones.forEach(zoneName => {
+                const zoneData = reportData.filter(item => item.zone === zoneName);
+                
+                if (zoneName !== "") {
+                    wordHtml += `<tr><td colspan="9" class="zone-title-td">${zoneName.toUpperCase()}</td></tr>`;
+                }
+
+                zoneData.forEach(r => {
+                    wordHtml += `<tr><td><b>${r.imprimante}</b></td><td>${r.serial}</td><td>${r.ip}</td><td>${r.cellules}</td><td>${r.etatDot}</td><td>${r.roller}</td><td>${r.impression}</td><td>${r.general}</td><td>${r.remarque}</td></tr>`;
+                    if(r.photos.length > 0) {
+                        hasPhotos = true;
+                        photosHtml += `<p style="margin-top:15px;"><b>Visuels - S/N : ${r.serial} (${r.imprimante}) :</b></p>`;
+                        r.photos.forEach(img => { photosHtml += `<img class="word-img" src="${img}" /><br>`; });
+                    }
+                });
+            });
+
             wordHtml += "</tbody></table>";
-            if(hasPhotos) wordHtml += "<br>" + photosHtml;
+            if(hasPhotos) wordHtml += "<br><br><br>" + photosHtml;
             wordHtml += "</body></html>";
 
             const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.setAttribute("download", `Rapport_Maintenance_${site}.doc`);
+            link.setAttribute("download", `Rapport_Maintenance_${clientSite.replace(/[^a-zA-Z0-9]/g, "_")}.doc`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
