@@ -379,11 +379,9 @@
             document.getElementById('headerIntervenant').value = "Pascal CARTON & Benoit BRACKMAN";
         });
 
-        // PARSEUR DIRECT POUR LE CODE 128 (PLUS BESOIN DE DÉCOUPAGE MAJEUR)
         function processScannedBarcode(rawValue) {
             let cleanStr = rawValue.trim();
             
-            // Nettoyage rapide si le code contient des préfixes classiques d'identifiants Zebra (S: pour Serial)
             if (cleanStr.startsWith("S:") || cleanStr.startsWith("s:")) {
                 cleanStr = cleanStr.substring(2).trim();
             }
@@ -391,16 +389,13 @@
                 cleanStr = cleanStr.replace("Serial # ", "").trim();
             }
 
-            // Injection directe dans la case qui a déclenché le scan
             if (activeTargetId) {
                 document.getElementById(activeTargetId).value = cleanStr;
 
-                // Aide intelligente : Si on scanne le S/N et qu'il commence par des racines connues, on tente de pré-remplir le modèle
                 if (activeTargetId === 'serial') {
                     const upperStr = cleanStr.toUpperCase();
                     const currentModelInput = document.getElementById('printerType').value;
                     
-                    // Si la case modèle est encore vide, on l'aide un peu
                     if (!currentModelInput) {
                         if (upperStr.startsWith("T3J")) document.getElementById('printerType').value = "ZT231 8 DOTS";
                         else if (upperStr.startsWith("18J")) document.getElementById('printerType').value = "ZT420 8 DOTS";
@@ -415,62 +410,4 @@
 
         function startScanner(targetId) {
             activeTargetId = targetId;
-            document.getElementById('scanner-zone').style.display = 'block';
-            html5QrcodeScanner = new Html5Qrcode("reader");
-            
-            html5QrcodeScanner.start(
-                { facingMode: "environment" }, 
-                {
-                    fps: 25, // Plus fluide pour attraper les lignes fines des barres
-                    qrbox: function(viewfinderWidth, viewfinderHeight) {
-                        // Fenêtre d'affichage formatée en longueur (idéale pour un code-barres 1D)
-                        return { width: viewfinderWidth * 0.9, height: viewfinderHeight * 0.4 };
-                    },
-                    // RESTRICTION STRICTE : Uniquement les codes à barres industriels (Code 128 et Code 39)
-                    formatsToSupport: [ 
-                        Html5QrcodeSupportedFormats.CODE_128,
-                        Html5QrcodeSupportedFormats.CODE_39
-                    ]
-                },
-                (decodedText) => {
-                    const success = processScannedBarcode(decodedText);
-                    if (success) {
-                        if (navigator.vibrate) navigator.vibrate(80);
-                        stopScanner();
-                    }
-                },
-                (errorMessage) => {}
-            ).catch((err) => {
-                alert("Erreur d'accès à la caméra.");
-                document.getElementById('scanner-zone').style.display = 'none';
-            });
-        }
-
-        function stopScanner() {
-            if (html5QrcodeScanner) {
-                html5QrcodeScanner.stop().then(() => {
-                    document.getElementById('scanner-zone').style.display = 'none';
-                    html5QrcodeScanner = null;
-                }).catch((err) => {
-                    document.getElementById('scanner-zone').style.display = 'none';
-                    html5QrcodeScanner = null;
-                });
-            } else {
-                document.getElementById('scanner-zone').style.display = 'none';
-            }
-        }
-
-        document.getElementById('photo').addEventListener('change', function(e) {
-            previewContainer.innerHTML = '';
-            currentPhotos = [];
-            const files = e.target.files;
-            for(let file of files) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const img = document.createElement('img');
-                    img.src = event.target.result;
-                    img.classList.add('photo-preview');
-                    previewContainer.appendChild(img);
-                    currentPhotos.push(event.target.result);
-                }
-                reader.
+            document.getElementById('scanner-zone').style.
