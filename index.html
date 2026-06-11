@@ -379,9 +379,20 @@
             document.getElementById('headerIntervenant').value = "Pascal CARTON & Benoit BRACKMAN";
         });
 
+        // FILTRAGE INTELLIGENT PAR CODE : On laisse l'appareil photo s'ouvrir normalement (100% stable),
+        // mais on rejette logiciellement tout ce qui ressemble à un gros bloc QR code ou DataMatrix industriel.
         function processScannedBarcode(rawValue) {
             let cleanStr = rawValue.trim();
-            
+            const upperStr = cleanStr.toUpperCase();
+
+            // SÉCURITÉ : Si le texte scanné contient des structures de blocs carrés type DataMatrix Zebra complets, on l'ignore.
+            // Cela évite de lire accidentellement le QR de la plaque constructeur globale.
+            if (cleanStr.includes("[)>") || cleanStr.startsWith("05") || cleanStr.startsWith("06") || cleanStr.includes("3056T") || cleanStr.includes("PF4I")) {
+                console.log("Format 2D ignoré pour forcer la lecture du code 128 linéaire.");
+                return false; // Renvoie false pour indiquer au scanner de continuer à chercher sans fermer l'appareil
+            }
+
+            // Nettoyage des préfixes classiques des codes 1D linéaires
             if (cleanStr.startsWith("S:") || cleanStr.startsWith("s:")) {
                 cleanStr = cleanStr.substring(2).trim();
             }
@@ -389,25 +400,310 @@
                 cleanStr = cleanStr.replace("Serial # ", "").trim();
             }
 
+            // Injection dans le champ sélectionné
             if (activeTargetId) {
                 document.getElementById(activeTargetId).value = cleanStr;
 
+                // Auto-complétion optionnelle si on attrape le S/N en premier
                 if (activeTargetId === 'serial') {
-                    const upperStr = cleanStr.toUpperCase();
+                    const snUpper = cleanStr.toUpperCase();
                     const currentModelInput = document.getElementById('printerType').value;
                     
                     if (!currentModelInput) {
-                        if (upperStr.startsWith("T3J")) document.getElementById('printerType').value = "ZT231 8 DOTS";
-                        else if (upperStr.startsWith("18J")) document.getElementById('printerType').value = "ZT420 8 DOTS";
-                        else if (upperStr.startsWith("99J")) document.getElementById('printerType').value = "ZT421 8 DOTS";
-                        else if (upperStr.startsWith("307")) document.getElementById('printerType').value = "Intermec PF4i";
+                        if (snUpper.startsWith("T3J")) document.getElementById('printerType').value = "ZT231 8 DOTS";
+                        else if (snUpper.startsWith("18J")) document.getElementById('printerType').value = "ZT420 8 DOTS";
+                        else if (snUpper.startsWith("99J")) document.getElementById('printerType').value = "ZT421 8 DOTS";
+                        else if (snUpper.startsWith("307")) document.getElementById('printerType').value = "Intermec PF4i";
                     }
                 }
-                return true;
+                return true; // Match réussi, le scanner va pouvoir s'arrêter proprement
             }
             return false;
         }
 
         function startScanner(targetId) {
             activeTargetId = targetId;
-            document.getElementById('scanner-zone').style.
+            document.getElementById('scanner-zone').style.display = 'block';
+            
+            // Initialisation standard et robuste garantie compatible avec tous les navigateurs mobiles
+            html5QrcodeScanner = new Html5Qrcode("reader");
+            
+            html5QrcodeScanner.start(
+                { facingMode: "environment" }, 
+                {
+                    fps: 20,
+                    qrbox: function(viewfinderWidth, viewfinderHeight) {
+                        // Fenêtre formatée en rectangle allongé, parfaite pour cibler un code à barres à lignes
+                        return { width: viewfinderWidth * 0.85, height: viewfinderHeight * 0.45 };
+                    }
+                },
+                (decodedText) => {
+                    const success = processScannedBarcode(decodedText);
+                    if (success) {
+                        if (navigator.vibrate) navigator.vibrate(80);
+                        stopScanner();
+                    }
+                },
+                (errorMessage) => {}
+            ).catch((err) => {
+                alert("Erreur d'accès à la caméra. Veuillez autoriser l'appareil photo.");
+                document.getElementById('scanner-zone').style.display = 'none';
+            });
+        }
+
+        function stopScanner() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().then(() => {
+                    document.getElementById('scanner-zone').style.display = 'none';
+                    html5QrcodeScanner = null;
+                }).catch((err) => {
+                    document.getElementById('scanner-zone').style.display = 'none';
+                    html5QrcodeScanner = null;
+                });
+            } else {
+                document.getElementById('scanner-zone').style.display = 'none';
+            }
+        }
+
+        document.getElementById('photo').addEventListener('change', function(e) {
+            previewContainer.innerHTML = '';
+            currentPhotos = [];
+            const files = e.target.files;
+            for(let file of files) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = document.createElement('img');
+                    img.src = event.target.result;
+                    img.classList.add('photo-preview');
+                    previewContainer.appendChild(img);
+                    currentPhotos.push(event.target.result);
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function formatRemarqueHTML(text) {
+            if (!text) return "";
+            const actionWords = ["Tête à changer", "Tete a changer", "Prévoir", "Prevoir", "Remplacer", "Changement", "A changer", "HS"];
+            let lowerText = text.toLowerCase();
+            let shouldBold = actionWords.some(word => lowerText.includes(word.toLowerCase()));
+            
+            if (shouldBold) {
+                return `<strong style="color: #b30000;">${text}</strong>`;
+            }
+            return text;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            document.getElementById('count').innerText = reportData.length;
+
+            const zones = [];
+            reportData.forEach(item => {
+                if (!zones.includes(item.zone)) zones.push(item.zone);
+            });
+
+            zones.forEach(zoneName => {
+                const zoneData = reportData.filter(item => item.zone === zoneName);
+                const displayName = zoneName === "" ? "SANS ZONE" : zoneName.toUpperCase();
+                
+                tbody.innerHTML += `<tr>
+                    <td colspan="10" class="zone-header-row">${displayName}</td>
+                </tr>`;
+
+                zoneData.forEach(data => {
+                    const photoIcon = (data.photos && data.photos.length > 0) ? `${data.photos.length} 📸` : '';
+                    tbody.innerHTML += `<tr>
+                        <td><b>${data.imprimante}</b></td>
+                        <td>${data.serial}</td>
+                        <td>${data.ip}</td>
+                        <td>${data.cellules}</td>
+                        <td>${data.etatDot}</td>
+                        <td>${data.roller}</td>
+                        <td>${data.impression}</td>
+                        <td>${data.general}</td>
+                        <td>${formatRemarqueHTML(data.remarque)}</td>
+                        <td>${photoIcon}</td>
+                    </tr>`;
+                });
+            });
+        }
+
+        document.getElementById('addBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const modelValue = document.getElementById('printerType').value.trim();
+            const idValue = document.getElementById('printerId').value.trim();
+            let zoneValue = document.getElementById('printerZone').value.trim();
+            
+            if(!modelValue && !idValue) return alert("Veuillez renseigner le modèle ou l'ID.");
+
+            let combinedModelAndId = modelValue;
+            if (modelValue && idValue) {
+                combinedModelAndId = modelValue + " / " + idValue;
+            } else if (idValue) {
+                combinedModelAndId = idValue;
+            }
+
+            const entry = {
+                zone: zoneValue,
+                imprimante: combinedModelAndId,
+                serial: document.getElementById('serial').value.trim() || "N/A",
+                ip: document.getElementById('ipAddress').value.trim() || "",
+                cellules: document.getElementById('cellules').value,
+                etatDot: document.getElementById('etatDot').value,
+                roller: document.getElementById('roller').value,
+                impression: document.getElementById('impression').value,
+                general: document.getElementById('etatGeneral').value,
+                remarque: document.getElementById('remarque').value.trim(),
+                photos: [...currentPhotos]
+            };
+            
+            reportData.push(entry);
+            renderTable();
+            
+            document.getElementById('printerType').value = '';
+            document.getElementById('printerId').value = '';
+            document.getElementById('serial').value = '';
+            document.getElementById('ipAddress').value = '';
+            document.getElementById('remarque').value = '';
+            document.getElementById('photo').value = '';
+            previewContainer.innerHTML = '';
+            currentPhotos = [];
+        });
+
+        document.getElementById('exportBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            if(reportData.length === 0) return alert('Aucune donnée à exporter');
+            
+            const clientSite = document.getElementById('headerSite').value || 'N/A';
+            const intervenant = document.getElementById('headerIntervenant').value || 'N/A';
+            const dateVisite = document.getElementById('headerDate').value ? new Date(document.getElementById('headerDate').value).toLocaleDateString('fr-FR') : 'N/A';
+
+            let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+            <meta charset="utf-8">
+            <style>
+                body { font-family: 'Arial', sans-serif; color: #1a1a1a; margin: 20px; }
+                .title-doc { font-size: 18pt; font-weight: bold; color: #1a1a1a; margin-bottom: 2px; }
+                .subtitle-doc { font-size: 14pt; font-weight: bold; color: #c5a059; margin-top: 0; margin-bottom: 15px; }
+                .meta-box { font-size: 11pt; margin-bottom: 25px; line-height: 1.5; }
+                
+                .main-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; }
+                .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 6px 8px; font-size: 10pt; font-weight: bold; text-align: left; }
+                .main-table td { border: 1px solid #cccccc; padding: 6px 8px; font-size: 9.5pt; vertical-align: top; }
+                
+                .zone-title-td { background-color: #dfd5c2; font-weight: bold; font-size: 11pt; color: #1a1a1a; padding: 7px 8px; border: 1px solid #555555; text-transform: uppercase; }
+                .action-required { font-weight: bold; color: #b30000; }
+                
+                .conseils-box { background: #fafafa; border-left: 4px solid #c5a059; padding: 10px; margin-top: 30px; font-size: 10pt; }
+                .word-img { max-width: 450px; height: auto; margin: 10px 0; border: 1px solid #777777; }
+                .annexe-title { font-size: 14pt; font-weight: bold; border-bottom: 2px solid #c5a059; margin-top: 40px; padding-bottom: 3px; }
+            </style>
+            </head>
+            <body>
+
+            <div class="title-doc">Rapport Visite de maintenance préventive</div>
+            <div class="subtitle-doc">Imprimantes Zebra & Intermec</div>
+            
+            <div class="meta-box">
+                <b>Client / Site :</b> ${clientSite}<br>
+                <b>Visite effectuée le :</b> ${dateVisite}<br>
+                <b>Intervenants :</b> ${intervenant}
+            </div>
+
+            <table class="main-table">
+                <thead>
+                    <tr>
+                        <th>Imprimante</th>
+                        <th>Type</th>
+                        <th>S/N</th>
+                        <th>@ IP</th>
+                        <th>Cellules</th>
+                        <th>Etat dot</th>
+                        <th>Pressing Roller</th>
+                        <th>Impression</th>
+                        <th>Etat Général</th>
+                        <th>Remarques</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+            
+            let photosHtml = `<div class="annexe-title">Annexes : Suivi visuel & Défauts constatés</div>`;
+            let hasPhotos = false;
+
+            const zones = [];
+            reportData.forEach(item => {
+                if (!zones.includes(item.zone)) zones.push(item.zone);
+            });
+
+            zones.sort((a, b) => {
+                if (a.toUpperCase().includes("NON VUE")) return -1;
+                if (b.toUpperCase().includes("NON VUE")) return 1;
+                return 0;
+            });
+
+            zones.forEach(zoneName => {
+                const zoneData = reportData.filter(item => item.zone === zoneName);
+                const displayName = zoneName === "" ? "SANS SECTEUR" : zoneName.toUpperCase();
+                
+                wordHtml += `<tr><td colspan="10" class="zone-title-td">${displayName}</td></tr>`;
+                
+                zoneData.forEach(r => {
+                    let pieces = r.imprimante.split(" ");
+                    let modelPart = pieces[0] || "";
+                    let typePart = pieces.slice(1).join(" ") || "";
+
+                    let formattedRemarque = r.remarque;
+                    const actionWords = ["Tête à changer", "Tete a changer", "Prévoir", "Prevoir", "Remplacer", "Changement", "A changer", "HS"];
+                    let shouldBold = actionWords.some(word => r.remarque.toLowerCase().includes(word.toLowerCase()));
+                    if (shouldBold) {
+                        formattedRemarque = `<span class="action-required">${r.remarque}</span>`;
+                    }
+
+                    wordHtml += `<tr>
+                        <td><b>${modelPart}</b></td>
+                        <td>${typePart}</td>
+                        <td>${r.serial}</td>
+                        <td>${r.ip}</td>
+                        <td>${r.cellules}</td>
+                        <td>${r.etatDot}</td>
+                        <td>${r.roller}</td>
+                        <td>${r.impression}</td>
+                        <td>${r.general}</td>
+                        <td>${formattedRemarque}</td>
+                    </tr>`;
+
+                    if(r.photos.length > 0) {
+                        hasPhotos = true;
+                        photosHtml += `<p style="margin-top:15px; font-size:11pt;"><b>Visuel — S/N : ${r.serial} (${modelPart}) :</b></p>`;
+                        r.photos.forEach(img => { photosHtml += `<img class="word-img" src="${img}" /><br>`; });
+                    }
+                });
+            });
+
+            wordHtml += `</tbody></table>`;
+
+            wordHtml += `<div class="conseils-box">
+                <p><b>Remarque :</b> Le texte en couleur ou mis en évidence dans la colonne Remarques est porté à votre attention pour action.</p>
+                <ul>
+                    <li>Faire un nettoyage régulier des têtes et rollers vous permettra de gagner en qualité d’impression et en longévité des têtes d’impression.</li>
+                    <li>Ne pas utiliser de cutter pour enlever les étiquettes collées sur le roller afin de ne pas l’abimer, utiliser de la bombe décolle étiquettes.</li>
+                </ul>
+            </div>`;
+
+            if(hasPhotos) wordHtml += "<br>" + photosHtml;
+            wordHtml += `</body></html>`;
+
+            const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", `Rapport_Maintenance_${clientSite.replace(/[^a-zA-Z0-9]/g, "_")}.doc`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    </script>
+</body>
+</html>
