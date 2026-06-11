@@ -379,11 +379,18 @@
             document.getElementById('headerIntervenant').value = "Pascal CARTON & Benoit BRACKMAN";
         });
 
-        // RECEPTION ET TRAITEMENT DU TEXTE ISSU EXCLUSIVEMENT D'UN CODE-BARRES EN LIGNE
+        // FILTRAGE ET DECODAGE LOGIQUE IPER-STABLE
         function processScannedBarcode(rawValue) {
             let cleanStr = rawValue.trim();
 
-            // Nettoyage standard des en-têtes éventuels des étiquettes Zebra d'origine
+            // BLOQUAGE SÉCURITÉ : Si le texte contient le format macro DataMatrix constructeur, on rejette purement et simplement.
+            // Le scanner va ignorer ce bip et continuera à chercher le code barre normal.
+            if (cleanStr.startsWith("[)>") || cleanStr.includes("05800") || cleanStr.includes("3056T")) {
+                console.log("Code 2D/DataMatrix détecté et rejeté logiquement.");
+                return false; 
+            }
+
+            // Nettoyage des préfixes classiques des codes 1D linéaires Zebra & Intermec
             if (cleanStr.startsWith("S:") || cleanStr.startsWith("s:")) {
                 cleanStr = cleanStr.substring(2).trim();
             }
@@ -391,11 +398,16 @@
                 cleanStr = cleanStr.replace("Serial # ", "").trim();
             }
 
-            // Remplissage du champ ciblé
+            // Traitement spécifique Intermec (PF4i) : si on lit la ligne Item # complète au lieu du S/N
+            if (cleanStr.startsWith("PF4IC")) {
+                cleanStr = cleanStr.trim();
+            }
+
+            // Insertion finale et sécurisée dans l'interface
             if (activeTargetId) {
                 document.getElementById(activeTargetId).value = cleanStr;
 
-                // Aide intelligente : Si on flashe le numéro de série en premier, on essaie de deviner le modèle de machine
+                // Complétion semi-automatique intelligente basée sur le S/N
                 if (activeTargetId === 'serial') {
                     const snUpper = cleanStr.toUpperCase();
                     const currentModelInput = document.getElementById('printerType').value;
@@ -407,7 +419,7 @@
                         else if (snUpper.startsWith("307")) document.getElementById('printerType').value = "Intermec PF4i";
                     }
                 }
-                return true; // Succès : coupe l'appareil photo proprement
+                return true; // Match valide : provoque la fermeture propre du rideau caméra
             }
             return false;
         }
@@ -418,16 +430,15 @@
             
             html5QrcodeScanner = new Html5Qrcode("reader");
             
-            // FILTRAGE ROBUSTE ET OFFICIEL DE LA BIBLIOTHÈQUE
-            // On déclare explicitement les formats à écouter à l'allumage de la caméra. Tout QR code sera nativement ignoré.
             const config = {
-                fps: 20,
+                fps: 25,
                 qrbox: function(viewfinderWidth, viewfinderHeight) {
-                    return { width: viewfinderWidth * 0.9, height: viewfinderHeight * 0.4 };
+                    // Cadrage ultra-fin horizontal pour forcer l'utilisateur à viser la ligne
+                    return { width: viewfinderWidth * 0.9, height: viewfinderHeight * 0.35 };
                 },
                 formatsToSupport: [ 
-                    Html5QrcodeSupportedFormats.CODE_128, 
-                    Html5QrcodeSupportedFormats.CODE_39 
+                    Html5QrcodeSupportedFormats.CODE_128,
+                    Html5QrcodeSupportedFormats.CODE_39
                 ]
             };
 
@@ -443,7 +454,7 @@
                 },
                 (errorMessage) => {}
             ).catch((err) => {
-                alert("Erreur lors de l'accès à la caméra. Vérifiez vos autorisations.");
+                alert("Erreur de caméra. Autorisez l'accès à l'appareil photo.");
                 document.getElementById('scanner-zone').style.display = 'none';
             });
         }
