@@ -246,13 +246,13 @@
             
             <div class="form-group">
                 <label for="printerZone">Zone / Secteur (Facultatif)</label>
-                <input type="text" id="printerZone" placeholder="Ex: LOGISTIQUE 1, SECTEUR BOL...">
+                <input type="text" id="printerZone" placeholder="Ex: LOGISTIQUE 1, SECTEUR BOL, IMPRIMANTES NON VUES...">
             </div>
 
             <div class="form-group">
-                <label for="printerType">Imprimante (Modèle)</label>
+                <label for="printerType">Imprimante (Modèle & Type de tête)</label>
                 <div class="input-scan-group">
-                    <input type="text" id="printerType" placeholder="Ex: ZT420, ZT231...">
+                    <input type="text" id="printerType" placeholder="Ex: ZT420 8 DOTS, ZT231...">
                     <button type="button" class="btn-scan" onclick="startScanner('printerType')">📷 Scan</button>
                 </div>
             </div>
@@ -283,15 +283,17 @@
                         <select id="cellules">
                             <option value="OK">OK</option>
                             <option value="NOK">NOK</option>
-                            <option value="Non vu">Non vu</option>
+                            <option value="">Non renseigné (Non vu)</option>
                         </select>
                     </div>
                     <div class="status-box">
                         <label style="font-size:0.8rem;">Etat dot</label>
                         <select id="etatDot">
                             <option value="OK">OK</option>
+                            <option value="Nombreuses dots HS">Nombreuses dots HS</option>
                             <option value="Défaut dots">Défaut dots / HS</option>
                             <option value="NOK">NOK</option>
+                            <option value="">Non renseigné (Non vu)</option>
                         </select>
                     </div>
                     <div class="status-box">
@@ -301,6 +303,7 @@
                             <option value="Cutter">Cutter (Coup de cutter)</option>
                             <option value="Coups de cutter">Coups de cutter</option>
                             <option value="NOK">NOK</option>
+                            <option value="">Non renseigné (Non vu)</option>
                         </select>
                     </div>
                     <div class="status-box">
@@ -308,6 +311,7 @@
                         <select id="impression">
                             <option value="OK">OK</option>
                             <option value="NOK">NOK</option>
+                            <option value="">Non renseigné (Non vu)</option>
                         </select>
                     </div>
                 </div>
@@ -324,7 +328,7 @@
 
             <div class="form-group">
                 <label for="remarque">Remarques / Actions à mener</label>
-                <textarea id="remarque" rows="2" placeholder="Saisir les remarques ou défauts constatés..."></textarea>
+                <textarea id="remarque" rows="2" placeholder="Saisir les remarques... Commencer par 'Tête à changer' ou 'Prévoir' pour mettre en évidence."></textarea>
             </div>
 
             <div class="form-group">
@@ -359,280 +363,4 @@
                 </tbody>
             </table>
         </div>
-        <button type="button" class="btn-export" id="exportBtn">Exporter le rapport en Word (.doc)</button>
-    </div>
-
-    <script>
-        const reportData = [];
-        const previewContainer = document.getElementById('previewContainer');
-        let currentPhotos = [];
-        let html5QrcodeScanner = null;
-        let activeTargetId = null;
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('headerDate').value = today;
-        });
-
-        // PARSEUR ET EXTRACTEUR INTELLIGENT DE CODES
-        function processScannedBarcode(rawValue) {
-            let cleanStr = rawValue.trim();
-            const upperStr = cleanStr.toUpperCase();
-
-            // CAS 1 : Chaîne globale complexe industrielle (QR Code ou DataMatrix de la plaque constructeur)
-            if (cleanStr.includes("[)>") || cleanStr.startsWith("05") || cleanStr.includes("06") || cleanStr.includes("3056T") || cleanStr.includes("T3J") || cleanStr.includes("PF4I")) {
-                let detectedSN = "";
-                let detectedModel = "Zebra Machine";
-
-                // Extraction précise du Numéro de Série par Expressions Régulières adaptées à votre matériel
-                const snRegexes = [
-                    /[0-9]{2}[Jj][0-9]{9}/,          // ex: 18J152104710
-                    /[A-Za-z][0-9][A-Za-z][0-9]{8}/, // ex: T3J231701883
-                    /307009[0-9]{5}/                 // ex: 30700900007 (Intermec)
-                ];
-
-                for (let regex of snRegexes) {
-                    let match = cleanStr.match(regex);
-                    if (match) {
-                        detectedSN = match[0];
-                        break;
-                    }
-                }
-
-                // Détermination du modèle via le code produit ou les racines de numéros de série
-                if (upperStr.includes("ZT231") || upperStr.includes("T3J")) detectedModel = "ZT231";
-                else if (upperStr.includes("ZT411")) detectedModel = "ZT411";
-                else if (upperStr.includes("ZT421") || upperStr.includes("99J")) detectedModel = "ZT421";
-                else if (upperStr.includes("ZT420") || upperStr.includes("18J")) detectedModel = "ZT420";
-                else if (upperStr.includes("PF4I") || upperStr.includes("307009")) detectedModel = "Intermec PF4i";
-
-                // Si on a réussi à isoler les éléments, on remplit tout d'un coup de manière couplée
-                if (detectedSN) {
-                    document.getElementById('serial').value = detectedSN;
-                    document.getElementById('printerType').value = detectedModel;
-                    return true;
-                }
-            }
-
-            // CAS 2 : Code-barres simple 1D ou texte isolé nettoyé (Boutons individuels)
-            if (cleanStr.startsWith("S:") || cleanStr.startsWith("s:")) {
-                cleanStr = cleanStr.substring(2).trim();
-            }
-            if (cleanStr.startsWith("Serial # ")) {
-                cleanStr = cleanStr.replace("Serial # ", "").trim();
-            }
-
-            if (activeTargetId) {
-                if (activeTargetId === 'printerType') {
-                    if (upperStr.startsWith("ZT231") || upperStr.startsWith("T3J")) cleanStr = "ZT231";
-                    else if (upperStr.startsWith("ZT411")) cleanStr = "ZT411";
-                    else if (upperStr.startsWith("ZT421") || upperStr.startsWith("99J")) cleanStr = "ZT421";
-                    else if (upperStr.startsWith("ZT420") || upperStr.startsWith("18J")) cleanStr = "ZT420";
-                    else if (upperStr.startsWith("PF4I") || upperStr.startsWith("307")) cleanStr = "Intermec PF4i";
-                }
-                document.getElementById(activeTargetId).value = cleanStr;
-                return true;
-            }
-
-            return false;
-        }
-
-        function startScanner(targetId) {
-            activeTargetId = targetId;
-            document.getElementById('scanner-zone').style.display = 'block';
-
-            html5QrcodeScanner = new Html5Qrcode("reader");
-            
-            // Configuration complète : formats de détection ouverts aux QR ET aux codes barres 1D standard (Zebra/Intermec)
-            html5QrcodeScanner.start(
-                { facingMode: "environment" }, 
-                {
-                    fps: 20, // Plus rapide pour accrocher les lignes des codes-barres
-                    qrbox: function(viewfinderWidth, viewfinderHeight) {
-                        return { width: viewfinderWidth * 0.85, height: viewfinderHeight * 0.6 };
-                    },
-                    // Activation explicite des formats industriels 1D et 2D
-                    formatsToSupport: [ 
-                        Html5QrcodeSupportedFormats.QR_CODE,
-                        Html5QrcodeSupportedFormats.DATA_MATRIX,
-                        Html5QrcodeSupportedFormats.CODE_128,
-                        Html5QrcodeSupportedFormats.CODE_39,
-                        Html5QrcodeSupportedFormats.EAN_8,
-                        Html5QrcodeSupportedFormats.EAN_13
-                    ]
-                },
-                (decodedText) => {
-                    const success = processScannedBarcode(decodedText);
-                    if (success) {
-                        if (navigator.vibrate) navigator.vibrate(80);
-                        stopScanner();
-                    }
-                },
-                (errorMessage) => {
-                    // Recherche passive continue
-                }
-            ).catch((err) => {
-                alert("Erreur d'accès à la caméra. Vérifiez vos autorisations système.");
-                document.getElementById('scanner-zone').style.display = 'none';
-            });
-        }
-
-        function stopScanner() {
-            if (html5QrcodeScanner) {
-                html5QrcodeScanner.stop().then(() => {
-                    document.getElementById('scanner-zone').style.display = 'none';
-                    html5QrcodeScanner = null;
-                }).catch((err) => {
-                    document.getElementById('scanner-zone').style.display = 'none';
-                    html5QrcodeScanner = null;
-                });
-            } else {
-                document.getElementById('scanner-zone').style.display = 'none';
-            }
-        }
-
-        document.getElementById('photo').addEventListener('change', function(e) {
-            previewContainer.innerHTML = '';
-            currentPhotos = [];
-            const files = e.target.files;
-            for(let file of files) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const img = document.createElement('img');
-                    img.src = event.target.result;
-                    img.classList.add('photo-preview');
-                    previewContainer.appendChild(img);
-                    currentPhotos.push(event.target.result);
-                }
-                reader.readAsDataURL(file);
-            }
-        });
-
-        function renderTable() {
-            const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = '';
-            document.getElementById('count').innerText = reportData.length;
-
-            const zones = [];
-            reportData.forEach(item => {
-                if (!zones.includes(item.zone)) zones.push(item.zone);
-            });
-
-            zones.forEach(zoneName => {
-                const zoneData = reportData.filter(item => item.zone === zoneName);
-                
-                if (zoneName !== "") {
-                    tbody.innerHTML += `<tr>
-                        <td colspan="10" class="zone-header-row">${zoneName.toUpperCase()}</td>
-                    </tr>`;
-                }
-
-                zoneData.forEach(data => {
-                    const photoIcon = (data.photos && data.photos.length > 0) ? `${data.photos.length} 📸` : '';
-                    tbody.innerHTML += `<tr>
-                        <td><b>${data.imprimante}</b></td>
-                        <td>${data.serial}</td>
-                        <td>${data.ip}</td>
-                        <td>${data.cellules}</td>
-                        <td>${data.etatDot}</td>
-                        <td>${data.roller}</td>
-                        <td>${data.impression}</td>
-                        <td>${data.general}</td>
-                        <td>${data.remarque}</td>
-                        <td>${photoIcon}</td>
-                    </tr>`;
-                });
-            });
-        }
-
-        document.getElementById('addBtn').addEventListener('click', function(e) {
-            e.preventDefault();
-            
-            const modelValue = document.getElementById('printerType').value.trim();
-            const idValue = document.getElementById('printerId').value.trim();
-            const zoneValue = document.getElementById('printerZone').value.trim();
-            
-            if(!modelValue && !idValue) return alert("Veuillez renseigner le modèle ou l'ID.");
-
-            let combinedModelAndId = modelValue;
-            if (modelValue && idValue) {
-                combinedModelAndId = modelValue + " / " + idValue;
-            } else if (idValue) {
-                combinedModelAndId = idValue;
-            }
-
-            const entry = {
-                zone: zoneValue,
-                imprimante: combinedModelAndId,
-                serial: document.getElementById('serial').value.trim() || "N/A",
-                ip: document.getElementById('ipAddress').value.trim() || "",
-                cellules: document.getElementById('cellules').value,
-                etatDot: document.getElementById('etatDot').value,
-                roller: document.getElementById('roller').value,
-                impression: document.getElementById('impression').value,
-                general: document.getElementById('etatGeneral').value,
-                remarque: document.getElementById('remarque').value.trim(),
-                photos: [...currentPhotos]
-            };
-            
-            reportData.push(entry);
-            renderTable();
-            
-            document.getElementById('printerType').value = '';
-            document.getElementById('printerId').value = '';
-            document.getElementById('serial').value = '';
-            document.getElementById('ipAddress').value = '';
-            document.getElementById('remarque').value = '';
-            document.getElementById('photo').value = '';
-            previewContainer.innerHTML = '';
-            currentPhotos = [];
-        });
-
-        document.getElementById('exportBtn').addEventListener('click', function(e) {
-            e.preventDefault();
-            if(reportData.length === 0) return alert('Aucune donnée à exporter');
-            
-            const clientSite = document.getElementById('headerSite').value || 'N/A';
-            const intervenant = document.getElementById('headerIntervenant').value || 'N/A';
-            const dateVisite = document.getElementById('headerDate').value ? new Date(document.getElementById('headerDate').value).toLocaleDateString('fr-FR') : 'N/A';
-
-            let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>body { font-family: Arial, sans-serif; } h1 { color: #1a1a1a; border-bottom: 2px solid #c5a059; font-size: 16pt; margin-bottom: 5px; } .main-table { width: 100%; border-collapse: collapse; margin-top: 15px; } .main-table th { background: #f2f2f2; border: 1px solid #777; padding: 6px; font-size: 10pt; font-weight: bold; text-align: left; } .main-table td { border: 1px solid #ccc; padding: 6px; font-size: 9.5pt; } .zone-title-td { background-color: #e6dec9; font-weight: bold; font-size: 10.5pt; color: #1a1a1a; padding: 8px 6px; } .word-img { max-width: 320px; height: auto; margin: 10px 0; border: 1px solid #666; }</style></head><body><h1>Rapport Visite de Maintenance Préventive</h1><p><b>Client / Site :</b> ${clientSite}<br><b>Intervenant(s) :</b> ${intervenant}<br><b>Date de visite :</b> ${dateVisite}</p><table class="main-table"><thead><tr><th>Imprimante Type & ID</th><th>S/N</th><th>@ IP</th><th>Cellules</th><th>Etat dot</th><th>Pressing Roller</th><th>Impression</th><th>Etat Général</th><th>Remarques</th></tr></thead><tbody>`;
-            
-            let photosHtml = "<h2>Annexes : Photos & Constats terrain</h2>";
-            let hasPhotos = false;
-
-            const zones = [];
-            reportData.forEach(item => {
-                if (!zones.includes(item.zone)) zones.push(item.zone);
-            });
-
-            zones.forEach(zoneName => {
-                const zoneData = reportData.filter(item => item.zone === zoneName);
-                if (zoneName !== "") {
-                    wordHtml += `<tr><td colspan="9" class="zone-title-td">${zoneName.toUpperCase()}</td></tr>`;
-                }
-                zoneData.forEach(r => {
-                    wordHtml += `<tr><td><b>${r.imprimante}</b></td><td>${r.serial}</td><td>${r.ip}</td><td>${r.cellules}</td><td>${r.etatDot}</td><td>${r.roller}</td><td>${r.impression}</td><td>${r.general}</td><td>${r.remarque}</td></tr>`;
-                    if(r.photos.length > 0) {
-                        hasPhotos = true;
-                        photosHtml += `<p style="margin-top:15px;"><b>Visuels - S/N : ${r.serial} (${r.imprimante}) :</b></p>`;
-                        r.photos.forEach(img => { photosHtml += `<img class="word-img" src="${img}" /><br>`; });
-                    }
-                });
-            });
-
-            wordHtml += "</tbody></table>";
-            if(hasPhotos) wordHtml += "<br><br><br>" + photosHtml;
-            wordHtml += "</body></html>";
-
-            const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.setAttribute("download", `Rapport_Maintenance_${clientSite.replace(/[^a-zA-Z0-9]/g, "_")}.doc`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        });
-    </script>
-</body>
-</html>
+        <button type="button" class="btn-export" id="exportBtn">Exporter le rapport officiel (.doc)</button>
