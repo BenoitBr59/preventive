@@ -379,18 +379,16 @@
             document.getElementById('headerIntervenant').value = "Pascal CARTON & Benoit BRACKMAN";
         });
 
-        // FILTRAGE ET DECODAGE LOGIQUE IPER-STABLE
+        // TRAITEMENT LOGIQUE STRICT POUR RETENIR LES CODES BARRES LINEAIRES
         function processScannedBarcode(rawValue) {
             let cleanStr = rawValue.trim();
 
-            // BLOQUAGE SÉCURITÉ : Si le texte contient le format macro DataMatrix constructeur, on rejette purement et simplement.
-            // Le scanner va ignorer ce bip et continuera à chercher le code barre normal.
+            // SÉCURITÉ RADICALE : Si le texte scanné contient la signature d'un DataMatrix d'usine, on l'ignore silencieusement.
             if (cleanStr.startsWith("[)>") || cleanStr.includes("05800") || cleanStr.includes("3056T")) {
-                console.log("Code 2D/DataMatrix détecté et rejeté logiquement.");
                 return false; 
             }
 
-            // Nettoyage des préfixes classiques des codes 1D linéaires Zebra & Intermec
+            // Nettoyage des préfixes d'étiquettes
             if (cleanStr.startsWith("S:") || cleanStr.startsWith("s:")) {
                 cleanStr = cleanStr.substring(2).trim();
             }
@@ -398,16 +396,11 @@
                 cleanStr = cleanStr.replace("Serial # ", "").trim();
             }
 
-            // Traitement spécifique Intermec (PF4i) : si on lit la ligne Item # complète au lieu du S/N
-            if (cleanStr.startsWith("PF4IC")) {
-                cleanStr = cleanStr.trim();
-            }
-
-            // Insertion finale et sécurisée dans l'interface
+            // Remplissage du champ actif
             if (activeTargetId) {
                 document.getElementById(activeTargetId).value = cleanStr;
 
-                // Complétion semi-automatique intelligente basée sur le S/N
+                // Auto-détection intelligente du modèle de machine d'après le préfixe du S/N
                 if (activeTargetId === 'serial') {
                     const snUpper = cleanStr.toUpperCase();
                     const currentModelInput = document.getElementById('printerType').value;
@@ -419,7 +412,7 @@
                         else if (snUpper.startsWith("307")) document.getElementById('printerType').value = "Intermec PF4i";
                     }
                 }
-                return true; // Match valide : provoque la fermeture propre du rideau caméra
+                return true; 
             }
             return false;
         }
@@ -428,13 +421,27 @@
             activeTargetId = targetId;
             document.getElementById('scanner-zone').style.display = 'block';
             
-            html5QrcodeScanner = new Html5Qrcode("reader");
+            // Initialisation brute du décodeur
+            html5QrcodeScanner = new Html5Qrcode("reader", {
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: false // Désactive le moteur matériel natif du téléphone qui force la lecture des QR/DataMatrix
+                }
+            });
             
+            // Configuration de ciblage type "Faisceau Laser" horizontal
             const config = {
-                fps: 25,
+                fps: 30, // Plus d'images par seconde pour accrocher la mise au point
+                videoConstraints: {
+                    facingMode: "environment",
+                    width: { min: 640, ideal: 1280, max: 1920 },
+                    height: { min: 480, ideal: 720, max: 1080 }
+                },
                 qrbox: function(viewfinderWidth, viewfinderHeight) {
-                    // Cadrage ultra-fin horizontal pour forcer l'utilisateur à viser la ligne
-                    return { width: viewfinderWidth * 0.9, height: viewfinderHeight * 0.35 };
+                    // Crée une ligne de visée très large et très fine au centre pour forcer l'alignement sur le code-barres classique
+                    return { 
+                        width: Math.floor(viewfinderWidth * 0.95), 
+                        height: Math.floor(viewfinderHeight * 0.25) 
+                    };
                 },
                 formatsToSupport: [ 
                     Html5QrcodeSupportedFormats.CODE_128,
@@ -454,7 +461,7 @@
                 },
                 (errorMessage) => {}
             ).catch((err) => {
-                alert("Erreur de caméra. Autorisez l'accès à l'appareil photo.");
+                alert("Erreur d'accès à la caméra.");
                 document.getElementById('scanner-zone').style.display = 'none';
             });
         }
