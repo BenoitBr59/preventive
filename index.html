@@ -340,7 +340,7 @@
 
             <div class="form-group">
                 <label for="remarque">Remarques / Actions à mener</label>
-                <textarea id="remarque" rows="2" placeholder="Saisir les remarques..."></textarea>
+                <textarea id="remarque" rows="2" placeholder="Saisir les remarques... Commencer par 'Tête à changer' ou 'Prévoir' pour mettre en évidence."></textarea>
             </div>
 
             <div class="form-group">
@@ -391,27 +391,46 @@
             document.getElementById('headerIntervenant').value = "Pascal CARTON & Benoit BRACKMAN";
         });
 
+        // RESTRUCTURATION DU NETTOYAGE DES S/N USINE CONSTATÉS SUR VOS CAPTURES
         function processScannedBarcode(rawValue) {
             let cleanStr = rawValue.trim();
 
-            // Bloque le DataMatrix d'usine
+            // Extraction intelligente si présence du préfixe GS1/Factory étendu complet ([)>05800...)
             if (cleanStr.startsWith("[)>") || cleanStr.includes("05800") || cleanStr.includes("3056T")) {
-                return false; 
+                // Recherche d'un motif de S/N Zebra classique (ex: T3J, 18J, 99J, 52J) ou Intermec (307)
+                const patterns = /(T3J\d+|18J\d+|99J\d+|52J\d+|307\d+)/i;
+                const match = cleanStr.match(patterns);
+                if (match) {
+                    cleanStr = match[1].toUpperCase();
+                } else {
+                    // Nettoyage générique de secours
+                    cleanStr = cleanStr.replace(/^.*?3056T/i, '');
+                    cleanStr = cleanStr.replace(/[^a-zA-Z0-9]/g, '');
+                }
             }
 
-            // Nettoyage des chaînes
-            if (cleanStr.startsWith("S:") || cleanStr.startsWith("s:")) cleanStr = cleanStr.substring(2).trim();
-            if (cleanStr.startsWith("Serial # ")) cleanStr = cleanStr.replace("Serial # ", "").trim();
+            // Nettoyages des préfixes standards 1D
+            if (cleanStr.startsWith("S:") || cleanStr.startsWith("s:")) {
+                cleanStr = cleanStr.substring(2).trim();
+            }
+            if (cleanStr.startsWith("Serial # ")) {
+                cleanStr = cleanStr.replace("Serial # ", "").trim();
+            }
 
             if (activeTargetId) {
                 document.getElementById(activeTargetId).value = cleanStr;
 
                 if (activeTargetId === 'serial') {
                     const snUpper = cleanStr.toUpperCase();
-                    if (snUpper.startsWith("T3J")) document.getElementById('printerType').value = "ZT231 8 DOTS";
-                    else if (snUpper.startsWith("18J")) document.getElementById('printerType').value = "ZT420 8 DOTS";
-                    else if (snUpper.startsWith("99J")) document.getElementById('printerType').value = "ZT421 8 DOTS";
-                    else if (snUpper.startsWith("307")) document.getElementById('printerType').value = "Intermec PF4i";
+                    const currentModelInput = document.getElementById('printerType').value;
+                    
+                    if (!currentModelInput) {
+                        if (snUpper.startsWith("T3J")) document.getElementById('printerType').value = "ZT231 8 DOTS";
+                        else if (snUpper.startsWith("18J")) document.getElementById('printerType').value = "ZT420 8 DOTS";
+                        else if (snUpper.startsWith("99J")) document.getElementById('printerType').value = "ZT421 8 DOTS";
+                        else if (snUpper.startsWith("52J")) document.getElementById('printerType').value = "ZT230 8 DOTS";
+                        else if (snUpper.startsWith("307")) document.getElementById('printerType').value = "Intermec PF4i";
+                    }
                 }
                 return true; 
             }
@@ -425,37 +444,37 @@
             html5QrcodeScanner = new Html5Qrcode("reader");
             
             const config = {
-                fps: 20,
+                fps: 25,
                 videoConstraints: {
                     facingMode: "environment",
                     width: { ideal: 1280 },
                     height: { ideal: 720 }
                 },
                 qrbox: function(viewfinderWidth, viewfinderHeight) {
-                    // Cadre fin de ciblage
                     return { width: Math.floor(viewfinderWidth * 0.90), height: Math.floor(viewfinderHeight * 0.20) };
                 },
-                formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39 ]
+                formatsToSupport: [ 
+                    Html5QrcodeSupportedFormats.CODE_128,
+                    Html5QrcodeSupportedFormats.CODE_39
+                ]
             };
 
-            // On lance la vidéo en mode passif (on écoute le flux continu, mais on ajoute le déclencheur manuel ci-dessous)
             html5QrcodeScanner.start(
                 { facingMode: "environment" }, 
                 config,
                 (decodedText) => {
-                    if(processScannedBarcode(decodedText)) {
+                    if (processScannedBarcode(decodedText)) {
                         if (navigator.vibrate) navigator.vibrate(80);
                         stopScanner();
                     }
                 },
                 (errorMessage) => {}
             ).catch((err) => {
-                alert("Erreur d'accès caméra.");
+                alert("Erreur d'accès à la caméra.");
                 document.getElementById('scanner-zone').style.display = 'none';
             });
         }
 
-        // SOLUTION ULTIME : Capture l'image instantanée pour forcer l'isolation du code
         function forceCaptureAndDecode() {
             const videoElement = document.querySelector("#reader video");
             if (!videoElement) return;
@@ -466,7 +485,6 @@
             const ctx = canvas.getContext("2d");
             ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
             
-            // On stoppe le flux vidéo pour travailler à froid sur l'image gelée
             html5QrcodeScanner.scanFile(canvasToBlob(canvas), false)
                 .then(decodedText => {
                     if (processScannedBarcode(decodedText)) {
@@ -491,8 +509,7 @@
         }
 
         function proposerSaisieAlternative() {
-            // Si le scan automatique échoue sur l'image fixe, on ouvre une boîte de secours rapide
-            const promptDernierSecours = prompt("Code superposé difficile à isoler.\nEntrez le S/N ou le modèle manuellement ici :");
+            const promptDernierSecours = prompt("Code superposé difficile à isoler automatiquement.\nSaisissez manuellement la valeur de l'étiquette :");
             if (promptDernierSecours && promptDernierSecours.trim() !== "") {
                 processScannedBarcode(promptDernierSecours);
                 stopScanner();
@@ -513,35 +530,66 @@
             }
         }
 
-        // --- Logique du tableau inchangée pour garder vos exports propres ---
         document.getElementById('photo').addEventListener('change', function(e) {
-            previewContainer.innerHTML = ''; currentPhotos = [];
-            for(let file of e.target.files) {
+            previewContainer.innerHTML = '';
+            currentPhotos = [];
+            const files = e.target.files;
+            for(let file of files) {
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     const img = document.createElement('img');
-                    img.src = event.target.result; img.classList.add('photo-preview');
-                    previewContainer.appendChild(img); currentPhotos.push(event.target.result);
+                    img.src = event.target.result;
+                    img.classList.add('photo-preview');
+                    previewContainer.appendChild(img);
+                    currentPhotos.push(event.target.result);
                 }
                 reader.readAsDataURL(file);
             }
         });
 
+        function formatRemarqueHTML(text) {
+            if (!text) return "";
+            const actionWords = ["Tête à changer", "Tete a changer", "Prévoir", "Prevoir", "Remplacer", "Changement", "A changer", "HS"];
+            let lowerText = text.toLowerCase();
+            let shouldBold = actionWords.some(word => lowerText.includes(word.toLowerCase()));
+            
+            if (shouldBold) {
+                return `<strong style="color: #b30000;">${text}</strong>`;
+            }
+            return text;
+        }
+
         function renderTable() {
-            const tbody = document.getElementById('tableBody'); tbody.innerHTML = '';
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
             document.getElementById('count').innerText = reportData.length;
+
             const zones = [];
-            reportData.forEach(item => { if (!zones.includes(item.zone)) zones.push(item.zone); });
+            reportData.forEach(item => {
+                if (!zones.includes(item.zone)) zones.push(item.zone);
+            });
+
             zones.forEach(zoneName => {
                 const zoneData = reportData.filter(item => item.zone === zoneName);
                 const displayName = zoneName === "" ? "SANS ZONE" : zoneName.toUpperCase();
-                tbody.innerHTML += `<tr><td colspan="10" class="zone-header-row">${displayName}</td></tr>`;
+                
+                tbody.innerHTML += `<tr>
+                    <td colspan="10" class="zone-header-row">${displayName}</td>
+                </tr>`;
+
                 zoneData.forEach(data => {
                     const photoIcon = (data.photos && data.photos.length > 0) ? `${data.photos.length} 📸` : '';
                     tbody.innerHTML += `<tr>
-                        <td><b>${data.imprimante}</b></td><td>${data.serial}</td><td>${data.ip}</td>
-                        <td>${data.cellules}</td><td>${data.etatDot}</td><td>${data.roller}</td>
-                        <td>${data.impression}</td><td>${data.general}</td><td>${data.remarque}</td><td>${photoIcon}</td>
+                        <td><b>${data.imprimante}</b></td>
+                        <td>${data.serial}</td>
+                        <td>${data.ip}</td>
+                        <td>${data.cellules}</td>
+                        <td>${data.etatDot}</td>
+                        <td>${data.roller}</td>
+                        <td>${data.impression}</td>
+                        <td>${data.general}</td>
+                        <td>${formatRemarqueHTML(data.remarque)}</td>
+                        <td>${photoIcon}</td>
                     </tr>`;
                 });
             });
@@ -549,13 +597,23 @@
 
         document.getElementById('addBtn').addEventListener('click', function(e) {
             e.preventDefault();
+            
             const modelValue = document.getElementById('printerType').value.trim();
             const idValue = document.getElementById('printerId').value.trim();
-            if(!modelValue && !idValue) return alert("Renseigner le modèle ou l'ID.");
-            let combined = modelValue + (idValue ? " / " + idValue : "");
-            reportData.push({
-                zone: document.getElementById('printerZone').value.trim(),
-                imprimante: combined,
+            let zoneValue = document.getElementById('printerZone').value.trim();
+            
+            if(!modelValue && !idValue) return alert("Veuillez renseigner le modèle ou l'ID.");
+
+            let combinedModelAndId = modelValue;
+            if (modelValue && idValue) {
+                combinedModelAndId = modelValue + " / " + idValue;
+            } else if (idValue) {
+                combinedModelAndId = idValue;
+            }
+
+            const entry = {
+                zone: zoneValue,
+                imprimante: combinedModelAndId,
                 serial: document.getElementById('serial').value.trim() || "N/A",
                 ip: document.getElementById('ipAddress').value.trim() || "",
                 cellules: document.getElementById('cellules').value,
@@ -565,28 +623,136 @@
                 general: document.getElementById('etatGeneral').value,
                 remarque: document.getElementById('remarque').value.trim(),
                 photos: [...currentPhotos]
-            });
+            };
+            
+            reportData.push(entry);
             renderTable();
-            document.getElementById('printerType').value = ''; document.getElementById('printerId').value = '';
-            document.getElementById('serial').value = ''; document.getElementById('ipAddress').value = '';
-            document.getElementById('remarque').value = ''; document.getElementById('photo').value = '';
-            previewContainer.innerHTML = ''; currentPhotos = [];
+            
+            document.getElementById('printerType').value = '';
+            document.getElementById('printerId').value = '';
+            document.getElementById('serial').value = '';
+            document.getElementById('ipAddress').value = '';
+            document.getElementById('remarque').value = '';
+            document.getElementById('photo').value = '';
+            previewContainer.innerHTML = '';
+            currentPhotos = [];
         });
 
+        // RESTAURATION STRICTE ET CONFORME DE L'EXPORTATION DE VOTRE RAPPORT WORD
         document.getElementById('exportBtn').addEventListener('click', function(e) {
-            e.preventDefault(); if(reportData.length === 0) return alert('Aucune donnée');
+            e.preventDefault();
+            if(reportData.length === 0) return alert('Aucune donnée à exporter');
+            
             const clientSite = document.getElementById('headerSite').value || 'N/A';
             const intervenant = document.getElementById('headerIntervenant').value || 'N/A';
             const dateVisite = document.getElementById('headerDate').value ? new Date(document.getElementById('headerDate').value).toLocaleDateString('fr-FR') : 'N/A';
-            let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>body{font-family:Arial;color:#1a1a1a;} .main-table{width:100%;border-collapse:collapse;} .main-table th{background:#f2f2f2;border:1px solid #555;padding:6px;} .main-table td{border:1px solid #ccc;padding:6px;} .zone-title-td{background-color:#dfd5c2;font-weight:bold;}</style></head><body>`;
-            wordHtml += `<h2>Rapport Maintenance Préventive</h2><p><b>Client :</b> ${clientSite}<br><b>Date :</b> ${dateVisite}<br><b>Intervenants :</b> ${intervenant}</p><table class="main-table"><thead><tr><th>Imprimante</th><th>S/N</th><th>@ IP</th><th>Cellules</th><th>Etat dot</th><th>Roller</th><th>Impression</th><th>Général</th><th>Remarques</th></tr></thead><tbody>`;
-            reportData.forEach(r => {
-                wordHtml += `<tr><td>${r.imprimante}</td><td>${r.serial}</td><td>${r.ip}</td><td>${r.cellules}</td><td>${r.etatDot}</td><td>${r.roller}</td><td>${r.impression}</td><td>${r.general}</td><td>${r.remarque}</td></tr>`;
+
+            let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+            <meta charset="utf-8">
+            <style>
+                body { font-family: 'Arial', sans-serif; color: #1a1a1a; margin: 20px; }
+                .title-doc { font-size: 18pt; font-weight: bold; color: #1a1a1a; margin-bottom: 2px; }
+                .subtitle-doc { font-size: 14pt; font-weight: bold; color: #c5a059; margin-top: 0; margin-bottom: 15px; }
+                .meta-box { font-size: 11pt; margin-bottom: 25px; line-height: 1.5; }
+                .main-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; }
+                .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 6px 8px; font-size: 10pt; font-weight: bold; text-align: left; }
+                .main-table td { border: 1px solid #cccccc; padding: 6px 8px; font-size: 9.5pt; vertical-align: top; }
+                .zone-title-td { background-color: #dfd5c2; font-weight: bold; font-size: 11pt; color: #1a1a1a; padding: 7px 8px; border: 1px solid #555555; text-transform: uppercase; }
+                .action-required { font-weight: bold; color: #b30000; }
+                .conseils-box { background: #fafafa; border-left: 4px solid #c5a059; padding: 10px; margin-top: 30px; font-size: 10pt; }
+                .word-img { max-width: 450px; height: auto; margin: 10px 0; border: 1px solid #777777; }
+                .annexe-title { font-size: 14pt; font-weight: bold; border-bottom: 2px solid #c5a059; margin-top: 40px; padding-bottom: 3px; }
+            </style>
+            </head>
+            <body>
+            <div class="title-doc">Rapport Visite de maintenance préventive</div>
+            <div class="subtitle-doc">Imprimantes Zebra & Intermec</div>
+            <div class="meta-box">
+                <b>Client / Site :</b> ${clientSite}<br>
+                <b>Visite effectuée le :</b> ${dateVisite}<br>
+                <b>Intervenants :</b> ${intervenant}
+            </div>
+            <table class="main-table">
+                <thead>
+                    <tr>
+                        <th>Imprimante</th>
+                        <th>S/N</th>
+                        <th>@ IP</th>
+                        <th>Cellules</th>
+                        <th>Etat dot</th>
+                        <th>Pressing Roller</th>
+                        <th>Impression</th>
+                        <th>Etat Général</th>
+                        <th>Remarques</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+            
+            let photosHtml = `<div class="annexe-title">Annexes : Suivi visuel & Défauts constatés</div>`;
+            let hasPhotos = false;
+
+            // Tri et regroupement par Zone/Secteur pour l'export Word
+            const zones = [];
+            reportData.forEach(item => {
+                if (!zones.includes(item.zone)) zones.push(item.zone);
             });
-            wordHtml += `</tbody></table></body></html>`;
+
+            zones.forEach(zoneName => {
+                const zoneData = reportData.filter(item => item.zone === zoneName);
+                const displayName = zoneName === "" ? "SANS SECTEUR" : zoneName.toUpperCase();
+                
+                wordHtml += `<tr><td colspan="9" class="zone-title-td">${displayName}</td></tr>`;
+                
+                zoneData.forEach(r => {
+                    let formattedRemarque = r.remarque;
+                    const actionWords = ["Tête à changer", "Tete a changer", "Prévoir", "Prevoir", "Remplacer", "Changement", "A changer", "HS"];
+                    let shouldBold = actionWords.some(word => r.remarque.toLowerCase().includes(word.toLowerCase()));
+                    if (shouldBold) {
+                        formattedRemarque = `<span class="action-required">${r.remarque}</span>`;
+                    }
+
+                    wordHtml += `<tr>
+                        <td><b>${r.imprimante}</b></td>
+                        <td>${r.serial}</td>
+                        <td>${r.ip}</td>
+                        <td>${r.cellules}</td>
+                        <td>${r.etatDot}</td>
+                        <td>${r.roller}</td>
+                        <td>${r.impression}</td>
+                        <td>${r.general}</td>
+                        <td>${formattedRemarque}</td>
+                    </tr>`;
+
+                    if(r.photos && r.photos.length > 0) {
+                        hasPhotos = true;
+                        photosHtml += `<p style="margin-top:15px; font-size:11pt;"><b>Visuel — S/N : ${r.serial} (${r.imprimante}) :</b></p>`;
+                        r.photos.forEach(img => { photosHtml += `<img class="word-img" src="${img}" /><br>`; });
+                    }
+                });
+            });
+
+            wordHtml += `</tbody></table>`;
+            
+            // Réintégration du bloc officiel de recommandations de fin de page
+            wordHtml += `<div class="conseils-box">
+                <p><b>Remarque :</b> Le texte en couleur ou mis en évidence dans la colonne Remarques est porté à votre attention pour action.</p>
+                <ul>
+                    <li>Faire un nettoyage régulier des têtes et rollers vous permettra de gagner en qualité d’impression et en longévité des têtes d’impression.</li>
+                    <li>Ne pas utiliser de cutter pour enlever les étiquettes collées sur le roller afin de ne pas l’abimer, utiliser de la bombe décolle étiquettes.</li>
+                </ul>
+            </div>`;
+
+            if(hasPhotos) wordHtml += "<br>" + photosHtml;
+            wordHtml += `</body></html>`;
+
             const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword' });
-            const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
-            link.setAttribute("download", `Rapport_${clientSite}.doc`); link.click();
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", `Rapport_Maintenance_${clientSite.replace(/[^a-zA-Z0-9]/g, "_")}.doc`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         });
     </script>
 </body>
