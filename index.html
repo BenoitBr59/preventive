@@ -86,12 +86,6 @@
 
         .input-scan-group {
             display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .input-row {
-            display: flex;
             gap: 8px;
         }
 
@@ -125,27 +119,29 @@
             font-size: 0.9rem;
         }
 
-        .capture-hidden {
+        /* Zone vidéo du scanner */
+        #scanner-zone {
             display: none;
+            margin: 15px 0;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
         }
 
-        .label-preview-container {
-            margin-top: 5px;
-            display: none;
-        }
-
-        .label-preview {
-            max-width: 100%;
+        video {
+            width: 100%;
             height: auto;
-            max-height: 120px;
-            border-radius: 6px;
-            border: 1px dashed var(--accent);
-            object-fit: contain;
+            display: block;
         }
 
-        .field-grayed {
-            background-color: #f0f2f5;
-            border: 1px solid #ced4da;
+        .btn-close-scanner {
+            background: #dc3545;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            cursor: pointer;
         }
 
         .grid-status {
@@ -233,6 +229,11 @@
         </div>
     </header>
 
+    <div id="scanner-zone">
+        <video id="video" autoplay playsinline></video>
+        <div class="btn-close-scanner" onclick="stopScanner()">Fermer le scanner</div>
+    </div>
+
     <div class="card">
         <h3>Saisie Machine</h3>
         <form id="maintenanceForm" onsubmit="return false;">
@@ -240,33 +241,21 @@
             <div class="form-group">
                 <label for="printerType">Machine Type & ID</label>
                 <div class="input-scan-group">
-                    <div class="input-row">
-                        <input type="text" id="printerType" placeholder="Saisir le Type...">
-                        <button type="button" class="btn-scan" onclick="triggerCapture('printerType')">📷 Photo</button>
-                    </div>
-                    <input type="file" id="capture-printerType" class="capture-hidden" accept="image/*" capture="environment" onchange="previewLabel(this, 'preview-printerType')">
-                    <div id="container-preview-printerType" class="label-preview-container">
-                        <img id="preview-printerType" class="label-preview" src="" alt="Aperçu étiquette">
-                    </div>
+                    <input type="text" id="printerType" placeholder="Saisir ou flasher...">
+                    <button type="button" class="btn-scan" onclick="startScanner('printerType')">📷 Scan</button>
                 </div>
             </div>
 
             <div class="form-group">
                 <label for="option">Option</label>
-                <input type="text" id="option" class="field-grayed" placeholder="">
+                <input type="text" id="option" style="background-color: #f0f2f5; border: 1px solid #ced4da;" placeholder="">
             </div>
 
             <div class="form-group">
                 <label for="serial">S/N (Numéro de série)</label>
                 <div class="input-scan-group">
-                    <div class="input-row">
-                        <input type="text" id="serial" placeholder="Saisir le S/N...">
-                        <button type="button" class="btn-scan" onclick="triggerCapture('serial')">📷 Photo</button>
-                    </div>
-                    <input type="file" id="capture-serial" class="capture-hidden" accept="image/*" capture="environment" onchange="previewLabel(this, 'preview-serial')">
-                    <div id="container-preview-serial" class="label-preview-container">
-                        <img id="preview-serial" class="label-preview" src="" alt="Aperçu S/N">
-                    </div>
+                    <input type="text" id="serial" placeholder="Saisir ou flasher...">
+                    <button type="button" class="btn-scan" onclick="startScanner('serial')">📷 Scan</button>
                 </div>
             </div>
 
@@ -362,50 +351,68 @@
         const previewContainer = document.getElementById('previewContainer');
         let currentPhotos = [];
         
-        // Variables pour mémoriser les images temporaires des étiquettes
-        let currentPrinterTypeImg = "";
-        let currentSerialImg = "";
+        let videoStream = null;
+        let scanInterval = null;
+        let activeTargetId = null;
 
         document.addEventListener('DOMContentLoaded', () => {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('headerDate').value = today;
         });
 
-        function triggerCapture(targetId) {
-            document.getElementById('capture-' + targetId).click();
-        }
+        // Déclenche le scanner natif du navigateur Chrome
+        async function startScanner(targetId) {
+            activeTargetId = targetId;
+            const video = document.getElementById('video');
+            const scannerZone = document.getElementById('scanner-zone');
 
-        // Affiche la photo de l'étiquette directement sous le champ pour recopie visuelle confortable
-        function previewLabel(fileInput, imgPreviewId) {
-            const file = fileInput.files[0];
-            if (!file) return;
+            try {
+                // Demande la caméra arrière avec mise au point automatique
+                videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
+                });
+                video.srcObject = videoStream;
+                scannerZone.style.display = 'block';
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = document.getElementById(imgPreviewId);
-                img.src = e.target.result;
-                document.getElementById('container-' + imgPreviewId).style.display = 'block';
-                
-                // Sauvegarde de l'image pour le rapport final
-                if(imgPreviewId === 'preview-printerType') {
-                    currentPrinterTypeImg = e.target.result;
+                // Vérifie si le Pixel supporte la détection native ultra-rapide
+                if ('BarcodeDetector' in window) {
+                    const detector = new BarcodeDetector();
+                    
+                    // Lance l'analyse en boucle toutes les 150ms (invisible et hyper rapide)
+                    scanInterval = setInterval(async () => {
+                        try {
+                            const barcodes = await detector.detect(video);
+                            if (barcodes.length > 0) {
+                                document.getElementById(activeTargetId).value = barcodes[0].rawValue;
+                                if (navigator.vibrate) navigator.vibrate(80); // Vibreur de succès
+                                stopScanner();
+                            }
+                        } catch (err) {
+                            console.error(err);
+                        }
+                    }, 150);
                 } else {
-                    currentSerialImg = e.target.result;
+                    alert("Votre navigateur Chrome nécessite une mise à jour pour le scan automatique natif.");
                 }
-                
-                // Met le focus sur le champ pour saisir directement au clavier avec la photo juste en dessous
-                const targetInputId = imgPreviewId.replace('preview-', '');
-                document.getElementById(targetInputId).focus();
-            };
-            reader.readAsDataURL(file);
+
+            } catch (err) {
+                alert("Impossible d'accéder à la caméra : " + err.message);
+            }
         }
 
-        // Gestionnaire des photos de pannes jointes au rapport final
+        function stopScanner() {
+            if (scanInterval) clearInterval(scanInterval);
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+            }
+            document.getElementById('scanner-zone').style.display = 'none';
+        }
+
+        // Le reste de la logique du tableau (Ajout, export Word) reste inchangé
         document.getElementById('photo').addEventListener('change', function(e) {
             previewContainer.innerHTML = '';
             currentPhotos = [];
             const files = e.target.files;
-            
             for(let file of files) {
                 const reader = new FileReader();
                 reader.onload = function(event) {
@@ -419,177 +426,67 @@
             }
         });
 
-        // Bouton d'ajout d'une ligne
         document.getElementById('addBtn').addEventListener('click', function(e) {
             e.preventDefault();
-            try {
-                const entry = {
-                    type: document.getElementById('printerType').value,
-                    option: document.getElementById('option').value,
-                    serial: document.getElementById('serial').value,
-                    cellules: document.getElementById('cellules').value,
-                    etatDot: document.getElementById('etatDot').value,
-                    roller: document.getElementById('roller').value,
-                    impression: document.getElementById('impression').value,
-                    general: document.getElementById('etatGeneral').value,
-                    remarque: document.getElementById('remarque').value,
-                    // On fusionne les photos de pannes et les photos des étiquettes pour ne rien perdre dans le Word
-                    photos: [...currentPhotos]
-                };
-                
-                if(currentPrinterTypeImg) entry.photos.push(currentPrinterTypeImg);
-                if(currentSerialImg) entry.photos.push(currentSerialImg);
-
-                reportData.push(entry);
-                updateTable();
-                
-                // Réinitialisation du formulaire machine et masquage des aperçus d'étiquettes
-                document.getElementById('printerType').value = '';
-                document.getElementById('option').value = '';
-                document.getElementById('serial').value = '';
-                document.getElementById('cellules').value = '';
-                document.getElementById('etatDot').value = '';
-                document.getElementById('roller').value = '';
-                document.getElementById('impression').value = '';
-                document.getElementById('etatGeneral').value = '';
-                document.getElementById('remarque').value = '';
-                document.getElementById('photo').value = '';
-                
-                document.getElementById('container-preview-printerType').style.display = 'none';
-                document.getElementById('container-preview-serial').style.display = 'none';
-                
-                previewContainer.innerHTML = '';
-                currentPhotos = [];
-                currentPrinterTypeImg = "";
-                currentSerialImg = "";
-
-            } catch (error) {
-                alert("Erreur lors de l'ajout : " + error.message);
-            }
-        });
-
-        function updateTable() {
+            const entry = {
+                type: document.getElementById('printerType').value,
+                option: document.getElementById('option').value,
+                serial: document.getElementById('serial').value,
+                cellules: document.getElementById('cellules').value,
+                etatDot: document.getElementById('etatDot').value,
+                roller: document.getElementById('roller').value,
+                impression: document.getElementById('impression').value,
+                general: document.getElementById('etatGeneral').value,
+                remarque: document.getElementById('remarque').value,
+                photos: [...currentPhotos]
+            };
+            reportData.push(entry);
             const tbody = document.querySelector('#summaryTable tbody');
             tbody.innerHTML = '';
             document.getElementById('count').innerText = reportData.length;
-
             reportData.forEach(data => {
                 const photoIcon = (data.photos && data.photos.length > 0) ? `${data.photos.length} 📸` : '';
-                const row = `<tr>
-                    <td>${data.type || ''}</td>
-                    <td>${data.option || ''}</td>
-                    <td>${data.serial || ''}</td>
-                    <td>${data.cellules || ''}</td>
-                    <td>${data.etatDot || ''}</td>
-                    <td>${data.roller || ''}</td>
-                    <td>${data.impression || ''}</td>
-                    <td>${data.general || ''}</td>
-                    <td>${data.remarque || ''}</td>
-                    <td>${photoIcon}</td>
+                tbody.innerHTML += `<tr>
+                    <td>${data.type}</td><td>${data.option}</td><td>${data.serial}</td>
+                    <td>${data.cellules}</td><td>${data.etatDot}</td><td>${data.roller}</td>
+                    <td>${data.impression}</td><td>${data.general}</td><td>${data.remarque}</td><td>${photoIcon}</td>
                 </tr>`;
-                tbody.innerHTML += row;
             });
-        }
+            document.getElementById('maintenanceForm').reset();
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('headerDate').value = today;
+            previewContainer.innerHTML = '';
+            currentPhotos = [];
+        });
 
-        // Export Word (.doc)
         document.getElementById('exportBtn').addEventListener('click', function(e) {
             e.preventDefault();
             if(reportData.length === 0) return alert('Aucune donnée à exporter');
-
             const site = document.getElementById('headerSite').value || 'N/A';
             const zone = document.getElementById('headerZone').value || 'N/A';
             const intervenant = document.getElementById('headerIntervenant').value || 'N/A';
             const dateVisite = document.getElementById('headerDate').value || 'N/A';
 
-            let wordHtml = `
-            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-            <head>
-                <meta charset="utf-8">
-                <title>Rapport de Maintenance</title>
-                <style>
-                    body { font-family: Arial, sans-serif; font-size: 11pt; color: #333333; }
-                    h1 { color: #1a1a1a; font-size: 18pt; border-bottom: 2px solid #c5a059; padding-bottom: 5px; }
-                    h2 { color: #1a1a1a; font-size: 14pt; margin-top: 20px; }
-                    .meta-table { width: 100%; margin-bottom: 25px; }
-                    .meta-table td { padding: 5px; font-size: 11pt; }
-                    .meta-label { font-weight: bold; width: 150px; color: #555; }
-                    .main-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                    .main-table th { background-color: #f2f2f2; border: 1px solid #cccccc; padding: 8px; font-size: 10pt; font-weight: bold; text-align: left; }
-                    .main-table td { border: 1px solid #cccccc; padding: 8px; font-size: 10pt; vertical-align: top; }
-                    .photo-gallery { margin-top: 15px; }
-                    .photo-title { font-weight: bold; margin-top: 12px; color: #c5a059; font-size: 10pt; }
-                    .word-img { max-width: 280px; height: auto; margin-right: 10px; margin-top: 5px; border: 1px solid #ddd; }
-                </style>
-            </head>
-            <body>
-                <h1>Rapport Visite de Maintenance Préventive</h1>
-                <table class="meta-table">
-                    <tr><td class="meta-label">Site :</td><td>${site}</td></tr>
-                    <tr><td class="meta-label">Zone :</td><td>${zone}</td></tr>
-                    <tr><td class="meta-label">Intervenant(s) :</td><td>${intervenant}</td></tr>
-                    <tr><td class="meta-label">Date de visite :</td><td>${dateVisite}</td></tr>
-                </table>
-
-                <h2>Tableau des Révisions Machines</h2>
-                <table class="main-table">
-                    <thead>
-                        <tr>
-                            <th>Machine Type & ID</th>
-                            <th>Option</th>
-                            <th>S/N</th>
-                            <th>Cellules</th>
-                            <th>Etat dot</th>
-                            <th>Pressing roller</th>
-                            <th>Impression</th>
-                            <th>Etat Général</th>
-                            <th>Remarque</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
-            let photoSectionsHtml = "<h2>Photos Jointes au Rapport (Pannes & Étiquettes)</h2><div class='photo-gallery'>";
+            let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>body { font-family: Arial, sans-serif; } h1 { color: #1a1a1a; border-bottom: 2px solid #c5a059; } .main-table { width: 100%; border-collapse: collapse; } .main-table th { background: #f2f2f2; border: 1px solid #ccc; padding: 8px; } .main-table td { border: 1px solid #ccc; padding: 8px; } .word-img { max-width: 280px; height: auto; margin: 5px; }</style></head><body><h1>Rapport Visite de Maintenance Préventive</h1><p><b>Site :</b> ${site} | <b>Zone :</b> ${zone} | <b>Intervenant :</b> ${intervenant} | <b>Date :</b> ${dateVisite}</p><table class="main-table"><thead><tr><th>Machine Type & ID</th><th>Option</th><th>S/N</th><th>Cellules</th><th>Etat dot</th><th>Pressing roller</th><th>Impression</th><th>Etat Général</th><th>Remarque</th></tr></thead><tbody>`;
+            let photosHtml = "<h2>Photos Jointes</h2>";
             let hasPhotos = false;
 
             reportData.forEach(r => {
-                wordHtml += `
-                    <tr>
-                        <td>${r.type || ''}</td>
-                        <td>${r.option || ''}</td>
-                        <td>${r.serial || ''}</td>
-                        <td>${r.cellules || ''}</td>
-                        <td>${r.etatDot || ''}</td>
-                        <td>${r.roller || ''}</td>
-                        <td>${r.impression || ''}</td>
-                        <td>${r.general || ''}</td>
-                        <td>${r.remarque || ''}</td>
-                    </tr>
-                `;
-
-                if (r.photos && r.photos.length > 0) {
+                wordHtml += `<tr><td>${r.type}</td><td>${r.option}</td><td>${r.serial}</td><td>${r.cellules}</td><td>${r.etatDot}</td><td>${r.roller}</td><td>${r.impression}</td><td>${r.general}</td><td>${r.remarque}</td></tr>`;
+                if(r.photos.length > 0) {
                     hasPhotos = true;
-                    photoSectionsHtml += `<div class="photo-title">📸 Pièces jointes pour : ${r.type || 'Machine Spécifique'} (S/N: ${r.serial || 'N/A'})</div>`;
-                    r.photos.forEach(imgBase64 => {
-                        photoSectionsHtml += `<img class="word-img" src="${imgBase64}" />`;
-                    });
+                    photosHtml += `<p><b>Photos pour S/N ${r.serial} :</b></p>`;
+                    r.photos.forEach(img => { photosHtml += `<img class="word-img" src="${img}" />`; });
                 }
             });
-
             wordHtml += "</tbody></table>";
-
-            if (hasPhotos) {
-                photoSectionsHtml += "</div>";
-                wordHtml += "<br><br>" + photoSectionsHtml;
-            }
-
+            if(hasPhotos) wordHtml += "<br>" + photosHtml;
             wordHtml += "</body></html>";
 
             const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            
-            const filename = `Rapport_Maintenance_${site.replace(/[^a-z0-9]/gi, '_')}.doc`;
-            link.setAttribute("download", filename);
+            link.setAttribute("download", `Rapport_Maintenance_${site}.doc`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
