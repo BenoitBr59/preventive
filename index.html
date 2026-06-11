@@ -379,20 +379,11 @@
             document.getElementById('headerIntervenant').value = "Pascal CARTON & Benoit BRACKMAN";
         });
 
-        // FILTRAGE INTELLIGENT PAR CODE : On laisse l'appareil photo s'ouvrir normalement (100% stable),
-        // mais on rejette logiciellement tout ce qui ressemble à un gros bloc QR code ou DataMatrix industriel.
+        // RECEPTION ET TRAITEMENT DU TEXTE ISSU EXCLUSIVEMENT D'UN CODE-BARRES EN LIGNE
         function processScannedBarcode(rawValue) {
             let cleanStr = rawValue.trim();
-            const upperStr = cleanStr.toUpperCase();
 
-            // SÉCURITÉ : Si le texte scanné contient des structures de blocs carrés type DataMatrix Zebra complets, on l'ignore.
-            // Cela évite de lire accidentellement le QR de la plaque constructeur globale.
-            if (cleanStr.includes("[)>") || cleanStr.startsWith("05") || cleanStr.startsWith("06") || cleanStr.includes("3056T") || cleanStr.includes("PF4I")) {
-                console.log("Format 2D ignoré pour forcer la lecture du code 128 linéaire.");
-                return false; // Renvoie false pour indiquer au scanner de continuer à chercher sans fermer l'appareil
-            }
-
-            // Nettoyage des préfixes classiques des codes 1D linéaires
+            // Nettoyage standard des en-têtes éventuels des étiquettes Zebra d'origine
             if (cleanStr.startsWith("S:") || cleanStr.startsWith("s:")) {
                 cleanStr = cleanStr.substring(2).trim();
             }
@@ -400,11 +391,11 @@
                 cleanStr = cleanStr.replace("Serial # ", "").trim();
             }
 
-            // Injection dans le champ sélectionné
+            // Remplissage du champ ciblé
             if (activeTargetId) {
                 document.getElementById(activeTargetId).value = cleanStr;
 
-                // Auto-complétion optionnelle si on attrape le S/N en premier
+                // Aide intelligente : Si on flashe le numéro de série en premier, on essaie de deviner le modèle de machine
                 if (activeTargetId === 'serial') {
                     const snUpper = cleanStr.toUpperCase();
                     const currentModelInput = document.getElementById('printerType').value;
@@ -416,7 +407,7 @@
                         else if (snUpper.startsWith("307")) document.getElementById('printerType').value = "Intermec PF4i";
                     }
                 }
-                return true; // Match réussi, le scanner va pouvoir s'arrêter proprement
+                return true; // Succès : coupe l'appareil photo proprement
             }
             return false;
         }
@@ -425,18 +416,24 @@
             activeTargetId = targetId;
             document.getElementById('scanner-zone').style.display = 'block';
             
-            // Initialisation standard et robuste garantie compatible avec tous les navigateurs mobiles
             html5QrcodeScanner = new Html5Qrcode("reader");
             
+            // FILTRAGE ROBUSTE ET OFFICIEL DE LA BIBLIOTHÈQUE
+            // On déclare explicitement les formats à écouter à l'allumage de la caméra. Tout QR code sera nativement ignoré.
+            const config = {
+                fps: 20,
+                qrbox: function(viewfinderWidth, viewfinderHeight) {
+                    return { width: viewfinderWidth * 0.9, height: viewfinderHeight * 0.4 };
+                },
+                formatsToSupport: [ 
+                    Html5QrcodeSupportedFormats.CODE_128, 
+                    Html5QrcodeSupportedFormats.CODE_39 
+                ]
+            };
+
             html5QrcodeScanner.start(
                 { facingMode: "environment" }, 
-                {
-                    fps: 20,
-                    qrbox: function(viewfinderWidth, viewfinderHeight) {
-                        // Fenêtre formatée en rectangle allongé, parfaite pour cibler un code à barres à lignes
-                        return { width: viewfinderWidth * 0.85, height: viewfinderHeight * 0.45 };
-                    }
-                },
+                config,
                 (decodedText) => {
                     const success = processScannedBarcode(decodedText);
                     if (success) {
@@ -446,7 +443,7 @@
                 },
                 (errorMessage) => {}
             ).catch((err) => {
-                alert("Erreur d'accès à la caméra. Veuillez autoriser l'appareil photo.");
+                alert("Erreur lors de l'accès à la caméra. Vérifiez vos autorisations.");
                 document.getElementById('scanner-zone').style.display = 'none';
             });
         }
