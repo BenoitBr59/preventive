@@ -135,15 +135,38 @@
             background: #000;
         }
 
+        /* Viseur laser personnalisé pour isoler les codes superposés */
+        #reader__scan_region {
+            border: 2px dashed var(--accent) !important;
+        }
+
+        .scanner-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
         .btn-close-scanner {
+            flex: 1;
             background: #dc3545;
             color: white;
             padding: 12px;
             text-align: center;
             font-weight: bold;
             cursor: pointer;
-            margin-top: 10px;
             border-radius: 6px;
+        }
+
+        .btn-zoom-scanner {
+            flex: 1;
+            background: #28a745;
+            color: white;
+            padding: 12px;
+            text-align: center;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 6px;
+            display: none; /* Apparaît si supporté par le téléphone */
         }
 
         .grid-status {
@@ -237,7 +260,10 @@
 
     <div id="scanner-zone">
         <div id="reader"></div>
-        <div class="btn-close-scanner" onclick="stopScanner()">Fermer le scanner</div>
+        <div class="scanner-controls">
+            <div id="btn-zoom" class="btn-zoom-scanner" onclick="toggleZoom()">🔍 Zoom (x2)</div>
+            <div class="btn-close-scanner" onclick="stopScanner()">Fermer</div>
+        </div>
     </div>
 
     <div class="card">
@@ -372,6 +398,7 @@
         let currentPhotos = [];
         let html5QrcodeScanner = null;
         let activeTargetId = null;
+        let isZoomed = false;
 
         document.addEventListener('DOMContentLoaded', () => {
             const today = new Date().toISOString().split('T')[0];
@@ -379,16 +406,15 @@
             document.getElementById('headerIntervenant').value = "Pascal CARTON & Benoit BRACKMAN";
         });
 
-        // TRAITEMENT LOGIQUE STRICT POUR RETENIR LES CODES BARRES LINEAIRES
         function processScannedBarcode(rawValue) {
             let cleanStr = rawValue.trim();
 
-            // SÉCURITÉ RADICALE : Si le texte scanné contient la signature d'un DataMatrix d'usine, on l'ignore silencieusement.
+            // Ignore les formats DataMatrix d'usine
             if (cleanStr.startsWith("[)>") || cleanStr.includes("05800") || cleanStr.includes("3056T")) {
                 return false; 
             }
 
-            // Nettoyage des préfixes d'étiquettes
+            // Nettoyage des préfixes 1D
             if (cleanStr.startsWith("S:") || cleanStr.startsWith("s:")) {
                 cleanStr = cleanStr.substring(2).trim();
             }
@@ -396,11 +422,9 @@
                 cleanStr = cleanStr.replace("Serial # ", "").trim();
             }
 
-            // Remplissage du champ actif
             if (activeTargetId) {
                 document.getElementById(activeTargetId).value = cleanStr;
 
-                // Auto-détection intelligente du modèle de machine d'après le préfixe du S/N
                 if (activeTargetId === 'serial') {
                     const snUpper = cleanStr.toUpperCase();
                     const currentModelInput = document.getElementById('printerType').value;
@@ -419,28 +443,29 @@
 
         function startScanner(targetId) {
             activeTargetId = targetId;
+            isZoomed = false;
+            document.getElementById('btn-zoom').style.display = 'none';
+            document.getElementById('btn-zoom').innerText = "🔍 Zoom (x2)";
             document.getElementById('scanner-zone').style.display = 'block';
             
-            // Initialisation brute du décodeur
             html5QrcodeScanner = new Html5Qrcode("reader", {
                 experimentalFeatures: {
-                    useBarCodeDetectorIfSupported: false // Désactive le moteur matériel natif du téléphone qui force la lecture des QR/DataMatrix
+                    useBarCodeDetectorIfSupported: false
                 }
             });
             
-            // Configuration de ciblage type "Faisceau Laser" horizontal
             const config = {
-                fps: 30, // Plus d'images par seconde pour accrocher la mise au point
+                fps: 30,
                 videoConstraints: {
                     facingMode: "environment",
-                    width: { min: 640, ideal: 1280, max: 1920 },
-                    height: { min: 480, ideal: 720, max: 1080 }
+                    width: { min: 1024, ideal: 1280, max: 1920 },
+                    height: { min: 768, ideal: 720, max: 1080 }
                 },
                 qrbox: function(viewfinderWidth, viewfinderHeight) {
-                    // Crée une ligne de visée très large et très fine au centre pour forcer l'alignement sur le code-barres classique
+                    // FORCE une fente laser ultra-fine (15% de hauteur maximum) pour n'intercepter qu'un seul code à la fois
                     return { 
-                        width: Math.floor(viewfinderWidth * 0.95), 
-                        height: Math.floor(viewfinderHeight * 0.25) 
+                        width: Math.floor(viewfinderWidth * 0.90), 
+                        height: Math.floor(viewfinderHeight * 0.15) 
                     };
                 },
                 formatsToSupport: [ 
@@ -460,10 +485,46 @@
                     }
                 },
                 (errorMessage) => {}
-            ).catch((err) => {
+            ).then(() => {
+                // Vérification si le téléphone supporte le contrôle du zoom matériel
+                setTimeout(() => {
+                    try {
+                        const track = html5QrcodeScanner.getRunningTrack();
+                        const capabilities = track.getCapabilities();
+                        if (capabilities.zoom) {
+                            document.getElementById('btn-zoom').style.display = 'block';
+                        }
+                    } catch (e) {
+                        console.log("Contrôle du zoom non disponible sur ce navigateur web.");
+                    }
+                }, 1000);
+            }).catch((err) => {
                 alert("Erreur d'accès à la caméra.");
                 document.getElementById('scanner-zone').style.display = 'none';
             });
+        }
+
+        function toggleZoom() {
+            try {
+                const track = html5QrcodeScanner.getRunningTrack();
+                const capabilities = track.getCapabilities();
+                
+                if (capabilities.zoom) {
+                    const minZoom = capabilities.zoom.min || 1;
+                    const maxZoom = capabilities.zoom.max || 3;
+                    // On choisit un zoom intermédiaire stable (ex: x2 ou le max dispo)
+                    const targetZoom = isZoomed ? minZoom : Math.min(2, maxZoom); 
+                    
+                    track.applyConstraints({
+                        advanced: [{ zoom: targetZoom }]
+                    });
+                    
+                    isZoomed = !isZoomed;
+                    document.getElementById('btn-zoom').innerText = isZoomed ? "🔍 Dézoomer" : "🔍 Zoom (x2)";
+                }
+            } catch (e) {
+                alert("Le zoom n'a pas pu être appliqué.");
+            }
         }
 
         function stopScanner() {
@@ -480,6 +541,7 @@
             }
         }
 
+        // --- Le reste des fonctions de gestion du tableau reste identique ---
         document.getElementById('photo').addEventListener('change', function(e) {
             previewContainer.innerHTML = '';
             currentPhotos = [];
@@ -604,30 +666,24 @@
                 .title-doc { font-size: 18pt; font-weight: bold; color: #1a1a1a; margin-bottom: 2px; }
                 .subtitle-doc { font-size: 14pt; font-weight: bold; color: #c5a059; margin-top: 0; margin-bottom: 15px; }
                 .meta-box { font-size: 11pt; margin-bottom: 25px; line-height: 1.5; }
-                
                 .main-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; }
                 .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 6px 8px; font-size: 10pt; font-weight: bold; text-align: left; }
                 .main-table td { border: 1px solid #cccccc; padding: 6px 8px; font-size: 9.5pt; vertical-align: top; }
-                
                 .zone-title-td { background-color: #dfd5c2; font-weight: bold; font-size: 11pt; color: #1a1a1a; padding: 7px 8px; border: 1px solid #555555; text-transform: uppercase; }
                 .action-required { font-weight: bold; color: #b30000; }
-                
                 .conseils-box { background: #fafafa; border-left: 4px solid #c5a059; padding: 10px; margin-top: 30px; font-size: 10pt; }
                 .word-img { max-width: 450px; height: auto; margin: 10px 0; border: 1px solid #777777; }
                 .annexe-title { font-size: 14pt; font-weight: bold; border-bottom: 2px solid #c5a059; margin-top: 40px; padding-bottom: 3px; }
             </style>
             </head>
             <body>
-
             <div class="title-doc">Rapport Visite de maintenance préventive</div>
             <div class="subtitle-doc">Imprimantes Zebra & Intermec</div>
-            
             <div class="meta-box">
                 <b>Client / Site :</b> ${clientSite}<br>
                 <b>Visite effectuée le :</b> ${dateVisite}<br>
                 <b>Intervenants :</b> ${intervenant}
             </div>
-
             <table class="main-table">
                 <thead>
                     <tr>
@@ -699,7 +755,6 @@
             });
 
             wordHtml += `</tbody></table>`;
-
             wordHtml += `<div class="conseils-box">
                 <p><b>Remarque :</b> Le texte en couleur ou mis en évidence dans la colonne Remarques est porté à votre attention pour action.</p>
                 <ul>
