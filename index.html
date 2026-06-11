@@ -373,21 +373,17 @@
             document.getElementById('headerDate').value = today;
         });
 
-        // PARSEUR ET EXTRACTEUR PAR IDENTIFICATION BASEE SUR LES PREFIXES CONSTRUCTEURS (5 CARACTERES)
         function processScannedBarcode(rawValue) {
             let cleanStr = rawValue.trim();
 
-            // Si c'est le QR Code / DataMatrix global contenant la macro industrielle
             if (cleanStr.includes("[)>") || cleanStr.startsWith("05") || cleanStr.includes("06") || cleanStr.includes("3056T")) {
-                
                 let detectedSN = "";
                 let detectedModel = "Zebra Machine";
 
-                // 1. Extraction du S/N précis via Regex standardisé
                 const snRegexes = [
-                    /[0-9]{2}[Jj][0-9]{9}/,          // ex: 18J152104710
-                    /[A-Za-z][0-9][A-Za-z][0-9]{8}/, // ex: T3J231701883
-                    /307009[0-9]{5}/                 // ex: 30700900007
+                    /[0-9]{2}[Jj][0-9]{9}/,          
+                    /[A-Za-z][0-9][A-Za-z][0-9]{8}/, 
+                    /307009[0-9]{5}/                 
                 ];
 
                 for (let regex of snRegexes) {
@@ -398,15 +394,12 @@
                     }
                 }
 
-                // 2. Détermination du modèle via les 5 premiers caractères clés du code produit (PN) dans la chaîne globale
                 const upperStr = cleanStr.toUpperCase();
-                
                 if (upperStr.includes("ZT231")) detectedModel = "ZT231";
                 else if (upperStr.includes("ZT411")) detectedModel = "ZT411";
                 else if (upperStr.includes("ZT421")) detectedModel = "ZT421";
                 else if (upperStr.includes("ZT420")) detectedModel = "ZT420";
                 else if (upperStr.includes("PF4I")) detectedModel = "Intermec PF4i";
-                // Règle de secours si la chaîne PN est tronquée mais qu'on a le S/N racine
                 else if (detectedSN) {
                     if (detectedSN.startsWith("T3J")) detectedModel = "ZT231";
                     else if (detectedSN.startsWith("99J")) detectedModel = "ZT421";
@@ -414,7 +407,6 @@
                     else if (detectedSN.startsWith("307")) detectedModel = "Intermec PF4i";
                 }
 
-                // Remplissage couplé et instantané
                 if (detectedSN) {
                     document.getElementById('serial').value = detectedSN;
                     document.getElementById('printerType').value = detectedModel;
@@ -422,12 +414,127 @@
                 }
             }
 
-            // Nettoyage si c'est un code 1D classique avec le préfixe constructeur "S:"
             if (cleanStr.startsWith("S:") || cleanStr.startsWith("s:")) {
                 cleanStr = cleanStr.substring(2).trim();
             }
 
-            // Remplissage classique champ par champ si l'utilisateur utilise un bouton de scan individuel
             if (activeTargetId) {
                 if (activeTargetId === 'printerType') {
-                    const checkUpper = cleanStr.toUpperCase
+                    const checkUpper = cleanStr.toUpperCase();
+                    if (checkUpper.startsWith("ZT231")) cleanStr = "ZT231";
+                    else if (checkUpper.startsWith("ZT411")) cleanStr = "ZT411";
+                    else if (checkUpper.startsWith("ZT421")) cleanStr = "ZT421";
+                    else if (checkUpper.startsWith("ZT420")) cleanStr = "ZT420";
+                    else if (checkUpper.startsWith("PF4I")) cleanStr = "Intermec PF4i";
+                }
+                document.getElementById(activeTargetId).value = cleanStr;
+                return true;
+            }
+
+            return false;
+        }
+
+        async function startScanner(targetId) {
+            // Force l'arrêt d'un ancien scan fantôme pour éviter les conflits
+            stopScanner();
+            
+            activeTargetId = targetId;
+            const video = document.getElementById('video');
+            const scannerZone = document.getElementById('scanner-zone');
+
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
+                });
+                video.srcObject = videoStream;
+                scannerZone.style.display = 'block';
+
+                if ('BarcodeDetector' in window) {
+                    const detector = new BarcodeDetector();
+                    
+                    scanInterval = setInterval(async () => {
+                        try {
+                            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                                const barcodes = await detector.detect(video);
+                                if (barcodes.length > 0) {
+                                    const isProcessed = processScannedBarcode(barcodes[0].rawValue);
+                                    if (isProcessed) {
+                                        if (navigator.vibrate) navigator.vibrate(80);
+                                        stopScanner();
+                                    }
+                                }
+                            }
+                        } catch (err) {
+                            console.error("Erreur détection :", err);
+                        }
+                    }, 200);
+                } else {
+                    alert("Le composant de scan Chrome s'est figé. Veuillez recharger entièrement l'onglet de votre page.");
+                }
+
+            } catch (err) {
+                alert("Impossible d'accéder à l'appareil photo. Vérifiez que Chrome a l'autorisation dans les paramètres du téléphone.");
+            }
+        }
+
+        function stopScanner() {
+            if (scanInterval) clearInterval(scanInterval);
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => {
+                    track.stop();
+                    console.log("Caméra coupée proprement.");
+                });
+            }
+            videoStream = null;
+            scanInterval = null;
+            document.getElementById('scanner-zone').style.display = 'none';
+        }
+
+        document.getElementById('photo').addEventListener('change', function(e) {
+            previewContainer.innerHTML = '';
+            currentPhotos = [];
+            const files = e.target.files;
+            for(let file of files) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = document.createElement('img');
+                    img.src = event.target.result;
+                    img.classList.add('photo-preview');
+                    previewContainer.appendChild(img);
+                    currentPhotos.push(event.target.result);
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            document.getElementById('count').innerText = reportData.length;
+
+            const zones = [];
+            reportData.forEach(item => {
+                if (!zones.includes(item.zone)) zones.push(item.zone);
+            });
+
+            zones.forEach(zoneName => {
+                const zoneData = reportData.filter(item => item.zone === zoneName);
+                
+                if (zoneName !== "") {
+                    tbody.innerHTML += `<tr>
+                        <td colspan="10" class="zone-header-row">${zoneName.toUpperCase()}</td>
+                    </tr>`;
+                }
+
+                zoneData.forEach(data => {
+                    const photoIcon = (data.photos && data.photos.length > 0) ? `${data.photos.length} 📸` : '';
+                    tbody.innerHTML += `<tr>
+                        <td><b>${data.imprimante}</b></td>
+                        <td>${data.serial}</td>
+                        <td>${data.ip}</td>
+                        <td>${data.cellules}</td>
+                        <td>${data.etatDot}</td>
+                        <td>${data.roller}</td>
+                        <td>${data.impression}</td>
+                        <td>${data.general}</td>
+                        <td>${data.rem
