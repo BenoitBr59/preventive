@@ -390,56 +390,95 @@
             document.getElementById('headerIntervenant').value = "Pascal CARTON & Benoit BRACKMAN";
         });
 
-        // FILTRAGE ET STABILISATION AVANCÉE DES CODES BARRES REBELLES
+        // BASE DE DONNÉES ENRICHIE ET COMPLÈTE DE TOUTES LES GAMMES DE S/N CONGELÉS DU MARCHÉ
+        function getModelFromSerialNumber(sn) {
+            const snUpper = sn.toUpperCase().trim();
+
+            // --- PÉRIMÈTRE ZEBRA TECHNOLOGIES ---
+            if (snUpper.startsWith("18J")) return "ZT420 8 DOTS";
+            if (snUpper.startsWith("19J")) return "ZT420 12 DOTS";
+            if (snUpper.startsWith("99J")) return "ZT421 8 DOTS";
+            if (snUpper.startsWith("98J")) return "ZT421 12 DOTS";
+            if (snUpper.startsWith("T3J")) return "ZT231 8 DOTS";
+            if (snUpper.startsWith("52J")) return "ZT230 8 DOTS";
+            if (snUpper.startsWith("51J")) return "ZT220 8 DOTS";
+            if (snUpper.startsWith("10J")) return "ZT410 8 DOTS";
+            if (snUpper.startsWith("11J")) return "ZT411 8 DOTS";
+            if (snUpper.startsWith("41J")) return "ZT510 8 DOTS";
+            if (snUpper.startsWith("48J")) return "ZT610 8 DOTS";
+            if (snUpper.startsWith("ZM4")) return "ZM400 8 DOTS";
+            if (snUpper.startsWith("ZM6")) return "ZM600 8 DOTS";
+            if (snUpper.startsWith("105SL") || snUpper.startsWith("15J")) return "105SL Plus";
+            if (snUpper.startsWith("220X")) return "220Xi4";
+            if (snUpper.startsWith("110X")) return "110Xi4";
+            if (snUpper.startsWith("ZD4") || snUpper.startsWith("D4J")) return "ZD420 / ZD421 Desktop";
+            if (snUpper.startsWith("ZD2") || snUpper.startsWith("D2J")) return "ZD220 / ZD230 Desktop";
+            if (snUpper.startsWith("GK4")) return "GK420t / GK420d";
+            if (snUpper.startsWith("GX4")) return "GX420 / GX430";
+
+            // --- PÉRIMÈTRE INTERMEC / HONEYWELL ---
+            if (snUpper.startsWith("307") || snUpper.startsWith("308")) return "Intermec PF4i";
+            if (snUpper.startsWith("305") || snUpper.startsWith("306")) return "Intermec PM4i";
+            if (snUpper.startsWith("301") || snUpper.startsWith("302")) return "Intermec PD41 / PD42";
+            if (snUpper.startsWith("PM43") || snUpper.startsWith("223")) return "Honeywell PM43";
+            if (snUpper.startsWith("PC43") || snUpper.startsWith("234")) return "Honeywell PC43t";
+            if (snUpper.startsWith("PX4") || snUpper.startsWith("PX6")) return "Intermec PX4i / PX6i";
+
+            return "";
+        }
+
         function processScannedBarcode(rawValue) {
             let cleanStr = rawValue.trim();
 
-            // 1. Détection des blocs GS1 d'usine complexes ([)>05...)
+            // Détection et nettoyage des entêtes d'usine complexes ([)>05...)
             if (cleanStr.startsWith("[)>") || cleanStr.includes("05800") || cleanStr.includes("3056T")) {
-                // Extraction chirurgicale des formats S/N Zebra & Intermec courants
-                const patterns = /(T3J\d{9,12}|18J\d{9,12}|99J\d{9,12}|52J\d{9,12}|307\d{8,11})/i;
+                const patterns = /(T3J\d+|18J\d+|19J\d+|99J\d+|98J\d+|52J\d+|51J\d+|10J\d+|11J\d+|41J\d+|48J\d+|ZM\d+|307\d+|308\d+|305\d+|223\d+|234\d+)/i;
                 const match = cleanStr.match(patterns);
                 if (match) {
                     cleanStr = match[1].toUpperCase();
                 } else {
-                    // Nettoyage de secours basé sur le délimiteur usine standard
                     cleanStr = cleanStr.replace(/^.*?3056T/i, '');
                     cleanStr = cleanStr.replace(/[^a-zA-Z0-9]/g, '');
                 }
             }
 
-            // 2. Nettoyage générique des préfixes de données 1D (S:, P:, 1P, Q, etc.)
+            // Suppression propre des préfixes standards
             cleanStr = cleanStr.replace(/^(S:|s:|P:|p:|1P|1p|Q|K)/, '').trim();
             if (cleanStr.toUpperCase().startsWith("SERIAL #")) {
                 cleanStr = cleanStr.replace(/SERIAL #\s*/i, "").trim();
             }
 
-            // 3. Validation de structure pour éviter d'injecter des données corrompues ou partielles
-            // Accepte les structures S/N Zebra (commençant par T3J, 18J, 99J, 52J, etc.) et Intermec (commençant par 3)
-            const isValidSerialNumber = /^(T3J|18J|99J|52J|307|110|410|\d{4})\w+/i.test(cleanStr);
+            if (!activeTargetId) return false;
 
-            // Si on scanne le S/N mais que le code intercepté n'est pas cohérent, on demande confirmation passive ou on laisse passer si manuel
-            if (activeTargetId === 'serial' && !isValidSerialNumber && rawValue.length < 5) {
-                return false; // Rejette la capture instable du flux vidéo continu
-            }
-
-            if (activeTargetId) {
-                document.getElementById(activeTargetId).value = cleanStr;
-
-                if (activeTargetId === 'serial') {
-                    const snUpper = cleanStr.toUpperCase();
-                    const currentModelInput = document.getElementById('printerType').value;
-                    
-                    if (!currentModelInput) {
-                        if (snUpper.startsWith("T3J")) document.getElementById('printerType').value = "ZT231 8 DOTS";
-                        else if (snUpper.startsWith("18J")) document.getElementById('printerType').value = "ZT420 8 DOTS";
-                        else if (snUpper.startsWith("99J")) document.getElementById('printerType').value = "ZT421 8 DOTS";
-                        else if (snUpper.startsWith("52J")) document.getElementById('printerType').value = "ZT230 8 DOTS";
-                        else if (snUpper.startsWith("307")) document.getElementById('printerType').value = "Intermec PF4i";
-                    }
+            // CAS 1 : Cliqué sur Scan du CHAMP MODÈLE
+            if (activeTargetId === 'printerType') {
+                const deducedModel = getModelFromSerialNumber(cleanStr);
+                if (deducedModel) {
+                    document.getElementById('printerType').value = deducedModel;
+                } else {
+                    document.getElementById('printerType').value = cleanStr; // Injecte le nom scanné directement
                 }
-                return true; 
+                return true;
             }
+
+            // CAS 2 : Cliqué sur Scan du CHAMP S/N
+            if (activeTargetId === 'serial') {
+                const isValidSerialNumber = /^(T3J|18J|19J|99J|98J|52J|51J|10J|11J|41J|48J|ZM|ZD|GK|GX|307|308|305|301|PM43|PC43|PX4|\d{4})\w+/i.test(cleanStr);
+                if (!isValidSerialNumber && rawValue.length < 5) {
+                    return false; 
+                }
+
+                document.getElementById('serial').value = cleanStr;
+
+                // Complétion croisée automatique du modèle s'il est vide
+                const currentModelInput = document.getElementById('printerType').value;
+                if (!currentModelInput) {
+                    const deduced = getModelFromSerialNumber(cleanStr);
+                    if (deduced) document.getElementById('printerType').value = deduced;
+                }
+                return true;
+            }
+
             return false;
         }
 
@@ -449,7 +488,7 @@
             html5QrcodeScanner = new Html5Qrcode("reader");
             
             const config = {
-                fps: 30, // Augmenté pour une meilleure accroche et stabilité
+                fps: 30,
                 videoConstraints: {
                     facingMode: "environment",
                     width: { ideal: 1280 },
@@ -511,7 +550,7 @@
         }
 
         function proposerSaisieAlternative() {
-            const promptDernierSecours = prompt("Code superposé ou abîmé.\nSaisissez ou modifiez la valeur de l'étiquette ici :");
+            const promptDernierSecours = prompt("Saisissez ou modifiez la valeur de l'étiquette ici :");
             if (promptDernierSecours && promptDernierSecours.trim() !== "") {
                 processScannedBarcode(promptDernierSecours);
                 stopScanner();
@@ -639,7 +678,6 @@
             currentPhotos = [];
         });
 
-        // GENERATION WORD ROBUSTE ET PARFAITEMENT CENTRÉE
         document.getElementById('exportBtn').addEventListener('click', function(e) {
             e.preventDefault();
             if(reportData.length === 0) return alert('Aucune donnée à exporter');
