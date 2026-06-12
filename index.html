@@ -56,15 +56,21 @@
             margin: 0;
         }
 
-        .header-group input {
+        .header-group input, .header-group select {
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.3);
             color: white;
             padding: 6px 10px;
             border-radius: 4px;
             font-size: 0.9rem;
-            height: auto;
+            height: 35px;
             flex: 1;
+            box-sizing: border-box;
+        }
+
+        .header-group select option {
+            background-color: var(--primary);
+            color: white;
         }
 
         .card {
@@ -236,7 +242,11 @@
             </div>
             <div class="header-group">
                 <label for="headerIntervenant">Intervenant(s) :</label>
-                <input type="text" id="headerIntervenant" placeholder="Ex: Pascal CARTON & Benoit BRACKMAN...">
+                <select id="headerIntervenant">
+                    <option value="Pascal CARTON & Benoit BRACKMAN">Pascal CARTON & Benoit BRACKMAN</option>
+                    <option value="Pascal CARTON">Pascal CARTON</option>
+                    <option value="Benoit BRACKMAN">Benoit BRACKMAN</option>
+                </select>
             </div>
             <div class="header-group">
                 <label for="headerDate">Date de visite :</label>
@@ -376,7 +386,7 @@
                 </tbody>
             </table>
         </div>
-        <button type="button" class="btn-export" id="exportBtn">Exporter le rapport officiel (.odt)</button>
+        <button type="button" class="btn-export" id="exportBtn">Exporter le rapport officiel (.doc)</button>
     </div>
 
     <script>
@@ -389,7 +399,6 @@
         document.addEventListener('DOMContentLoaded', () => {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('headerDate').value = today;
-            document.getElementById('headerIntervenant').value = "Pascal CARTON & Benoit BRACKMAN";
         });
 
         function getModelFromSerialNumber(sn) {
@@ -582,18 +591,25 @@
             previewContainer.innerHTML = ''; currentPhotos = [];
         });
 
-        // GENERATEUR DE FICHIER UNIVERSEL ODT (OPENDOCUMENT TEXT)
+        // GENERATEUR DE FICHIER WORD SÉCURISÉ AVEC FORÇAGE DU MODE PAGE IM-PRESSION
         document.getElementById('exportBtn').addEventListener('click', function(e) {
             e.preventDefault();
             if(reportData.length === 0) return alert('Aucune donnée à exporter');
             
             const site = document.getElementById('headerSite').value || 'N/A';
-            const tech = document.getElementById('headerIntervenant').value || 'N/A';
+            const tech = document.getElementById('headerIntervenant').value;
             const dateV = document.getElementById('headerDate').value ? new Date(document.getElementById('headerDate').value).toLocaleDateString('fr-FR') : 'N/A';
 
-            let odtHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+            let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
             <head>
             <meta charset="utf-8">
+            <!--[if gte mso 9]><xml>
+             <w:WordDocument>
+              <w:View>Print</w:View>
+              <w:Zoom>100</w:Zoom>
+              <w:DoNotOptimizeForBrowser/>
+             </w:WordDocument>
+            </xml><![endif]-->
             <style>
                 body { font-family: 'Arial', sans-serif; color: #1a1a1a; margin: 24px; }
                 .title-doc { font-size: 19pt; font-weight: bold; color: #1a1a1a; margin-bottom: 2px; }
@@ -617,7 +633,7 @@
             <div class="meta-box">
                 <b>Client / Site :</b> ${site}<br>
                 <b>Visite effectuée le :</b> ${dateV}<br>
-                <b>Intervenants :</b> ${tech}
+                <b>Intervenant(s) :</b> ${tech}
             </div>
             <table class="main-table">
                 <thead>
@@ -641,7 +657,7 @@
 
             zones.forEach(zName => {
                 const zoneData = reportData.filter(item => item.zone === zName);
-                wordHtml = odtHtml += `<tr><td colspan="8" class="zone-title-td">${zName === "" ? "SANS SECTEUR" : zName.toUpperCase()}</td></tr>`;
+                wordHtml += `<tr><td colspan="8" class="zone-title-td">${zName === "" ? "SANS SECTEUR" : zName.toUpperCase()}</td></tr>`;
                 
                 zoneData.forEach(r => {
                     let rem = r.remarque;
@@ -650,7 +666,7 @@
                         rem = `<span class="action-required">${r.remarque}</span>`;
                     }
 
-                    odtHtml += `<tr>
+                    wordHtml += `<tr>
                         <td class="cell-left"><b>${r.imprimante}</b></td>
                         <td class="cell-center"><b>${r.serial}</b><br><span style="color:#444; font-size:8pt;">${r.ip}</span></td>
                         <td class="cell-center">${r.cellules}</td>
@@ -669,8 +685,8 @@
                 });
             });
 
-            odtHtml += `</tbody></table>`;
-            odtHtml += `<div class="conseils-box">
+            wordHtml += `</tbody></table>`;
+            wordHtml += `<div class="conseils-box">
                 <p><b>Remarque :</b> Le texte mis en évidence dans la colonne Remarques est à traiter en priorité.</p>
                 <ul>
                     <li>Un nettoyage régulier prolonge considérablement la durée de vie de vos têtes d'impression.</li>
@@ -678,14 +694,14 @@
                 </ul>
             </div>`;
 
-            if(hasPhotos) odtHtml += "<br>" + photosHtml;
-            odtHtml += `</body></html>`;
+            if(hasPhotos) wordHtml += "<br>" + photosHtml;
+            wordHtml += `</body></html>`;
 
-            // Utilisation du type MIME officiel OpenDocument Text pour forcer le bon traitement graphique
-            const blob = new Blob(['\ufeff' + odtHtml], { type: 'application/vnd.oasis.opendocument.text' });
+            // Utilisation du type MIME standard msword pour une compatibilité native parfaite sans alerte
+            const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.setAttribute("download", `Rapport_Maintenance_${site.replace(/[^a-zA-Z0-9]/g, "_")}.odt`);
+            link.setAttribute("download", `Rapport_Maintenance_${site.replace(/[^a-zA-Z0-9]/g, "_")}.doc`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
