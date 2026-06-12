@@ -591,7 +591,7 @@
             previewContainer.innerHTML = ''; currentPhotos = [];
         });
 
-        // GENERATEUR DE FICHIER WORD SÉCURISÉ AVEC FORÇAGE DU MODE PAGE IM-PRESSION
+        // GENERATEUR DE FICHIER WORD EN MODE PAYSAGE FORCE
         document.getElementById('exportBtn').addEventListener('click', function(e) {
             e.preventDefault();
             if(reportData.length === 0) return alert('Aucune donnée à exporter');
@@ -611,47 +611,63 @@
              </w:WordDocument>
             </xml><![endif]-->
             <style>
-                body { font-family: 'Arial', sans-serif; color: #1a1a1a; margin: 24px; }
+                /* CONFIGURATION DU MODE PAYSAGE OFFICIEL POUR MICROSOFT WORD */
+                @page Section1 {
+                    size: 11.0in 8.5in; /* Format Lettre ou A4 Paysage */
+                    margin: 0.8in 0.8in 0.8in 0.8in;
+                    mso-page-orientation: landscape;
+                }
+                div.Section1 {
+                    page: Section1;
+                }
+
+                body { font-family: 'Arial', sans-serif; color: #1a1a1a; }
                 .title-doc { font-size: 19pt; font-weight: bold; color: #1a1a1a; margin-bottom: 2px; }
                 .subtitle-doc { font-size: 14pt; font-weight: bold; color: #c5a059; margin-top: 0; margin-bottom: 15px; }
                 .meta-box { font-size: 11pt; margin-bottom: 25px; line-height: 1.6; }
+                
+                /* Largeurs optimisées pour le format Paysage */
                 .main-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; table-layout: fixed; }
-                .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 8px 4px; font-size: 9.5pt; font-weight: bold; text-align: center; }
-                .main-table td { border: 1px solid #cccccc; padding: 7px 5px; font-size: 9.5pt; vertical-align: middle; }
+                .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 8px 4px; font-size: 10pt; font-weight: bold; text-align: center; }
+                .main-table td { border: 1px solid #cccccc; padding: 7px 5px; font-size: 10pt; vertical-align: middle; }
+                
                 .cell-left { text-align: left; }
                 .cell-center { text-align: center; }
                 .zone-title-td { background-color: #dfd5c2; font-weight: bold; font-size: 11pt; color: #1a1a1a; padding: 8px; border: 1px solid #555555; text-transform: uppercase; text-align: left; }
                 .action-required { font-weight: bold; color: #b30000; }
+                
                 .conseils-box { background: #fafafa; border-left: 4px solid #c5a059; padding: 12px; margin-top: 30px; font-size: 10.5pt; line-height: 1.5; }
-                .word-img { max-width: 500px; height: auto; margin: 12px 0; border: 1px solid #666666; display:block; }
+                .word-img { max-width: 650px; height: auto; margin: 12px 0; border: 1px solid #666666; display:block; }
                 .annexe-title { font-size: 15pt; font-weight: bold; border-bottom: 2px solid #c5a059; margin-top: 40px; padding-bottom: 4px; }
             </style>
             </head>
             <body>
+            <div class="Section1">
             <div class="title-doc">Rapport Visite de maintenance préventive</div>
-            <div class="subtitle-doc">Imprimantes Zebra & Intermec</div>
+            <div class="subtitle-doc">Imprimantes Zebra &amp; Intermec</div>
             <div class="meta-box">
                 <b>Client / Site :</b> ${site}<br>
                 <b>Visite effectuée le :</b> ${dateV}<br>
-                <b>Intervenant(s) :</b> ${tech}
+                <b>Intervenant :</b> ${tech}
             </div>
             <table class="main-table">
                 <thead>
                     <tr>
-                        <th style="width: 20%;">Imprimante</th>
-                        <th style="width: 17%;">S/N<br>@ IP</th>
+                        <th style="width: 22%;">Imprimante / Lieu</th>
+                        <th style="width: 15%;">S/N<br>@IP</th>
                         <th style="width: 8%;">Cellules</th>
-                        <th style="width: 11%;">Etat dot</th>
-                        <th style="width: 10%;">Pressing Roller</th>
-                        <th style="width: 9%;">Impression</th>
-                        <th style="width: 8%;">Etat Gén.</th>
-                        <th style="width: 17%;">Remarques</th>
+                        <th style="width: 10%;">Etat dot</th>
+                        <th style="width: 11%;">Pressing Roller</th>
+                        <th style="width: 10%;">Impression</th>
+                        <th style="width: 10%;">Etat général</th>
+                        <th style="width: 24%;">Remarques</th>
                     </tr>
                 </thead>
                 <tbody>`;
             
             let photosHtml = `<div class="annexe-title">Annexes : Suivi visuel &amp; Défauts constatés</div>`;
             let hasPhotos = false;
+            let photoIndex = 1;
             const zones = [];
             reportData.forEach(item => { if (!zones.includes(item.zone)) zones.push(item.zone); });
 
@@ -660,15 +676,26 @@
                 wordHtml += `<tr><td colspan="8" class="zone-title-td">${zName === "" ? "SANS SECTEUR" : zName.toUpperCase()}</td></tr>`;
                 
                 zoneData.forEach(r => {
-                    let rem = r.remarque;
+                    let rem = r.remarque || "Rien à signaler";
                     const words = ["Tête à changer", "Tete a changer", "Prévoir", "Prevoir", "Remplacer", "Changement", "A changer", "HS"];
+                    
+                    // Si l'élément contient des photos, on ajoute l'annotation (voir ci-gênant (x)) automatique dans les remarques
+                    if(r.photos && r.photos.length > 0) {
+                        const notePhoto = ` (voir ci-gênant (${photoIndex}))`;
+                        if (rem === "Rien à signaler") {
+                            rem = notePhoto.trim();
+                        } else {
+                            rem += notePhoto;
+                        }
+                    }
+
                     if (words.some(w => r.remarque.toLowerCase().includes(w.toLowerCase()))) {
-                        rem = `<span class="action-required">${r.remarque}</span>`;
+                        rem = `<span class="action-required">${rem}</span>`;
                     }
 
                     wordHtml += `<tr>
                         <td class="cell-left"><b>${r.imprimante}</b></td>
-                        <td class="cell-center"><b>${r.serial}</b><br><span style="color:#444; font-size:8pt;">${r.ip}</span></td>
+                        <td class="cell-center"><b>${r.serial}</b><br><span style="color:#444; font-size:8.5pt;">${r.ip}</span></td>
                         <td class="cell-center">${r.cellules}</td>
                         <td class="cell-center">${r.etatDot}</td>
                         <td class="cell-center">${r.roller}</td>
@@ -679,25 +706,30 @@
 
                     if(r.photos && r.photos.length > 0) {
                         hasPhotos = true;
-                        photosHtml += `<p style="margin-top:15px; font-size:11pt;"><b>Visuel — S/N : ${r.serial} (${r.imprimante}) :</b></p>`;
-                        r.photos.forEach(img => { photosHtml += `<img class="word-img" src="${img}" /><br>`; });
+                        r.photos.forEach(img => { 
+                            photosHtml += `<p style="margin-top:20px; font-size:11pt;"><b>(${photoIndex}) Visuel — S/N : ${r.serial} (${r.imprimante}) :</b></p>`;
+                            photosHtml += `<img class="word-img" src="${img}" /><br>`; 
+                        });
+                        photoIndex++;
                     }
                 });
             });
 
             wordHtml += `</tbody></table>`;
+            
+            // Reprise fidèle du texte et des conseils de votre exemple de rapport
             wordHtml += `<div class="conseils-box">
-                <p><b>Remarque :</b> Le texte mis en évidence dans la colonne Remarques est à traiter en priorité.</p>
+                <p><b>Remarque :</b></p>
                 <ul>
-                    <li>Un nettoyage régulier prolonge considérablement la durée de vie de vos têtes d'impression.</li>
-                    <li><b>IMPORTANT :</b> Ne jamais utiliser de cutter sur les rollers d'entraînement sous peine de destruction immédiate de la matière. Privilégiez un produit décolle-étiquettes adapté.</li>
+                    <li>Faire un nettoyage régulier des têtes et rollers, vous permettrez de gagner en qualité d’impression et en longévité des têtes d’impression.</li>
+                    <li>Ne pas utiliser de cutter pour enlever les étiquettes collées sur le roller afin de ne pas l’abimer, utiliser de la bombe décolle étiquettes.</li>
                 </ul>
+                <p style="font-size: 9.5pt; color: #555; margin-top:10px;">Ci-dessous, les têtes d’impression présentant un défaut d’impression à un ou plusieurs endroits soumis à votre attention pour un changement éventuel ou nécessaire, ainsi que les traces de manque de matière.</p>
             </div>`;
 
             if(hasPhotos) wordHtml += "<br>" + photosHtml;
-            wordHtml += `</body></html>`;
+            wordHtml += `</div></body></html>`;
 
-            // Utilisation du type MIME standard msword pour une compatibilité native parfaite sans alerte
             const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
