@@ -8,7 +8,7 @@
     <!-- Moteur de scan universel -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     
-    <!-- Nouveau moteur de recadrage compatible 100% Mobile & Tactile (Cropper.js) -->
+    <!-- Moteur de recadrage compatible Mobile & Tactile (Cropper.js) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 
@@ -254,31 +254,17 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.85rem;
+            font-size: 0.95rem;
             margin-bottom: 20px;
-            table-layout: fixed;
         }
 
         th, td {
             border: 1px solid #ddd;
-            padding: 4px 3px;
+            padding: 10px;
             text-align: left;
-            word-wrap: break-word;
-            line-height: 1.1;
         }
 
         th { background: #eee; font-weight: bold; }
-        
-        /* Ajustements d'affichage écran rééquilibrés */
-        th:nth-child(1) { width: 14%; } /* Imprimante */
-        th:nth-child(2) { width: 14%; } /* S/N / IP réajusté */
-        th:nth-child(3) { width: 7%; }  
-        th:nth-child(4) { width: 9%; } 
-        th:nth-child(5) { width: 9%; } 
-        th:nth-child(6) { width: 7%; }  
-        th:nth-child(7) { width: 6%; }  
-        th:nth-child(8) { width: 34%; } /* Remarques */
-        th:nth-child(9) { width: 6%; }  
 
         .zone-header-row {
             background-color: #dfd5c2 !important;
@@ -286,7 +272,7 @@
             color: #1a1a1a;
             font-size: 0.95rem;
             text-align: center;
-            padding: 4px;
+            padding: 6px;
         }
     </style>
 </head>
@@ -429,8 +415,8 @@
             </div>
 
             <div class="form-group">
-                <label for="remarque">Remarques / Actions à mener</label>
-                <textarea id="remarque" rows="2" placeholder="Saisir les remarques..."></textarea>
+                <label for="remarque">Remarques / Actions à mener (Utilisez le tiret '-' pour aller à la ligne)</label>
+                <textarea id="remarque" rows="3" placeholder="Saisir les remarques... Ex: Nettoyage effectué - Tête à changer"></textarea>
             </div>
 
             <div class="form-group">
@@ -443,21 +429,14 @@
         </form>
     </div>
 
+    <!-- Affichage ultra-allégé -->
     <div class="card">
         <h3>Imprimantes enregistrées (<span id="count">0</span>)</h3>
         <div class="table-container">
             <table id="summaryTable">
                 <thead>
                     <tr>
-                        <th>Imprimante / Lieu</th>
-                        <th>S/N <br> @ IP</th>
-                        <th>Cellules</th>
-                        <th>Etat dot</th>
-                        <th>Pressing Roller</th>
-                        <th>Impression</th>
-                        <th>Etat Général</th>
-                        <th>Remarques</th>
-                        <th>Photos</th>
+                        <th>Numéros de Série ($S/N$) enregistrés</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
@@ -468,18 +447,62 @@
     </div>
 
     <script>
-        const reportData = [];
+        let reportData = [];
         const previewContainer = document.getElementById('previewContainer');
         let currentPhotos = [];
         let html5QrcodeScanner = null;
         let activeTargetId = null;
         let cropperInstance = null;
 
+        // --- GESTION DE LA PERSISTANCE (LOCALSTORAGE) ---
+        function saveAppStateToLocalStorage() {
+            localStorage.setItem('preventive_reportData', JSON.stringify(reportData));
+            localStorage.setItem('preventive_site', document.getElementById('headerSite').value);
+            localStorage.setItem('preventive_brand', document.getElementById('headerBrand').value);
+            localStorage.setItem('preventive_intervenant', document.getElementById('headerIntervenant').value);
+            localStorage.setItem('preventive_date', document.getElementById('headerDate').value);
+        }
+
+        function loadAppStateFromLocalStorage() {
+            const savedData = localStorage.getItem('preventive_reportData');
+            if (savedData) {
+                reportData = JSON.parse(savedData);
+                renderTable();
+            }
+            if (localStorage.getItem('preventive_site') !== null) {
+                document.getElementById('headerSite').value = localStorage.getItem('preventive_site');
+            }
+            if (localStorage.getItem('preventive_brand') !== null) {
+                document.getElementById('headerBrand').value = localStorage.getItem('preventive_brand');
+            }
+            if (localStorage.getItem('preventive_intervenant') !== null) {
+                document.getElementById('headerIntervenant').value = localStorage.getItem('preventive_intervenant');
+            }
+            if (localStorage.getItem('preventive_date')) {
+                document.getElementById('headerDate').value = localStorage.getItem('preventive_date');
+            } else {
+                document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
+            }
+        }
+
+        function clearLocalStorageData() {
+            localStorage.removeItem('preventive_reportData');
+            localStorage.removeItem('preventive_site');
+            localStorage.removeItem('preventive_brand');
+            localStorage.removeItem('preventive_intervenant');
+            localStorage.removeItem('preventive_date');
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('headerDate').value = today;
+            loadAppStateFromLocalStorage();
+
+            document.getElementById('headerSite').addEventListener('input', saveAppStateToLocalStorage);
+            document.getElementById('headerBrand').addEventListener('change', saveAppStateToLocalStorage);
+            document.getElementById('headerIntervenant').addEventListener('change', saveAppStateToLocalStorage);
+            document.getElementById('headerDate').addEventListener('change', saveAppStateToLocalStorage);
         });
 
+        // --- LOGIQUE DE L'APPLICATION ---
         function getModelFromSerialNumber(sn) {
             const snUpper = sn.toUpperCase().trim();
             if (snUpper.startsWith("18J")) return "ZT420 8 DOTS";
@@ -657,13 +680,21 @@
 
         function formatRemarqueHTML(text) {
             if (!text) return "";
-            const words = ["Tête à changer", "Tete a changer", "Prévoir", "Prevoir", "Remplacer", "Changement", "A changer", "HS"];
-            if (words.some(w => text.toLowerCase().includes(w.toLowerCase()))) {
-                return `<strong style="color: #b30000;">${text}</strong>`;
-            }
-            return text;
+            let lines = text.split(/\s*-\s*/);
+            let formattedLines = lines.map(line => {
+                line = line.trim();
+                if (!line) return "";
+                const words = ["Tête à changer", "Tete a changer", "Prévoir", "Prevoir", "Remplacer", "Changement", "A changer", "HS"];
+                if (words.some(w => line.toLowerCase().includes(w.toLowerCase()))) {
+                    return `<strong style="color: #b30000;">${line}</strong>`;
+                }
+                return line;
+            }).filter(l => l !== "");
+
+            return formattedLines.join('<br>');
         }
 
+        // --- AFFICHAGE ULTRA-ALLÉGÉ DU TABLEAU SUR L'ÉCRAN ---
         function renderTable() {
             const tbody = document.getElementById('tableBody');
             tbody.innerHTML = ''; 
@@ -675,28 +706,15 @@
             zones.forEach(z => {
                 const zoneData = reportData.filter(item => item.zone === z);
                 
+                // On n'affiche la ligne de secteur que si l'utilisateur a écrit quelque chose dedans
                 if (z !== "") {
-                    tbody.innerHTML += `<tr><td colspan="9" class="zone-header-row">${z.toUpperCase()}</td></tr>`;
+                    tbody.innerHTML += `<tr><td class="zone-header-row">${z.toUpperCase()}</td></tr>`;
                 }
                 
+                // On affiche uniquement la liste des S/N reliés à cette zone
                 zoneData.forEach(d => {
-                    const icon = (d.photos && d.photos.length > 0) ? `${d.photos.length} 📸` : '';
-                    
-                    let imprimanteCellule = `<b>${d.modele}</b>`;
-                    if (d.lieuId) {
-                        imprimanteCellule += `<br><span style="color:#666; font-size:0.8rem; font-style:italic;">${d.lieuId}</span>`;
-                    }
-
                     tbody.innerHTML += `<tr>
-                        <td>${imprimanteCellule}</td>
-                        <td style="text-align:center;"><b>${d.serial}</b><br><span style="color:#555; font-size:0.8rem;">${d.ip}</span></td>
-                        <td style="text-align:center;">${d.cellules}</td>
-                        <td style="text-align:center;">${d.etatDot}</td>
-                        <td style="text-align:center;">${d.roller}</td>
-                        <td style="text-align:center;">${d.impression}</td>
-                        <td style="text-align:center;">${d.general}</td>
-                        <td>${formatRemarqueHTML(d.remarque)}</td>
-                        <td style="text-align:center;">${icon}</td>
+                        <td>📟 S/N : <b>${d.serial}</b> ${d.lieuId ? `<span style="color:#666; font-size:0.85rem; font-style:italic; margin-left: 10px;">(${d.lieuId})</span>` : ''}</td>
                     </tr>`;
                 });
             });
@@ -722,7 +740,10 @@
                 remarque: document.getElementById('remarque').value.trim(),
                 photos: [...currentPhotos]
             });
+            
             renderTable();
+            saveAppStateToLocalStorage();
+            
             document.getElementById('printerType').value = ''; document.getElementById('printerId').value = '';
             document.getElementById('serial').value = ''; document.getElementById('ipAddress').value = '';
             document.getElementById('remarque').value = ''; document.getElementById('photo').value = '';
@@ -744,6 +765,7 @@
             mhtml += `--${boundary}\n`;
             mhtml += `Content-Type: text/html; charset="utf-8"\n\n`;
 
+            // Le Word conserve TOUTES les colonnes officielles intactes
             let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
             <head>
             <meta charset="utf-8">
@@ -766,25 +788,26 @@
                 .subtitle-doc { font-size: 14pt; font-weight: bold; color: #c5a059; margin-top: 0; margin-bottom: 15px; }
                 .meta-box { font-size: 11pt; margin-bottom: 20px; line-height: 1.4; }
                 
-                .main-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px; table-layout: fixed; }
+                .main-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 30px; table-layout: fixed; }
+                .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 2px; font-size: 9.5pt; font-weight: bold; text-align: center; line-height: 1.1; }
+                .main-table td { border: 1px solid #cccccc; padding: 3px 2px; font-size: 8.5pt; vertical-align: middle; line-height: 1.2; }
                 
-                /* FORCE COMPACITE MAXIMALE DES CELLULES (PADDING MINIMAL + LINE HEIGHT) */
-                .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 1px 2px; font-size: 9.5pt; font-weight: bold; text-align: center; line-height: 1.1; }
-                .main-table td { border: 1px solid #cccccc; padding: 1px 2px; font-size: 8.5pt; vertical-align: middle; line-height: 1.1; }
-                
-                /* REAJUSTEMENT DE L'ESPACE COLONNES WORD (S/N PLUS LARGE) */
-                .col-printer { width: 14%; }  
-                .col-sn { width: 14%; }       /* Élargi de 8% à 14% pour éviter le serrage */
-                .col-cell { width: 7%; }
-                .col-dot { width: 9%; }
-                .col-roll { width: 9%; }
-                .col-print-st { width: 7%; }
+                .col-printer { width: 15%; }  
+                .col-sn { width: 15%; }       
+                .col-cell { width: 8%; }
+                .col-dot { width: 10%; }
+                .col-roll { width: 10%; }
+                .col-print-st { width: 8%; }
                 .col-gen { width: 6%; }
-                .col-rem { width: 34%; }      /* Réduit de 40% à 34% pour compenser le S/N */
-                .col-img { width: 6%; }
+                .col-rem { width: 28%; }      
 
                 .row-zone { background-color: #dfd5c2; font-weight: bold; font-size: 9.5pt; color: #1a1a1a; text-align: center; padding: 3px; }
                 .center { text-align: center; }
+
+                .annexe-title { font-size: 15pt; font-weight: bold; color: #1a1a1a; margin-top: 40px; margin-bottom: 10px; page-break-before: always; }
+                .annexe-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+                .annexe-table th { background: #1a1a1a; color: white; border: 1px solid #1a1a1a; padding: 5px; font-size: 10pt; text-align: left; }
+                .annexe-table td { border: 1px solid #cccccc; padding: 10px; font-size: 9pt; vertical-align: middle; background: #fafafa; }
             </style>
             </head>
             <body>
@@ -810,7 +833,6 @@
                             <th class="col-print-st">Impression</th>
                             <th class="col-gen">Etat Général</th>
                             <th class="col-rem">Remarques / Actions</th>
-                            <th class="col-img">Photos</th>
                         </tr>
                     </thead>
                     <tbody>`;
@@ -820,32 +842,15 @@
 
             let imageCounter = 0;
             let attachedParts = "";
+            let annexeRowsHtml = "";
 
             zones.forEach(z => {
                 const zoneData = reportData.filter(item => item.zone === z);
                 if (z !== "") {
-                    wordHtml += `<tr><td colspan="9" class="row-zone">${z.toUpperCase()}</td></tr>`;
+                    wordHtml += `<tr><td colspan="8" class="row-zone">${z.toUpperCase()}</td></tr>`;
                 }
 
                 zoneData.forEach(d => {
-                    let imageTag = "";
-                    if (d.photos && d.photos.length > 0) {
-                        imageCounter++;
-                        let base64Data = d.photos[0].split(',')[1];
-                        let imageLocation = `item_photo_${imageCounter}.jpg`;
-                        
-                        // Balise image propre pour Word (Format 100x40px pour respecter les proportions 10x4)
-                        imageTag = `<img width="100" height="40" src="cid:${imageLocation}" style="width:100px; height:40px; display:block; margin:auto;">`;
-
-                        // Construction du bloc MIME MHTML pour encapsuler la photo de manière native
-                        attachedParts += `--${boundary}\n`;
-                        attachedParts += `Content-ID: <${imageLocation}>\n`;
-                        attachedParts += `Content-Location: ${imageLocation}\n`;
-                        attachedParts += `Content-Transfer-Encoding: base64\n`;
-                        attachedParts += `Content-Type: image/jpeg\n\n`;
-                        attachedParts += base64Data + "\n\n";
-                    }
-
                     let labelLieu = d.lieuId ? `<br><span style="color:#555555; font-size:7.5pt; font-style:italic;">${d.lieuId}</span>` : '';
                     let ipDisplay = d.ip ? `<br><span style="color:#444444; font-size:7.5pt;">${d.ip}</span>` : '';
 
@@ -858,14 +863,53 @@
                         <td class="center">${d.impression || ''}</td>
                         <td class="center">${d.general || ''}</td>
                         <td>${formatRemarqueHTML(d.remarque)}</td>
-                        <td class="center" style="padding:0; vertical-align:middle;">${imageTag}</td>
                     </tr>`;
+
+                    if (d.photos && d.photos.length > 0) {
+                        imageCounter++;
+                        let base64Data = d.photos[0].split(',')[1];
+                        let imageLocation = `annexe_photo_${imageCounter}.jpg`;
+                        
+                        annexeRowsHtml += `<tr>
+                            <td style="width: 35%; width: 2.5in;">
+                                <b style="font-size:10pt; color:#1a1a1a;">Machine : ${d.modele}</b><br>
+                                ${d.lieuId ? `Lieu : <i>${d.lieuId}</i><br>` : ''}
+                                S/N : <b>${d.serial}</b>
+                            </td>
+                            <td style="width: 65%; width: 4.5in; text-align: center;">
+                                <img width="250" height="100" src="cid:${imageLocation}" style="width:250px; height:100px; display:block; margin:5px auto;">
+                            </td>
+                        </tr>`;
+
+                        attachedParts += `--${boundary}\n`;
+                        attachedParts += `Content-ID: <${imageLocation}>\n`;
+                        attachedParts += `Content-Location: ${imageLocation}\n`;
+                        attachedParts += `Content-Transfer-Encoding: base64\n`;
+                        attachedParts += `Content-Type: image/jpeg\n\n`;
+                        attachedParts += base64Data + "\n\n";
+                    }
                 });
             });
 
-            wordHtml += `</tbody></table></div></body></html>\n\n`;
+            wordHtml += `</tbody></table>`;
+
+            if (imageCounter > 0) {
+                wordHtml += `<p class="annexe-title">ANNEXE PHOTOGRAPHIQUE (DÉFAUTS & CONSTATIONS)</p>`;
+                wordHtml += `<table class="annexe-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 35%;">Désignation de l'équipement</th>
+                                        <th style="width: 65%; text-align:center;">Visuel du constat terrain</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${annexeRowsHtml}
+                                </tbody>
+                             </table>`;
+            }
+
+            wordHtml += `</div></body></html>\n\n`;
             
-            // Concatenation finale du document multipart MHTML
             let finalDoc = mhtml + wordHtml + attachedParts + `--${boundary}--`;
 
             let blob = new Blob([finalDoc], { type: 'application/msword;charset=utf-8' });
@@ -881,6 +925,11 @@
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
+
+            if(confirm("Le fichier Word a été généré avec succès.\nVoulez-vous réinitialiser l'application pour commencer un nouveau rapport ?")) {
+                clearLocalStorageData();
+                location.reload();
+            }
         });
     </script>
 </body>
