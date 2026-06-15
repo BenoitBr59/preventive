@@ -168,7 +168,6 @@
         .btn-capture { background: #28a745; }
         .btn-close { background: #dc3545; }
 
-        /* MODIFICATION : Fenêtre d'édition photo renforcée pour mobile */
         #crop-zone {
             display: none;
             background: #111;
@@ -180,7 +179,7 @@
         }
         .crop-container {
             max-width: 100%;
-            height: 320px; /* Hauteur définie indispensable pour Cropper.js */
+            height: 320px;
             margin: 10px auto;
             background: #222;
             border-radius: 6px;
@@ -269,15 +268,15 @@
 
         th { background: #eee; font-weight: bold; }
         
-        /* Proportions strictes conservées */
-        th:nth-child(1) { width: 18%; } 
-        th:nth-child(2) { width: 15%; } 
+        /* Ajustements d'affichage écran (Resserré pour libérer Remarques) */
+        th:nth-child(1) { width: 13%; } /* Imprimante */
+        th:nth-child(2) { width: 12%; } /* S/N / IP */
         th:nth-child(3) { width: 8%; }  
         th:nth-child(4) { width: 10%; } 
         th:nth-child(5) { width: 10%; } 
         th:nth-child(6) { width: 8%; }  
         th:nth-child(7) { width: 8%; }  
-        th:nth-child(8) { width: 25%; } /* Grande largeur proportionnée pour Remarques */
+        th:nth-child(8) { width: 35%; } /* Remarques maximisé à l'écran */
         th:nth-child(9) { width: 6%; }  
 
         .zone-header-row {
@@ -322,7 +321,6 @@
         </div>
     </header>
 
-    <!-- Zone Scanner Code Barre -->
     <div id="scanner-zone">
         <div id="reader"></div>
         <div class="scanner-controls">
@@ -331,7 +329,6 @@
         </div>
     </div>
 
-    <!-- NOUVELLE ZONE DE RECADRAGE MOBILE COMPATIBLE TACTILE -->
     <div id="crop-zone">
         <h4 style="margin-top:0;">Recadrez l'élément à conserver (Format 10x4)</h4>
         <div class="crop-container">
@@ -474,8 +471,7 @@
         let currentPhotos = [];
         let html5QrcodeScanner = null;
         let activeTargetId = null;
-        
-        let cropperInstance = null; // Variable pour Cropper.js
+        let cropperInstance = null;
 
         document.addEventListener('DOMContentLoaded', () => {
             const today = new Date().toISOString().split('T')[0];
@@ -595,7 +591,6 @@
             } else { document.getElementById('scanner-zone').style.display = 'none'; }
         }
 
-        // CORRECTION DU RECADRAGE PHOTO EN DISPOSITIF MOBILE TACTILE (CROPPER.JS)
         document.getElementById('photo').addEventListener('change', function(e) {
             if(e.target.files.length === 0) return;
             const file = e.target.files[0];
@@ -604,15 +599,13 @@
             reader.onload = function(evt) {
                 const imageToCrop = document.getElementById('image-to-crop');
                 imageToCrop.src = evt.target.result;
-                
                 document.getElementById('crop-zone').style.display = 'block';
 
                 if(cropperInstance) { cropperInstance.destroy(); }
                 
-                // Initialisation robuste de Cropper.js
                 cropperInstance = new Cropper(imageToCrop, {
-                    aspectRatio: 2.5, // Ratio 10x4 imposé
-                    viewMode: 1,      // Restreint la boîte de sélection à l'intérieur de l'image
+                    aspectRatio: 2.5,
+                    viewMode: 1,
                     autoCropArea: 0.8,
                     responsive: true,
                     restore: false,
@@ -629,7 +622,6 @@
         function validateCrop() {
             if(!cropperInstance) return;
             
-            // On extrait la zone sélectionnée au format souhaité (1000px de large par 400px de haut pour garder le ratio 10x4 impeccable)
             const canvas = cropperInstance.getCroppedCanvas({
                 width: 1000,
                 height: 400,
@@ -639,7 +631,6 @@
             
             const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
             
-            // Affichage de l'aperçu sous le bouton photo
             previewContainer.innerHTML = '';
             const previewImg = document.createElement('img');
             previewImg.src = croppedDataUrl;
@@ -648,7 +639,6 @@
             
             currentPhotos = [croppedDataUrl];
             
-            // Fermeture de l'interface et nettoyage
             document.getElementById('crop-zone').style.display = 'none';
             cropperInstance.destroy();
             cropperInstance = null;
@@ -746,6 +736,14 @@
             const brandSelection = document.getElementById('headerBrand').value;
             const dateV = document.getElementById('headerDate').value ? new Date(document.getElementById('headerDate').value).toLocaleDateString('fr-FR') : 'N/A';
 
+            // GENERATION DU FORMAT COMPATIBLE IMAGE AVEC CONTENEUR MULTIPART MHTML
+            let boundary = "NEXT_PART_BOUNDARY_MARKER";
+            let mhtml = `MIME-Version: 1.0\nContent-Type: multipart/related; boundary="${boundary}"\n\n`;
+            
+            // Partie principale : Document HTML de Word
+            mhtml += `--${boundary}\n`;
+            mhtml += `Content-Type: text/html; charset="utf-8"\n\n`;
+
             let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
             <head>
             <meta charset="utf-8">
@@ -772,14 +770,15 @@
                 .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 5px; font-size: 9.5pt; font-weight: bold; text-align: center; }
                 .main-table td { border: 1px solid #cccccc; padding: 5px; font-size: 9pt; vertical-align: middle; }
                 
-                .col-printer { width: 18%; }
-                .col-sn { width: 15%; }
+                /* AJUSTEMENT STRICT DES COLONNES EXPORT WORD */
+                .col-printer { width: 13%; }  /* Resserré au maximum */
+                .col-sn { width: 12%; }       /* Resserré au maximum */
                 .col-cell { width: 8%; }
                 .col-dot { width: 10%; }
                 .col-roll { width: 10%; }
                 .col-print { width: 8%; }
-                .col-gen { width: 8%; }
-                .col-rem { width: 25%; }
+                .col-gen { width: 6%; }
+                .col-rem { width: 33%; }      /* Agrandissement majeur de l'espace Remarques */
                 
                 .cell-left { text-align: left; }
                 .cell-center { text-align: center; }
@@ -819,6 +818,10 @@
             let photosHtml = `<div class="annexe-title">Annexes : Suivi visuel &amp; Défauts constatés</div>`;
             let hasPhotos = false;
             let photoIndex = 1;
+            
+            // Stockage temporaire des données d'images binaires pour la structure MHTML
+            let imagesParts = [];
+
             const zones = [];
             reportData.forEach(item => { if (!zones.includes(item.zone)) zones.push(item.zone); });
 
@@ -835,11 +838,7 @@
                     
                     if(r.photos && r.photos.length > 0) {
                         const notePhoto = ` (voir annexe (${photoIndex}))`;
-                        if (rem === "Rien à signaler") {
-                            rem = notePhoto.trim();
-                        } else {
-                            rem += notePhoto;
-                        }
+                        rem = (rem === "Rien à signaler") ? notePhoto.trim() : rem + notePhoto;
                     }
 
                     if (words.some(w => r.remarque.toLowerCase().includes(w.toLowerCase()))) {
@@ -864,9 +863,17 @@
 
                     if(r.photos && r.photos.length > 0) {
                         hasPhotos = true;
-                        r.photos.forEach(img => { 
+                        r.photos.forEach(imgDataUrl => { 
+                            let internalId = `img_photo_${photoIndex}`;
                             photosHtml += `<p style="margin-top:15px; font-size:11pt;"><b>Visuel (${photoIndex}) — S/N : ${r.serial} (${r.modele}) :</b></p>`;
-                            photosHtml += `<img class="word-img" src="${img}" width="378" height="151" /><br>`; 
+                            photosHtml += `<img class="word-img" src="cid:${internalId}" width="378" height="151" /><br>`; 
+                            
+                            // On extrait la partie base64 pure
+                            let base64Content = imgDataUrl.split(',')[1];
+                            imagesParts.push({
+                                cid: internalId,
+                                content: base64Content
+                            });
                         });
                         photoIndex++;
                     }
@@ -885,9 +892,22 @@
             </div>`;
 
             if(hasPhotos) wordHtml += "<br>" + photosHtml;
-            wordHtml += `</div></body></html>`;
+            wordHtml += `</div></body></html>\n`;
 
-            const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword' });
+            mhtml += wordHtml;
+
+            // Ajout de chaque image convertie de façon transparente pour Word
+            imagesParts.forEach(img => {
+                mhtml += `--${boundary}\n`;
+                mhtml += `Content-ID: <${img.cid}>\n`;
+                mhtml += `Content-Transfer-Encoding: base64\n`;
+                mhtml += `Content-Type: image/jpeg\n\n`;
+                mhtml += img.content + "\n";
+            });
+
+            mhtml += `--${boundary}--`;
+
+            const blob = new Blob([mhtml], { type: 'application/msword' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
             link.setAttribute("download", `Rapport_Maintenance_${site.replace(/[^a-zA-Z0-9]/g, "_")}.doc`);
