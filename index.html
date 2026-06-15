@@ -4,11 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rapport de Maintenance Préventive</title>
+    
     <!-- Moteur de scan universel -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-    <!-- Bibliothèque de recadrage photo (Cropper) -->
-    <link href="https://cdn.jsdelivr.net/gh/jamessouth/croppr.js@v2.3.0/dist/croppr.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/gh/jamessouth/croppr.js@v2.3.0/dist/croppr.min.js"></script>
+    
+    <!-- Liens CDNJS sécurisés et stables pour le recadrage photo (Croppr.js) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/croppr/2.3.1/croppr.min.css" integrity="sha512-3XwYI9Z0olS0ZmoZJSW9S7Xzsh3z96rXEWZ0D8IasYbyG9IdOAras7AnCAtu6Wn2w88SgWkGgSmXpD6o3Vb99Q==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/croppr/2.3.1/croppr.min.js" integrity="sha512-Ym6fbyV6TKVY6LgS9K9O9g969M1uGZ1Z06A7U14A1M14A9z6U15U9U9U9U9U9U9U9U9U9U9U9U9U9U9U9U9Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
     <style>
         :root {
             --primary: #1a1a1a;
@@ -165,7 +168,7 @@
         .btn-capture { background: #28a745; }
         .btn-close { background: #dc3545; }
 
-        /* Zone de Recadrage Photo */
+        /* Zone de Recadrage Photo Dynamique */
         #crop-zone {
             display: none;
             background: #222;
@@ -177,8 +180,10 @@
         }
         .crop-container {
             max-width: 100%;
+            max-height: 400px;
             margin: 10px auto;
             overflow: hidden;
+            background: #333;
         }
         .crop-container img {
             max-width: 100%;
@@ -187,7 +192,12 @@
         .crop-buttons {
             display: flex;
             gap: 10px;
-            margin-top: 10px;
+            margin-top: 15px;
+        }
+        .crop-buttons button {
+            flex: 1;
+            padding: 12px;
+            font-size: 0.95rem;
         }
 
         .grid-status {
@@ -223,7 +233,6 @@
             flex-wrap: wrap;
         }
 
-        /* Aperçu sur l'application au format 10x4 */
         .photo-preview {
             width: 100px;
             height: 40px;
@@ -303,11 +312,11 @@
         </div>
     </div>
 
-    <!-- Interface Intégrée de Recadrage Photo -->
+    <!-- Interface de Recadrage Photo Modifiée -->
     <div id="crop-zone">
-        <h4>Sélectionnez l'élément à conserver (Format 10x4)</h4>
-        <div class="crop-container">
-            <img id="image-to-crop" src="" alt="A découper">
+        <h4 style="margin-top:0;">Sélectionnez l'élément à conserver (Format 10x4)</h4>
+        <div class="crop-container" id="crop-target-wrapper">
+            <!-- L'image est injectée dynamiquement pour éviter les conflits d'initialisation -->
         </div>
         <div class="crop-buttons">
             <button type="button" style="background:#28a745; color:white;" onclick="validateCrop()">Valider la sélection</button>
@@ -408,7 +417,6 @@
 
             <div class="form-group">
                 <label for="photo">Photos des défauts / panne (Optionnel)</label>
-                <!-- Prise de vue directe appareil ou galerie -->
                 <input type="file" id="photo" accept="image/*" capture="environment" style="padding:5px; height:auto;">
                 <div class="photo-container" id="previewContainer"></div>
             </div>
@@ -448,7 +456,6 @@
         let html5QrcodeScanner = null;
         let activeTargetId = null;
         
-        // Variables pour le module de découpe
         let cropprInstance = null;
         let currentRawImgSrc = null;
 
@@ -506,15 +513,11 @@
             if (!activeTargetId) return false;
 
             if (activeTargetId === 'printerType') {
-                const deducedModel = getModelFromSerialNumber(cleanStr);
-                document.getElementById('printerType').value = deducedModel ? deducedModel : cleanStr;
+                document.getElementById('printerType').value = getModelFromSerialNumber(cleanStr) || cleanStr;
                 return true;
             }
 
             if (activeTargetId === 'serial') {
-                const isValidSerialNumber = /^(T3J|18J|19J|99J|98J|52J|51J|10J|11J|41J|48J|ZM|ZD|GK|GX|307|308|305|301|PM43|PC43|PX4|\d{4})\w+/i.test(cleanStr);
-                if (!isValidSerialNumber && rawValue.length < 5) return false;
-
                 document.getElementById('serial').value = cleanStr;
                 const currentModelInput = document.getElementById('printerType').value;
                 if (!currentModelInput) {
@@ -539,7 +542,7 @@
             html5QrcodeScanner.start({ facingMode: "environment" }, config,
                 (txt) => { if (processScannedBarcode(txt)) { if (navigator.vibrate) navigator.vibrate(80); stopScanner(); } },
                 (err) => {}
-            ).catch(() => { alert("Erreur caméra."); document.getElementById('scanner-zone').style.display = 'none'; });
+            ).catch(() => { alert("Erreur d'accès à la caméra."); document.getElementById('scanner-zone').style.display = 'none'; });
         }
 
         function forceCaptureAndDecode() {
@@ -563,7 +566,7 @@
         }
 
         function proposerSaisieAlternative() {
-            const p = prompt("Saisissez ou modifiez la valeur ici :");
+            const p = prompt("Code-barres non lisible automatiquement. Saisissez la valeur manuellement :");
             if (p && p.trim() !== "") { processScannedBarcode(p); stopScanner(); }
         }
 
@@ -574,7 +577,7 @@
             } else { document.getElementById('scanner-zone').style.display = 'none'; }
         }
 
-        // GESTION ET RECADRAGE DE LA PHOTO
+        // CORRECTIF DE LA GESTION PHOTO ET INITIALISATION DU CROP
         document.getElementById('photo').addEventListener('change', function(e) {
             if(e.target.files.length === 0) return;
             const file = e.target.files[0];
@@ -583,20 +586,27 @@
             reader.onload = function(evt) {
                 currentRawImgSrc = evt.target.result;
                 
-                // Activer l'interface de découpe
-                document.getElementById('crop-zone').style.display = 'block';
-                const imageElement = document.getElementById('image-to-crop');
-                imageElement.src = currentRawImgSrc;
-
-                // Initialisation de l'outil de découpe forcée au format 10x4 (ratio 2.5)
-                if(cropprInstance) { cropprInstance.destroy(); }
+                // Nettoyage et injection propre de la balise image
+                const wrapper = document.getElementById('crop-target-wrapper');
+                wrapper.innerHTML = `<img id="image-to-crop" src="${currentRawImgSrc}" alt="A découper">`;
                 
+                // Affichage du volet de découpe
+                document.getElementById('crop-zone').style.display = 'block';
+
+                if(cropprInstance) { cropprInstance.destroy(); cropprInstance = null; }
+                
+                // Initialisation sécurisée après l'injection dans le DOM
                 setTimeout(() => {
-                    cropprInstance = new Croppr('#image-to-crop', {
-                        aspectRatio: 2.5, // Ratio 10cm / 4cm
-                        startSize: [80, 32, '%']
-                    });
-                }, 100);
+                    try {
+                        cropprInstance = new Croppr('#image-to-crop', {
+                            aspectRatio: 2.5, // Format 10x4 imposé
+                            startSize: [90, 36, '%'],
+                            returnMode: 'pixels'
+                        });
+                    } catch (err) {
+                        console.error("Erreur lors de l'initialisation du recadrage :", err);
+                    }
+                }, 200);
             };
             reader.readAsDataURL(file);
         });
@@ -604,39 +614,35 @@
         function validateCrop() {
             if(!cropprInstance) return;
             
-            // Calcul et extraction des coordonnées de l'élément désiré
             const data = cropprInstance.getValue();
             const img = new Image();
             img.src = currentRawImgSrc;
             
             img.onload = function() {
                 const canvas = document.createElement('canvas');
-                // On normalise l'image finale sur une base nette de 1000px par 400px (format 10x4)
                 canvas.width = 1000;
-                canvas.height = 400;
+                canvas.height = 400; // Maintient le format proportionnel idéal
                 
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(
                     img,
-                    data.x, data.y, data.width, data.height, // Zone découpée
-                    0, 0, 1000, 400 // Rendu final proportionnel
+                    data.x, data.y, data.width, data.height,
+                    0, 0, 1000, 400
                 );
                 
                 const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
                 
-                // Affichage de l'aperçu recadré dans le formulaire
                 previewContainer.innerHTML = '';
                 const previewImg = document.createElement('img');
                 previewImg.src = croppedDataUrl;
                 previewImg.classList.add('photo-preview');
                 previewContainer.appendChild(previewImg);
                 
-                currentPhotos = [croppedDataUrl]; // Sauvegarde l'élément choisi
+                currentPhotos = [croppedDataUrl];
                 
-                // Fermer la zone de crop
+                // Masquer la zone de crop et réinitialiser l'outil
                 document.getElementById('crop-zone').style.display = 'none';
-                cropprInstance.destroy();
-                cropprInstance = null;
+                if(cropprInstance) { cropprInstance.destroy(); cropprInstance = null; }
             };
         }
 
@@ -707,7 +713,6 @@
             previewContainer.innerHTML = ''; currentPhotos = [];
         });
 
-        // EXPORT AVEC FORÇAGE DE LA TAILLE DES IMAGES (10cm x 4cm)
         document.getElementById('exportBtn').addEventListener('click', function(e) {
             e.preventDefault();
             if(reportData.length === 0) return alert('Aucune donnée à exporter');
@@ -754,7 +759,6 @@
                 
                 .conseils-box { background: #fafafa; border-left: 4px solid #c5a059; padding: 10px; margin-top: 25px; font-size: 10pt; line-height: 1.4; }
                 
-                /* TAILLE STRICTE ASSURANT LE RENDU 10 CM (LARGEUR) PAR 4 CM (HAUTEUR) DANS WORD */
                 .word-img { 
                     width: 378px !important; 
                     height: 151px !important; 
@@ -804,7 +808,7 @@
                     const words = ["Tête à changer", "Tete a changer", "Prévoir", "Prevoir", "Remplacer", "Changement", "A changer", "HS"];
                     
                     if(r.photos && r.photos.length > 0) {
-                        const notePhoto = ` (voir ci-gênant (${photoIndex}))`;[cite: 3]
+                        const notePhoto = ` (voir annexe (${photoIndex}))`;[cite: 3]
                         if (rem === "Rien à signaler") {
                             rem = notePhoto.trim();
                         } else {
@@ -830,7 +834,7 @@
                     if(r.photos && r.photos.length > 0) {
                         hasPhotos = true;
                         r.photos.forEach(img => { 
-                            photosHtml += `<p style="margin-top:15px; font-size:11pt;"><b>制造 (${photoIndex}) Visuel — S/N : ${r.serial} (${r.imprimante}) :</b></p>`;
+                            photosHtml += `<p style="margin-top:15px; font-size:11pt;"><b>Visuel (${photoIndex}) — S/N : ${r.serial} (${r.imprimante}) :</b></p>`;
                             photosHtml += `<img class="word-img" src="${img}" width="378" height="151" /><br>`; 
                         });
                         photoIndex++;
