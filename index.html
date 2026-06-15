@@ -261,22 +261,23 @@
 
         th, td {
             border: 1px solid #ddd;
-            padding: 8px 6px;
+            padding: 4px 3px;
             text-align: left;
             word-wrap: break-word;
+            line-height: 1.1;
         }
 
         th { background: #eee; font-weight: bold; }
         
-        /* Ajustements d'affichage écran (Resserré pour libérer Remarques) */
-        th:nth-child(1) { width: 13%; } /* Imprimante */
-        th:nth-child(2) { width: 12%; } /* S/N / IP */
-        th:nth-child(3) { width: 8%; }  
-        th:nth-child(4) { width: 10%; } 
-        th:nth-child(5) { width: 10%; } 
-        th:nth-child(6) { width: 8%; }  
-        th:nth-child(7) { width: 8%; }  
-        th:nth-child(8) { width: 35%; } /* Remarques maximisé à l'écran */
+        /* Ajustements d'affichage écran rééquilibrés */
+        th:nth-child(1) { width: 14%; } /* Imprimante */
+        th:nth-child(2) { width: 14%; } /* S/N / IP réajusté */
+        th:nth-child(3) { width: 7%; }  
+        th:nth-child(4) { width: 9%; } 
+        th:nth-child(5) { width: 9%; } 
+        th:nth-child(6) { width: 7%; }  
+        th:nth-child(7) { width: 6%; }  
+        th:nth-child(8) { width: 34%; } /* Remarques */
         th:nth-child(9) { width: 6%; }  
 
         .zone-header-row {
@@ -285,6 +286,7 @@
             color: #1a1a1a;
             font-size: 0.95rem;
             text-align: center;
+            padding: 4px;
         }
     </style>
 </head>
@@ -736,11 +738,9 @@
             const brandSelection = document.getElementById('headerBrand').value;
             const dateV = document.getElementById('headerDate').value ? new Date(document.getElementById('headerDate').value).toLocaleDateString('fr-FR') : 'N/A';
 
-            // GENERATION DU FORMAT COMPATIBLE IMAGE AVEC CONTENEUR MULTIPART MHTML
             let boundary = "NEXT_PART_BOUNDARY_MARKER";
             let mhtml = `MIME-Version: 1.0\nContent-Type: multipart/related; boundary="${boundary}"\n\n`;
             
-            // Partie principale : Document HTML de Word
             mhtml += `--${boundary}\n`;
             mhtml += `Content-Type: text/html; charset="utf-8"\n\n`;
 
@@ -757,43 +757,40 @@
             <style>
                 @page Section1 {
                     size: 11.0in 8.5in;
-                    margin: 0.5in 0.5in 0.5in 0.5in;
+                    margin: 0.4in 0.4in 0.4in 0.4in;
                     mso-page-orientation: landscape;
                 }
                 div.Section1 { page: Section1; }
                 body { font-family: 'Arial', sans-serif; color: #1a1a1a; }
                 .title-doc { font-size: 19pt; font-weight: bold; color: #1a1a1a; margin-bottom: 2px; }
                 .subtitle-doc { font-size: 14pt; font-weight: bold; color: #c5a059; margin-top: 0; margin-bottom: 15px; }
-                .meta-box { font-size: 11pt; margin-bottom: 20px; line-height: 1.5; }
+                .meta-box { font-size: 11pt; margin-bottom: 20px; line-height: 1.4; }
                 
                 .main-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px; table-layout: fixed; }
-                .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 3px 2px; font-size: 9.5pt; font-weight: bold; text-align: center; }
-                .main-table td { border: 1px solid #cccccc; padding: 2px; font-size: 9pt; vertical-align: middle; }
                 
-                /* AJUSTEMENT STRICT DES COLONNES EXPORT WORD */
-                .col-printer { width: 13%; }  
-                .col-sn { width: 8%; }       /* Resserré de 12% à 8% */
-                .col-cell { width: 8%; }
-                .col-dot { width: 10%; }
-                .col-roll { width: 10%; }
-                .col-print { width: 8%; }
+                /* FORCE COMPACITE MAXIMALE DES CELLULES (PADDING MINIMAL + LINE HEIGHT) */
+                .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 1px 2px; font-size: 9.5pt; font-weight: bold; text-align: center; line-height: 1.1; }
+                .main-table td { border: 1px solid #cccccc; padding: 1px 2px; font-size: 8.5pt; vertical-align: middle; line-height: 1.1; }
+                
+                /* REAJUSTEMENT DE L'ESPACE COLONNES WORD (S/N PLUS LARGE) */
+                .col-printer { width: 14%; }  
+                .col-sn { width: 14%; }       /* Élargi de 8% à 14% pour éviter le serrage */
+                .col-cell { width: 7%; }
+                .col-dot { width: 9%; }
+                .col-roll { width: 9%; }
+                .col-print { width: 7%; }
                 .col-gen { width: 6%; }
-                .col-rem { width: 37%; }      /* Augmenté de 33% à 37% pour compenser */
+                .col-rem { width: 34%; }      
                 
                 .cell-left { text-align: left; }
                 .cell-center { text-align: center; }
-                .sub-lieu { color: #555555; font-size: 8.5pt; font-style: italic; }
+                .sub-lieu { color: #555555; font-size: 8pt; font-style: italic; }
                 
-                .zone-title-td { background-color: #dfd5c2; font-weight: bold; font-size: 10.5pt; color: #1a1a1a; padding: 4px; border: 1px solid #555555; text-transform: uppercase; text-align: center; }
+                .zone-title-td { background-color: #dfd5c2; font-weight: bold; font-size: 10pt; color: #1a1a1a; padding: 3px; border: 1px solid #555555; text-transform: uppercase; text-align: center; }
                 .action-required { font-weight: bold; color: #b30000; }
-                .conseils-box { background: #fafafa; border-left: 4px solid #c5a059; padding: 10px; margin-top: 25px; font-size: 10pt; line-height: 1.4; }
+                .conseils-box { background: #fafafa; border-left: 4px solid #c5a059; padding: 8px; margin-top: 20px; font-size: 9.5pt; line-height: 1.3; }
                 
-                /* DISPOSITION DES PHOTOS CÔTE À CÔTE POUR WORD */
-                .annexe-container { width: 100%; margin-top: 15px; }
-                .annexe-column { width: 48%; display: inline-block; vertical-align: top; margin-right: 3%; }
-                .annexe-column.last { margin-right: 0; }
-                .word-img { width: 100% !important; max-width: 378px; height: auto !important; margin: 8px 0; border: 1px solid #555555; display: block; }
-                .annexe-title { font-size: 14pt; font-weight: bold; border-bottom: 2px solid #c5a059; margin-top: 35px; padding-bottom: 4px; }
+                .annexe-title { font-size: 14pt; font-weight: bold; border-bottom: 2px solid #c5a059; margin-top: 30px; padding-bottom: 4px; }
             </style>
             </head>
             <body>
@@ -848,7 +845,7 @@
                     }
 
                     let labelLieu = d.lieuId ? `<br><span class="sub-lieu">${d.lieuId}</span>` : '';
-                    let labelIp = d.ip ? `<br><span style="color:#444; font-size:8pt;">${d.ip}</span>` : '';
+                    let labelIp = d.ip ? `<br><span style="color:#444; font-size:7.5pt;">${d.ip}</span>` : '';
 
                     wordHtml += `<tr>
                         <td class="cell-left"><b>${d.modele}</b>${labelLieu}</td>
@@ -863,43 +860,51 @@
                 });
             });
 
+            // FIX AJOUT DU RETOUR A LA LIGNE BALISE <br> DEMANDÉ ENTRE CHANGEMENT ET MANQUE
             wordHtml += `</tbody></table>
             <div class="conseils-box">
-                <p><b>Remarque :</b></p>
-                <ul>
+                <p style="margin:0 0 5px 0;"><b>Remarque :</b></p>
+                <ul style="margin:0; padding-left:20px;">
                     <li>Faire un nettoyage régulier des têtes et rollers, vous permettrez de gagner en qualité d’impression et en longévité des têtes d’impression.</li>
                     <li>Ne pas utiliser de cutter pour enlever les étiquettes collées sur le roller afin de ne pas l’abimer, utiliser de la bombe décolle étiquettes.</li>
                 </ul>
-                <p style="font-size: 9pt; color: #555; margin-top:8px;">Ci-dessous, les têtes d’impression présentant un défaut d’impression à un ou plusieurs endroits soumis à votre attention pour un changement éventuel ou nécessaire, ainsi que les traces de manque de matière.</p>
+                <p style="font-size: 9pt; color: #555; margin-top:8px; margin-bottom:0;">Ci-dessous, les têtes d’impression présentant un défaut d’impression à un ou plusieurs endroits soumis à votre attention pour un changement éventuel ou nécessaire,<br>ainsi que les traces de manque de matière.</p>
             </div>`;
 
+            // FIX UNIQUE ET ROBUSTE POUR ALIGNER LES IMAGES 2 PAR 2 DANS WORD : TABLEAU INVISIBLE A 2 COLONNES (50%)
             if (photosToEmbed.length > 0) {
                 wordHtml += `<br><div class="annexe-title">Annexes : Suivi visuel & Défauts constatés</div>`;
-                wordHtml += `<div class="annexe-container">`;
+                wordHtml += `<table style="width:100%; border:none; border-collapse:collapse; margin-top:10px;">`;
                 
-                for (let i = 0; i < photosToEmbed.length; i++) {
-                    const p = photosToEmbed[i];
-                    // On détermine s'il s'agit de la deuxième colonne de la ligne
-                    const isLastInRow = (i % 2 === 1) || (i === photosToEmbed.length - 1);
-                    const columnClass = isLastInRow ? "annexe-column last" : "annexe-column";
-
-                    wordHtml += `<div class="${columnClass}">
-                        <p style="margin-top:15px; font-size:11pt;"><b>Visuel (${p.index}) — S/N : ${p.serial} (${p.model}) :</b></p>
-                        <img class="word-img" src="cid:img_photo_${p.index}" width="378" height="151" />
-                    </div>`;
-
-                    // Si on vient de fermer une ligne de 2 colonnes, on applique un retour propre
-                    if (i % 2 === 1 && i < photosToEmbed.length - 1) {
-                        wordHtml += `</div><div class="annexe-container">`;
+                for (let i = 0; i < photosToEmbed.length; i += 2) {
+                    wordHtml += `<tr>`;
+                    
+                    // Première photo de la paire (gauche)
+                    const p1 = photosToEmbed[i];
+                    wordHtml += `<td style="width:50%; border:none; padding:6px; vertical-align:top;">
+                        <p style="margin:2px 0 6px 0; font-size:10pt;"><b>Visuel (${p1.index}) — S/N : ${p1.serial} (${p1.model}) :</b></p>
+                        <img src="cid:img_photo_${p1.index}" width="365" height="146" style="border:1px solid #555555; display:block;" />
+                    </td>`;
+                    
+                    // Deuxième photo de la paire (droite) si elle existe, sinon cellule vide
+                    if (i + 1 < photosToEmbed.length) {
+                        const p2 = photosToEmbed[i + 1];
+                        wordHtml += `<td style="width:50%; border:none; padding:6px; vertical-align:top;">
+                            <p style="margin:2px 0 6px 0; font-size:10pt;"><b>Visuel (${p2.index}) — S/N : ${p2.serial} (${p2.model}) :</b></p>
+                            <img src="cid:img_photo_${p2.index}" width="365" height="146" style="border:1px solid #555555; display:block;" />
+                        </td>`;
+                    } else {
+                        wordHtml += `<td style="width:50%; border:none;"></td>`;
                     }
+                    
+                    wordHtml += `</tr>`;
                 }
-                wordHtml += `</div>`;
+                wordHtml += `</table>`;
             }
 
             wordHtml += `</div></body></html>`;
             mhtml += wordHtml + "\n\n";
 
-            // Attachement et encodage base64 pour chaque photo enregistrée
             photosToEmbed.forEach(p => {
                 let pureBase64 = p.base64.split(',')[1];
                 mhtml += `--${boundary}\n`;
@@ -911,7 +916,6 @@
 
             mhtml += `--${boundary}--`;
 
-            // Déclenchement du téléchargement du fichier Word officiel
             const blob = new Blob([mhtml], { type: 'application/msword' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
