@@ -778,151 +778,109 @@
                 .col-cell { width: 7%; }
                 .col-dot { width: 9%; }
                 .col-roll { width: 9%; }
-                .col-print { width: 7%; }
+                .col-print-st { width: 7%; }
                 .col-gen { width: 6%; }
-                .col-rem { width: 34%; }      
-                
-                .cell-left { text-align: left; }
-                .cell-center { text-align: center; }
-                .sub-lieu { color: #555555; font-size: 8pt; font-style: italic; }
-                
-                .zone-title-td { background-color: #dfd5c2; font-weight: bold; font-size: 10pt; color: #1a1a1a; padding: 3px; border: 1px solid #555555; text-transform: uppercase; text-align: center; }
-                .action-required { font-weight: bold; color: #b30000; }
-                .conseils-box { background: #fafafa; border-left: 4px solid #c5a059; padding: 8px; margin-top: 20px; font-size: 9.5pt; line-height: 1.3; }
-                
-                .annexe-title { font-size: 14pt; font-weight: bold; border-bottom: 2px solid #c5a059; margin-top: 30px; padding-bottom: 4px; }
+                .col-rem { width: 34%; }      /* Réduit de 40% à 34% pour compenser le S/N */
+                .col-img { width: 6%; }
+
+                .row-zone { background-color: #dfd5c2; font-weight: bold; font-size: 9.5pt; color: #1a1a1a; text-align: center; padding: 3px; }
+                .center { text-align: center; }
             </style>
             </head>
             <body>
             <div class="Section1">
-            <div class="title-doc">Rapport Visite de maintenance préventive</div>
-            <div class="subtitle-doc">${brandSelection}</div>
-            <div class="meta-box">
-                <b>Client / Site :</b> ${site}<br>
-                <b>Visite effectuée le :</b> ${dateV}<br>
-                <b>Intervenant(s) :</b> ${tech}
-            </div>
-            <table class="main-table">
-                <thead>
-                    <tr>
-                        <th class="col-printer">Imprimante / Lieu</th>
-                        <th class="col-sn">S/N<br>@IP</th>
-                        <th class="col-cell">Cellules</th>
-                        <th class="col-dot">Etat dot</th>
-                        <th class="col-roll">Pressing Roller</th>
-                        <th class="col-print">Impression</th>
-                        <th class="col-gen">Etat général</th>
-                        <th class="col-rem">Remarques</th>
-                    </tr>
-                </thead>
-                <tbody>`;
+                <p class="title-doc">RAPPORT DE MAINTENANCE PRÉVENTIVE</p>
+                <p class="subtitle-doc">Parc d'imprimantes thermiques</p>
+                
+                <table class="meta-box" cellspacing="0" cellpadding="0" border="0">
+                    <tr><td><b>Client / Site :</b></td><td style="padding-left:10px;">${site}</td></tr>
+                    <tr><td><b>Équipement du site :</b></td><td style="padding-left:10px;">${brandSelection}</td></tr>
+                    <tr><td><b>Intervenant(s) :</b></td><td style="padding-left:10px;">${tech}</td></tr>
+                    <tr><td><b>Date de visite :</b></td><td style="padding-left:10px;">${dateV}</td></tr>
+                </table>
 
-            let photoIndex = 1;
-            const photosToEmbed = [];
+                <table class="main-table">
+                    <thead>
+                        <tr>
+                            <th class="col-printer">Imprimante / Lieu</th>
+                            <th class="col-sn">S/N<br>@ IP</th>
+                            <th class="col-cell">Cellules</th>
+                            <th class="col-dot">Etat dot</th>
+                            <th class="col-roll">Pressing Roller</th>
+                            <th class="col-print-st">Impression</th>
+                            <th class="col-gen">Etat Général</th>
+                            <th class="col-rem">Remarques / Actions</th>
+                            <th class="col-img">Photos</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
             const zones = [];
-            
             reportData.forEach(item => { if (!zones.includes(item.zone)) zones.push(item.zone); });
+
+            let imageCounter = 0;
+            let attachedParts = "";
 
             zones.forEach(z => {
                 const zoneData = reportData.filter(item => item.zone === z);
                 if (z !== "") {
-                    wordHtml += `<tr><td colspan="8" class="zone-title-td">${z.toUpperCase()}</td></tr>`;
+                    wordHtml += `<tr><td colspan="9" class="row-zone">${z.toUpperCase()}</td></tr>`;
                 }
 
                 zoneData.forEach(d => {
-                    let remTxt = d.remarque || "";
-                    const words = ["Tête à changer", "Tete a changer", "Prévoir", "Prevoir", "Remplacer", "Changement", "A changer", "HS"];
-                    if (words.some(w => remTxt.toLowerCase().includes(w.toLowerCase()))) {
-                        remTxt = `<span class="action-required">${remTxt}</span>`;
-                    }
-
+                    let imageTag = "";
                     if (d.photos && d.photos.length > 0) {
-                        d.photos.forEach(pData => {
-                            remTxt += (remTxt !== "" ? "<br>" : "") + `(voir annexe (${photoIndex}))`;
-                            photosToEmbed.push({ index: photoIndex, base64: pData, serial: d.serial, model: d.modele });
-                            photoIndex++;
-                        });
+                        imageCounter++;
+                        let base64Data = d.photos[0].split(',')[1];
+                        let imageLocation = `item_photo_${imageCounter}.jpg`;
+                        
+                        // Balise image propre pour Word (Format 100x40px pour respecter les proportions 10x4)
+                        imageTag = `<img width="100" height="40" src="cid:${imageLocation}" style="width:100px; height:40px; display:block; margin:auto;">`;
+
+                        // Construction du bloc MIME MHTML pour encapsuler la photo de manière native
+                        attachedParts += `--${boundary}\n`;
+                        attachedParts += `Content-ID: <${imageLocation}>\n`;
+                        attachedParts += `Content-Location: ${imageLocation}\n`;
+                        attachedParts += `Content-Transfer-Encoding: base64\n`;
+                        attachedParts += `Content-Type: image/jpeg\n\n`;
+                        attachedParts += base64Data + "\n\n";
                     }
 
-                    let labelLieu = d.lieuId ? `<br><span class="sub-lieu">${d.lieuId}</span>` : '';
-                    let labelIp = d.ip ? `<br><span style="color:#444; font-size:7.5pt;">${d.ip}</span>` : '';
+                    let labelLieu = d.lieuId ? `<br><span style="color:#555555; font-size:7.5pt; font-style:italic;">${d.lieuId}</span>` : '';
+                    let ipDisplay = d.ip ? `<br><span style="color:#444444; font-size:7.5pt;">${d.ip}</span>` : '';
 
                     wordHtml += `<tr>
-                        <td class="cell-left"><b>${d.modele}</b>${labelLieu}</td>
-                        <td class="cell-center"><b>${d.serial}</b>${labelIp}</td>
-                        <td class="cell-center">${d.cellules || 'OK'}</td>
-                        <td class="cell-center">${d.etatDot || 'OK'}</td>
-                        <td class="cell-center">${d.roller || 'OK'}</td>
-                        <td class="cell-center">${d.impression || 'OK'}</td>
-                        <td class="cell-center">${d.general || 'OK'}</td>
-                        <td class="cell-left">${remTxt}</td>
+                        <td><b>${d.modele}</b>${labelLieu}</td>
+                        <td class="center"><b>${d.serial}</b>${ipDisplay}</td>
+                        <td class="center">${d.cellules || ''}</td>
+                        <td class="center">${d.etatDot || ''}</td>
+                        <td class="center">${d.roller || ''}</td>
+                        <td class="center">${d.impression || ''}</td>
+                        <td class="center">${d.general || ''}</td>
+                        <td>${formatRemarqueHTML(d.remarque)}</td>
+                        <td class="center" style="padding:0; vertical-align:middle;">${imageTag}</td>
                     </tr>`;
                 });
             });
 
-            // FIX AJOUT DU RETOUR A LA LIGNE BALISE <br> DEMANDÉ ENTRE CHANGEMENT ET MANQUE
-            wordHtml += `</tbody></table>
-            <div class="conseils-box">
-                <p style="margin:0 0 5px 0;"><b>Remarque :</b></p>
-                <ul style="margin:0; padding-left:20px;">
-                    <li>Faire un nettoyage régulier des têtes et rollers, vous permettrez de gagner en qualité d’impression et en longévité des têtes d’impression.</li>
-                    <li>Ne pas utiliser de cutter pour enlever les étiquettes collées sur le roller afin de ne pas l’abimer, utiliser de la bombe décolle étiquettes.</li>
-                </ul>
-                <p style="font-size: 9pt; color: #555; margin-top:8px; margin-bottom:0;">Ci-dessous, les têtes d’impression présentant un défaut d’impression à un ou plusieurs endroits soumis à votre attention pour un changement éventuel ou nécessaire,<br>ainsi que les traces de manque de matière.</p>
-            </div>`;
+            wordHtml += `</tbody></table></div></body></html>\n\n`;
+            
+            // Concatenation finale du document multipart MHTML
+            let finalDoc = mhtml + wordHtml + attachedParts + `--${boundary}--`;
 
-            // FIX UNIQUE ET ROBUSTE POUR ALIGNER LES IMAGES 2 PAR 2 DANS WORD : TABLEAU INVISIBLE A 2 COLONNES (50%)
-            if (photosToEmbed.length > 0) {
-                wordHtml += `<br><div class="annexe-title">Annexes : Suivi visuel & Défauts constatés</div>`;
-                wordHtml += `<table style="width:100%; border:none; border-collapse:collapse; margin-top:10px;">`;
-                
-                for (let i = 0; i < photosToEmbed.length; i += 2) {
-                    wordHtml += `<tr>`;
-                    
-                    // Première photo de la paire (gauche)
-                    const p1 = photosToEmbed[i];
-                    wordHtml += `<td style="width:50%; border:none; padding:6px; vertical-align:top;">
-                        <p style="margin:2px 0 6px 0; font-size:10pt;"><b>Visuel (${p1.index}) — S/N : ${p1.serial} (${p1.model}) :</b></p>
-                        <img src="cid:img_photo_${p1.index}" width="365" height="146" style="border:1px solid #555555; display:block;" />
-                    </td>`;
-                    
-                    // Deuxième photo de la paire (droite) si elle existe, sinon cellule vide
-                    if (i + 1 < photosToEmbed.length) {
-                        const p2 = photosToEmbed[i + 1];
-                        wordHtml += `<td style="width:50%; border:none; padding:6px; vertical-align:top;">
-                            <p style="margin:2px 0 6px 0; font-size:10pt;"><b>Visuel (${p2.index}) — S/N : ${p2.serial} (${p2.model}) :</b></p>
-                            <img src="cid:img_photo_${p2.index}" width="365" height="146" style="border:1px solid #555555; display:block;" />
-                        </td>`;
-                    } else {
-                        wordHtml += `<td style="width:50%; border:none;"></td>`;
-                    }
-                    
-                    wordHtml += `</tr>`;
-                }
-                wordHtml += `</table>`;
-            }
-
-            wordHtml += `</div></body></html>`;
-            mhtml += wordHtml + "\n\n";
-
-            photosToEmbed.forEach(p => {
-                let pureBase64 = p.base64.split(',')[1];
-                mhtml += `--${boundary}\n`;
-                mhtml += `Content-Type: image/jpeg\n`;
-                mhtml += `Content-Transfer-Encoding: base64\n`;
-                mhtml += `Content-Location: cid:img_photo_${p.index}\n\n`;
-                mhtml += pureBase64 + "\n\n";
-            });
-
-            mhtml += `--${boundary}--`;
-
-            const blob = new Blob([mhtml], { type: 'application/msword' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `Rapport_Preventive_${site.replace(/[^a-zA-Z0-9]/g, "_")}.doc`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            let blob = new Blob([finalDoc], { type: 'application/msword;charset=utf-8' });
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            
+            let cleanSiteName = site.replace(/[^a-zA-Z0-9]/g, "_");
+            let cleanDate = dateV.replace(/\//g, "-");
+            a.download = `Rapport_Maintenance_${cleanSiteName}_${cleanDate}.doc`;
+            
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         });
     </script>
 </body>
