@@ -8,9 +8,9 @@
     <!-- Moteur de scan universel -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     
-    <!-- Liens CDNJS sécurisés pour le recadrage photo (Croppr.js) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/croppr/2.3.1/croppr.min.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/croppr/2.3.1/croppr.min.js"></script>
+    <!-- Nouveau moteur de recadrage compatible 100% Mobile & Tactile (Cropper.js) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 
     <style>
         :root {
@@ -168,25 +168,27 @@
         .btn-capture { background: #28a745; }
         .btn-close { background: #dc3545; }
 
-        /* Zone de Recadrage Photo Dynamique */
+        /* MODIFICATION : Fenêtre d'édition photo renforcée pour mobile */
         #crop-zone {
             display: none;
-            background: #222;
+            background: #111;
             padding: 15px;
-            border-radius: 8px;
+            border-radius: 12px;
             margin: 15px 0;
             color: white;
             text-align: center;
         }
         .crop-container {
             max-width: 100%;
-            max-height: 400px;
+            height: 320px; /* Hauteur définie indispensable pour Cropper.js */
             margin: 10px auto;
+            background: #222;
+            border-radius: 6px;
             overflow: hidden;
-            background: #333;
         }
         .crop-container img {
             max-width: 100%;
+            max-height: 100%;
             display: block;
         }
         .crop-buttons {
@@ -196,7 +198,7 @@
         }
         .crop-buttons button {
             flex: 1;
-            padding: 12px;
+            padding: 14px;
             font-size: 0.95rem;
             border: none;
             border-radius: 6px;
@@ -255,16 +257,29 @@
             border-collapse: collapse;
             font-size: 0.85rem;
             margin-bottom: 20px;
+            table-layout: fixed;
         }
 
         th, td {
             border: 1px solid #ddd;
-            padding: 6px 8px;
+            padding: 8px 6px;
             text-align: left;
+            word-wrap: break-word;
         }
 
-        th { background: #eee; }
+        th { background: #eee; font-weight: bold; }
         
+        /* Proportions strictes conservées */
+        th:nth-child(1) { width: 18%; } 
+        th:nth-child(2) { width: 15%; } 
+        th:nth-child(3) { width: 8%; }  
+        th:nth-child(4) { width: 10%; } 
+        th:nth-child(5) { width: 10%; } 
+        th:nth-child(6) { width: 8%; }  
+        th:nth-child(7) { width: 8%; }  
+        th:nth-child(8) { width: 25%; } /* Grande largeur proportionnée pour Remarques */
+        th:nth-child(9) { width: 6%; }  
+
         .zone-header-row {
             background-color: #dfd5c2 !important;
             font-weight: bold;
@@ -316,11 +331,11 @@
         </div>
     </div>
 
-    <!-- Interface de Recadrage Photo Dynamique -->
+    <!-- NOUVELLE ZONE DE RECADRAGE MOBILE COMPATIBLE TACTILE -->
     <div id="crop-zone">
-        <h4 style="margin-top:0;">Sélectionnez l'élément à conserver (Format 10x4)</h4>
-        <div class="crop-container" id="crop-target-wrapper">
-            <!-- L'image est injectée ici -->
+        <h4 style="margin-top:0;">Recadrez l'élément à conserver (Format 10x4)</h4>
+        <div class="crop-container">
+            <img id="image-to-crop" src="" alt="A découper">
         </div>
         <div class="crop-buttons">
             <button type="button" style="background:#28a745; color:white;" onclick="validateCrop()">Valider la sélection</button>
@@ -346,8 +361,8 @@
             </div>
 
             <div class="form-group">
-                <label for="printerId">Machine ID (Optionnel)</label>
-                <input type="text" id="printerId" placeholder="Saisir l'ID au clavier...">
+                <label for="printerId">Machine ID (Lieu / Optionnel)</label>
+                <input type="text" id="printerId" placeholder="Saisir l'ID ou le Lieu au clavier...">
             </div>
 
             <div class="form-group">
@@ -435,7 +450,7 @@
             <table id="summaryTable">
                 <thead>
                     <tr>
-                        <th>Imprimante Type & ID</th>
+                        <th>Imprimante / Lieu</th>
                         <th>S/N <br> @ IP</th>
                         <th>Cellules</th>
                         <th>Etat dot</th>
@@ -460,8 +475,7 @@
         let html5QrcodeScanner = null;
         let activeTargetId = null;
         
-        let cropprInstance = null;
-        let currentRawImgSrc = null;
+        let cropperInstance = null; // Variable pour Cropper.js
 
         document.addEventListener('DOMContentLoaded', () => {
             const today = new Date().toISOString().split('T')[0];
@@ -581,75 +595,72 @@
             } else { document.getElementById('scanner-zone').style.display = 'none'; }
         }
 
-        // GESTION DU RECADRAGE PHOTO SANS CONFLITS D'INITIALISATION
+        // CORRECTION DU RECADRAGE PHOTO EN DISPOSITIF MOBILE TACTILE (CROPPER.JS)
         document.getElementById('photo').addEventListener('change', function(e) {
             if(e.target.files.length === 0) return;
             const file = e.target.files[0];
             const reader = new FileReader();
             
             reader.onload = function(evt) {
-                currentRawImgSrc = evt.target.result;
-                
-                const wrapper = document.getElementById('crop-target-wrapper');
-                wrapper.innerHTML = `<img id="image-to-crop" src="${currentRawImgSrc}" alt="A découper">`;
+                const imageToCrop = document.getElementById('image-to-crop');
+                imageToCrop.src = evt.target.result;
                 
                 document.getElementById('crop-zone').style.display = 'block';
 
-                if(cropprInstance) { cropprInstance.destroy(); cropprInstance = null; }
+                if(cropperInstance) { cropperInstance.destroy(); }
                 
-                setTimeout(() => {
-                    try {
-                        cropprInstance = new Croppr('#image-to-crop', {
-                            aspectRatio: 2.5, 
-                            startSize: [90, 36, '%'],
-                            returnMode: 'pixels'
-                        });
-                    } catch (err) {
-                        console.error("Erreur lors de l'initialisation du recadrage :", err);
-                    }
-                }, 200);
+                // Initialisation robuste de Cropper.js
+                cropperInstance = new Cropper(imageToCrop, {
+                    aspectRatio: 2.5, // Ratio 10x4 imposé
+                    viewMode: 1,      // Restreint la boîte de sélection à l'intérieur de l'image
+                    autoCropArea: 0.8,
+                    responsive: true,
+                    restore: false,
+                    guides: true,
+                    highlight: false,
+                    cropBoxMovable: true,
+                    cropBoxResizable: true,
+                    toggleDragModeOnDblclick: false
+                });
             };
             reader.readAsDataURL(file);
         });
 
         function validateCrop() {
-            if(!cropprInstance) return;
+            if(!cropperInstance) return;
             
-            const data = cropprInstance.getValue();
-            const img = new Image();
-            img.src = currentRawImgSrc;
+            // On extrait la zone sélectionnée au format souhaité (1000px de large par 400px de haut pour garder le ratio 10x4 impeccable)
+            const canvas = cropperInstance.getCroppedCanvas({
+                width: 1000,
+                height: 400,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high'
+            });
             
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                canvas.width = 1000;
-                canvas.height = 400; 
-                
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(
-                    img,
-                    data.x, data.y, data.width, data.height,
-                    0, 0, 1000, 400
-                );
-                
-                const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-                
-                previewContainer.innerHTML = '';
-                const previewImg = document.createElement('img');
-                previewImg.src = croppedDataUrl;
-                previewImg.classList.add('photo-preview');
-                previewContainer.appendChild(previewImg);
-                
-                currentPhotos = [croppedDataUrl];
-                
-                document.getElementById('crop-zone').style.display = 'none';
-                if(cropprInstance) { cropprInstance.destroy(); cropprInstance = null; }
-            };
+            const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            
+            // Affichage de l'aperçu sous le bouton photo
+            previewContainer.innerHTML = '';
+            const previewImg = document.createElement('img');
+            previewImg.src = croppedDataUrl;
+            previewImg.classList.add('photo-preview');
+            previewContainer.appendChild(previewImg);
+            
+            currentPhotos = [croppedDataUrl];
+            
+            // Fermeture de l'interface et nettoyage
+            document.getElementById('crop-zone').style.display = 'none';
+            cropperInstance.destroy();
+            cropperInstance = null;
         }
 
         function cancelCrop() {
             document.getElementById('crop-zone').style.display = 'none';
             document.getElementById('photo').value = '';
-            if(cropprInstance) { cropprInstance.destroy(); cropprInstance = null; }
+            if(cropperInstance) { 
+                cropperInstance.destroy(); 
+                cropperInstance = null; 
+            }
         }
 
         function formatRemarqueHTML(text) {
@@ -663,17 +674,29 @@
 
         function renderTable() {
             const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = ''; document.getElementById('count').innerText = reportData.length;
+            tbody.innerHTML = ''; 
+            document.getElementById('count').innerText = reportData.length;
+            
             const zones = [];
             reportData.forEach(item => { if (!zones.includes(item.zone)) zones.push(item.zone); });
 
             zones.forEach(z => {
                 const zoneData = reportData.filter(item => item.zone === z);
-                tbody.innerHTML += `<tr><td colspan="9" class="zone-header-row">${z === "" ? "SANS ZONE" : z.toUpperCase()}</td></tr>`;
+                
+                if (z !== "") {
+                    tbody.innerHTML += `<tr><td colspan="9" class="zone-header-row">${z.toUpperCase()}</td></tr>`;
+                }
+                
                 zoneData.forEach(d => {
                     const icon = (d.photos && d.photos.length > 0) ? `${d.photos.length} 📸` : '';
+                    
+                    let imprimanteCellule = `<b>${d.modele}</b>`;
+                    if (d.lieuId) {
+                        imprimanteCellule += `<br><span style="color:#666; font-size:0.8rem; font-style:italic;">${d.lieuId}</span>`;
+                    }
+
                     tbody.innerHTML += `<tr>
-                        <td><b>${d.imprimante}</b></td>
+                        <td>${imprimanteCellule}</td>
                         <td style="text-align:center;"><b>${d.serial}</b><br><span style="color:#555; font-size:0.8rem;">${d.ip}</span></td>
                         <td style="text-align:center;">${d.cellules}</td>
                         <td style="text-align:center;">${d.etatDot}</td>
@@ -695,7 +718,8 @@
 
             reportData.push({
                 zone: document.getElementById('printerZone').value.trim(),
-                imprimante: (model && id) ? model + " / " + id : (model || id),
+                modele: model || "Modèle inconnu",
+                lieuId: id || "",
                 serial: document.getElementById('serial').value.trim() || "N/A",
                 ip: document.getElementById('ipAddress').value.trim() || "",
                 cellules: document.getElementById('cellules').value,
@@ -735,37 +759,36 @@
             <style>
                 @page Section1 {
                     size: 11.0in 8.5in;
-                    margin: 0.6in 0.6in 0.6in 0.6in;
+                    margin: 0.5in 0.5in 0.5in 0.5in;
                     mso-page-orientation: landscape;
                 }
-                div.Section1 {
-                    page: Section1;
-                }
-
+                div.Section1 { page: Section1; }
                 body { font-family: 'Arial', sans-serif; color: #1a1a1a; }
                 .title-doc { font-size: 19pt; font-weight: bold; color: #1a1a1a; margin-bottom: 2px; }
                 .subtitle-doc { font-size: 14pt; font-weight: bold; color: #c5a059; margin-top: 0; margin-bottom: 15px; }
                 .meta-box { font-size: 11pt; margin-bottom: 20px; line-height: 1.5; }
                 
-                .main-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px; }
-                .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 4px 5px; font-size: 9.5pt; font-weight: bold; text-align: center; }
-                .main-table td { border: 1px solid #cccccc; padding: 3px 5px; font-size: 9.5pt; vertical-align: middle; }
+                .main-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px; table-layout: fixed; }
+                .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 5px; font-size: 9.5pt; font-weight: bold; text-align: center; }
+                .main-table td { border: 1px solid #cccccc; padding: 5px; font-size: 9pt; vertical-align: middle; }
+                
+                .col-printer { width: 18%; }
+                .col-sn { width: 15%; }
+                .col-cell { width: 8%; }
+                .col-dot { width: 10%; }
+                .col-roll { width: 10%; }
+                .col-print { width: 8%; }
+                .col-gen { width: 8%; }
+                .col-rem { width: 25%; }
                 
                 .cell-left { text-align: left; }
                 .cell-center { text-align: center; }
+                .sub-lieu { color: #555555; font-size: 8.5pt; font-style: italic; }
                 
-                .zone-title-td { background-color: #dfd5c2; font-weight: bold; font-size: 10.5pt; color: #1a1a1a; padding: 5px; border: 1px solid #555555; text-transform: uppercase; text-align: center; }
+                .zone-title-td { background-color: #dfd5c2; font-weight: bold; font-size: 10.5pt; color: #1a1a1a; padding: 6px; border: 1px solid #555555; text-transform: uppercase; text-align: center; }
                 .action-required { font-weight: bold; color: #b30000; }
-                
                 .conseils-box { background: #fafafa; border-left: 4px solid #c5a059; padding: 10px; margin-top: 25px; font-size: 10pt; line-height: 1.4; }
-                
-                .word-img { 
-                    width: 378px !important; 
-                    height: 151px !important; 
-                    margin: 8px 0; 
-                    border: 1px solid #555555; 
-                    display: block; 
-                }
+                .word-img { width: 378px !important; height: 151px !important; margin: 8px 0; border: 1px solid #555555; display: block; }
                 .annexe-title { font-size: 14pt; font-weight: bold; border-bottom: 2px solid #c5a059; margin-top: 35px; padding-bottom: 4px; }
             </style>
             </head>
@@ -781,14 +804,14 @@
             <table class="main-table">
                 <thead>
                     <tr>
-                        <th>Imprimante / Lieu</th>
-                        <th>S/N<br>@IP</th>
-                        <th>Cellules</th>
-                        <th>Etat dot</th>
-                        <th>Pressing Roller</th>
-                        <th>Impression</th>
-                        <th>Etat général</th>
-                        <th>Remarques</th>
+                        <th class="col-printer">Imprimante / Lieu</th>
+                        <th class="col-sn">S/N<br>@IP</th>
+                        <th class="col-cell">Cellules</th>
+                        <th class="col-dot">Etat dot</th>
+                        <th class="col-roll">Pressing Roller</th>
+                        <th class="col-print">Impression</th>
+                        <th class="col-gen">Etat général</th>
+                        <th class="col-rem">Remarques</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -801,7 +824,10 @@
 
             zones.forEach(zName => {
                 const zoneData = reportData.filter(item => item.zone === zName);
-                wordHtml += `<tr><td colspan="8" class="zone-title-td">${zName === "" ? "SANS SECTEUR" : zName.toUpperCase()}</td></tr>`;
+                
+                if (zName !== "") {
+                    wordHtml += `<tr><td colspan="8" class="zone-title-td">${zName.toUpperCase()}</td></tr>`;
+                }
                 
                 zoneData.forEach(r => {
                     let rem = r.remarque || "Rien à signaler";
@@ -820,8 +846,13 @@
                         rem = `<span class="action-required">${rem}</span>`;
                     }
 
+                    let imprimanteWordCell = `<b>${r.modele}</b>`;
+                    if (r.lieuId) {
+                        imprimanteWordCell += `<br><span class="sub-lieu">${r.lieuId}</span>`;
+                    }
+
                     wordHtml += `<tr>
-                        <td class="cell-left"><b>${r.imprimante}</b></td>
+                        <td class="cell-left">${imprimanteWordCell}</td>
                         <td class="cell-center"><b>${r.serial}</b><br><span style="color:#444; font-size:8pt;">${r.ip}</span></td>
                         <td class="cell-center">${r.cellules}</td>
                         <td class="cell-center">${r.etatDot}</td>
@@ -834,7 +865,7 @@
                     if(r.photos && r.photos.length > 0) {
                         hasPhotos = true;
                         r.photos.forEach(img => { 
-                            photosHtml += `<p style="margin-top:15px; font-size:11pt;"><b>Visuel (${photoIndex}) — S/N : ${r.serial} (${r.imprimante}) :</b></p>`;
+                            photosHtml += `<p style="margin-top:15px; font-size:11pt;"><b>Visuel (${photoIndex}) — S/N : ${r.serial} (${r.modele}) :</b></p>`;
                             photosHtml += `<img class="word-img" src="${img}" width="378" height="151" /><br>`; 
                         });
                         photoIndex++;
