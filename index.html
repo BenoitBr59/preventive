@@ -6,6 +6,9 @@
     <title>Rapport de Maintenance Préventive</title>
     <!-- Moteur de scan universel -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <!-- Bibliothèque de recadrage photo (Cropper) -->
+    <link href="https://cdn.jsdelivr.net/gh/jamessouth/croppr.js@v2.3.0/dist/croppr.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/gh/jamessouth/croppr.js@v2.3.0/dist/croppr.min.js"></script>
     <style>
         :root {
             --primary: #1a1a1a;
@@ -51,7 +54,7 @@
         .header-group label {
             font-size: 0.9rem;
             opacity: 0.9;
-            min-width: 110px;
+            min-width: 130px;
             font-weight: normal;
             margin: 0;
         }
@@ -162,6 +165,31 @@
         .btn-capture { background: #28a745; }
         .btn-close { background: #dc3545; }
 
+        /* Zone de Recadrage Photo */
+        #crop-zone {
+            display: none;
+            background: #222;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            color: white;
+            text-align: center;
+        }
+        .crop-container {
+            max-width: 100%;
+            margin: 10px auto;
+            overflow: hidden;
+        }
+        .crop-container img {
+            max-width: 100%;
+            display: block;
+        }
+        .crop-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
         .grid-status {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -195,12 +223,13 @@
             flex-wrap: wrap;
         }
 
+        /* Aperçu sur l'application au format 10x4 */
         .photo-preview {
-            width: 70px;
-            height: 70px;
-            object-fit: cover;
-            border-radius: 6px;
-            border: 2px solid var(--accent);
+            width: 100px;
+            height: 40px;
+            object-fit: fill;
+            border-radius: 4px;
+            border: 1px solid var(--accent);
         }
 
         .table-container {
@@ -217,7 +246,7 @@
 
         th, td {
             border: 1px solid #ddd;
-            padding: 8px;
+            padding: 6px 8px;
             text-align: left;
         }
 
@@ -228,6 +257,7 @@
             font-weight: bold;
             color: #1a1a1a;
             font-size: 0.95rem;
+            text-align: center;
         }
     </style>
 </head>
@@ -239,6 +269,15 @@
             <div class="header-group">
                 <label for="headerSite">Client / Site :</label>
                 <input type="text" id="headerSite" placeholder="Nom du client ou du site...">
+            </div>
+            <div class="header-group">
+                <label for="headerBrand">Équipement du site :</label>
+                <select id="headerBrand">
+                    <option value="ZEBRA">Imprimantes ZEBRA</option>
+                    <option value="INTERMEC">Imprimantes INTERMEC</option>
+                    <option value="HONEYWELL">Imprimantes HONEYWELL</option>
+                    <option value="ZEBRA & INTERMEC">Imprimantes ZEBRA & INTERMEC</option>
+                </select>
             </div>
             <div class="header-group">
                 <label for="headerIntervenant">Intervenant(s) :</label>
@@ -255,12 +294,24 @@
         </div>
     </header>
 
-    <!-- Zone Scanner -->
+    <!-- Zone Scanner Code Barre -->
     <div id="scanner-zone">
         <div id="reader"></div>
         <div class="scanner-controls">
             <div class="btn-action-scanner btn-capture" onclick="forceCaptureAndDecode()">⚡ LIRE CE VISUEL</div>
             <div class="btn-action-scanner btn-close" onclick="stopScanner()">Fermer</div>
+        </div>
+    </div>
+
+    <!-- Interface Intégrée de Recadrage Photo -->
+    <div id="crop-zone">
+        <h4>Sélectionnez l'élément à conserver (Format 10x4)</h4>
+        <div class="crop-container">
+            <img id="image-to-crop" src="" alt="A découper">
+        </div>
+        <div class="crop-buttons">
+            <button type="button" style="background:#28a745; color:white;" onclick="validateCrop()">Valider la sélection</button>
+            <button type="button" style="background:#dc3545; color:white;" onclick="cancelCrop()">Annuler</button>
         </div>
     </div>
 
@@ -357,7 +408,8 @@
 
             <div class="form-group">
                 <label for="photo">Photos des défauts / panne (Optionnel)</label>
-                <input type="file" id="photo" accept="image/*" capture="environment" multiple style="padding:5px; height:auto;">
+                <!-- Prise de vue directe appareil ou galerie -->
+                <input type="file" id="photo" accept="image/*" capture="environment" style="padding:5px; height:auto;">
                 <div class="photo-container" id="previewContainer"></div>
             </div>
 
@@ -395,6 +447,10 @@
         let currentPhotos = [];
         let html5QrcodeScanner = null;
         let activeTargetId = null;
+        
+        // Variables pour le module de découpe
+        let cropprInstance = null;
+        let currentRawImgSrc = null;
 
         document.addEventListener('DOMContentLoaded', () => {
             const today = new Date().toISOString().split('T')[0];
@@ -518,17 +574,77 @@
             } else { document.getElementById('scanner-zone').style.display = 'none'; }
         }
 
+        // GESTION ET RECADRAGE DE LA PHOTO
         document.getElementById('photo').addEventListener('change', function(e) {
-            previewContainer.innerHTML = ''; currentPhotos = [];
-            for(let file of e.target.files) {
-                const reader = new FileReader();
-                reader.onload = function(evt) {
-                    const img = document.createElement('img'); img.src = evt.target.result; img.classList.add('photo-preview');
-                    previewContainer.appendChild(img); currentPhotos.push(evt.target.result);
-                }
-                reader.readAsDataURL(file);
-            }
+            if(e.target.files.length === 0) return;
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(evt) {
+                currentRawImgSrc = evt.target.result;
+                
+                // Activer l'interface de découpe
+                document.getElementById('crop-zone').style.display = 'block';
+                const imageElement = document.getElementById('image-to-crop');
+                imageElement.src = currentRawImgSrc;
+
+                // Initialisation de l'outil de découpe forcée au format 10x4 (ratio 2.5)
+                if(cropprInstance) { cropprInstance.destroy(); }
+                
+                setTimeout(() => {
+                    cropprInstance = new Croppr('#image-to-crop', {
+                        aspectRatio: 2.5, // Ratio 10cm / 4cm
+                        startSize: [80, 32, '%']
+                    });
+                }, 100);
+            };
+            reader.readAsDataURL(file);
         });
+
+        function validateCrop() {
+            if(!cropprInstance) return;
+            
+            // Calcul et extraction des coordonnées de l'élément désiré
+            const data = cropprInstance.getValue();
+            const img = new Image();
+            img.src = currentRawImgSrc;
+            
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                // On normalise l'image finale sur une base nette de 1000px par 400px (format 10x4)
+                canvas.width = 1000;
+                canvas.height = 400;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(
+                    img,
+                    data.x, data.y, data.width, data.height, // Zone découpée
+                    0, 0, 1000, 400 // Rendu final proportionnel
+                );
+                
+                const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                
+                // Affichage de l'aperçu recadré dans le formulaire
+                previewContainer.innerHTML = '';
+                const previewImg = document.createElement('img');
+                previewImg.src = croppedDataUrl;
+                previewImg.classList.add('photo-preview');
+                previewContainer.appendChild(previewImg);
+                
+                currentPhotos = [croppedDataUrl]; // Sauvegarde l'élément choisi
+                
+                // Fermer la zone de crop
+                document.getElementById('crop-zone').style.display = 'none';
+                cropprInstance.destroy();
+                cropprInstance = null;
+            };
+        }
+
+        function cancelCrop() {
+            document.getElementById('crop-zone').style.display = 'none';
+            document.getElementById('photo').value = '';
+            if(cropprInstance) { cropprInstance.destroy(); cropprInstance = null; }
+        }
 
         function formatRemarqueHTML(text) {
             if (!text) return "";
@@ -591,13 +707,14 @@
             previewContainer.innerHTML = ''; currentPhotos = [];
         });
 
-        // GENERATEUR DE FICHIER WORD EN MODE PAYSAGE FORCE
+        // EXPORT AVEC FORÇAGE DE LA TAILLE DES IMAGES (10cm x 4cm)
         document.getElementById('exportBtn').addEventListener('click', function(e) {
             e.preventDefault();
             if(reportData.length === 0) return alert('Aucune donnée à exporter');
             
             const site = document.getElementById('headerSite').value || 'N/A';
             const tech = document.getElementById('headerIntervenant').value;
+            const brandSelection = document.getElementById('headerBrand').value;
             const dateV = document.getElementById('headerDate').value ? new Date(document.getElementById('headerDate').value).toLocaleDateString('fr-FR') : 'N/A';
 
             let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
@@ -611,10 +728,9 @@
              </w:WordDocument>
             </xml><![endif]-->
             <style>
-                /* CONFIGURATION DU MODE PAYSAGE OFFICIEL POUR MICROSOFT WORD */
                 @page Section1 {
-                    size: 11.0in 8.5in; /* Format Lettre ou A4 Paysage */
-                    margin: 0.8in 0.8in 0.8in 0.8in;
+                    size: 11.0in 8.5in;
+                    margin: 0.6in 0.6in 0.6in 0.6in;
                     mso-page-orientation: landscape;
                 }
                 div.Section1 {
@@ -624,43 +740,51 @@
                 body { font-family: 'Arial', sans-serif; color: #1a1a1a; }
                 .title-doc { font-size: 19pt; font-weight: bold; color: #1a1a1a; margin-bottom: 2px; }
                 .subtitle-doc { font-size: 14pt; font-weight: bold; color: #c5a059; margin-top: 0; margin-bottom: 15px; }
-                .meta-box { font-size: 11pt; margin-bottom: 25px; line-height: 1.6; }
+                .meta-box { font-size: 11pt; margin-bottom: 20px; line-height: 1.5; }
                 
-                /* Largeurs optimisées pour le format Paysage */
-                .main-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; table-layout: fixed; }
-                .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 8px 4px; font-size: 10pt; font-weight: bold; text-align: center; }
-                .main-table td { border: 1px solid #cccccc; padding: 7px 5px; font-size: 10pt; vertical-align: middle; }
+                .main-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px; }
+                .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 4px 5px; font-size: 9.5pt; font-weight: bold; text-align: center; }
+                .main-table td { border: 1px solid #cccccc; padding: 3px 5px; font-size: 9.5pt; vertical-align: middle; }
                 
                 .cell-left { text-align: left; }
                 .cell-center { text-align: center; }
-                .zone-title-td { background-color: #dfd5c2; font-weight: bold; font-size: 11pt; color: #1a1a1a; padding: 8px; border: 1px solid #555555; text-transform: uppercase; text-align: left; }
+                
+                .zone-title-td { background-color: #dfd5c2; font-weight: bold; font-size: 10.5pt; color: #1a1a1a; padding: 5px; border: 1px solid #555555; text-transform: uppercase; text-align: center; }
                 .action-required { font-weight: bold; color: #b30000; }
                 
-                .conseils-box { background: #fafafa; border-left: 4px solid #c5a059; padding: 12px; margin-top: 30px; font-size: 10.5pt; line-height: 1.5; }
-                .word-img { max-width: 650px; height: auto; margin: 12px 0; border: 1px solid #666666; display:block; }
-                .annexe-title { font-size: 15pt; font-weight: bold; border-bottom: 2px solid #c5a059; margin-top: 40px; padding-bottom: 4px; }
+                .conseils-box { background: #fafafa; border-left: 4px solid #c5a059; padding: 10px; margin-top: 25px; font-size: 10pt; line-height: 1.4; }
+                
+                /* TAILLE STRICTE ASSURANT LE RENDU 10 CM (LARGEUR) PAR 4 CM (HAUTEUR) DANS WORD */
+                .word-img { 
+                    width: 378px !important; 
+                    height: 151px !important; 
+                    margin: 8px 0; 
+                    border: 1px solid #555555; 
+                    display: block; 
+                }
+                .annexe-title { font-size: 14pt; font-weight: bold; border-bottom: 2px solid #c5a059; margin-top: 35px; padding-bottom: 4px; }
             </style>
             </head>
             <body>
             <div class="Section1">
-            <div class="title-doc">Rapport Visite de maintenance préventive</div>
-            <div class="subtitle-doc">Imprimantes Zebra &amp; Intermec</div>
+            <div class="title-doc">Rapport Visite de maintenance préventive[cite: 3]</div>
+            <div class="subtitle-doc">${brandSelection}</div>
             <div class="meta-box">
                 <b>Client / Site :</b> ${site}<br>
-                <b>Visite effectuée le :</b> ${dateV}<br>
-                <b>Intervenant :</b> ${tech}
+                <b>Visite effectuée le :</b> ${dateV}[cite: 3]<br>
+                <b>Intervenant :</b> ${tech}[cite: 3]
             </div>
             <table class="main-table">
                 <thead>
                     <tr>
-                        <th style="width: 22%;">Imprimante / Lieu</th>
-                        <th style="width: 15%;">S/N<br>@IP</th>
-                        <th style="width: 8%;">Cellules</th>
-                        <th style="width: 10%;">Etat dot</th>
-                        <th style="width: 11%;">Pressing Roller</th>
-                        <th style="width: 10%;">Impression</th>
-                        <th style="width: 10%;">Etat général</th>
-                        <th style="width: 24%;">Remarques</th>
+                        <th>Imprimante / Lieu</th>
+                        <th>S/N<br>@IP</th>
+                        <th>Cellules</th>
+                        <th>Etat dot</th>
+                        <th>Pressing Roller</th>
+                        <th>Impression</th>
+                        <th>Etat général</th>
+                        <th>Remarques</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -676,12 +800,11 @@
                 wordHtml += `<tr><td colspan="8" class="zone-title-td">${zName === "" ? "SANS SECTEUR" : zName.toUpperCase()}</td></tr>`;
                 
                 zoneData.forEach(r => {
-                    let rem = r.remarque || "Rien à signaler";
+                    let rem = r.remarque || "Rien à signaler"[cite: 3];
                     const words = ["Tête à changer", "Tete a changer", "Prévoir", "Prevoir", "Remplacer", "Changement", "A changer", "HS"];
                     
-                    // Si l'élément contient des photos, on ajoute l'annotation (voir ci-gênant (x)) automatique dans les remarques
                     if(r.photos && r.photos.length > 0) {
-                        const notePhoto = ` (voir ci-gênant (${photoIndex}))`;
+                        const notePhoto = ` (voir ci-gênant (${photoIndex}))`;[cite: 3]
                         if (rem === "Rien à signaler") {
                             rem = notePhoto.trim();
                         } else {
@@ -695,7 +818,7 @@
 
                     wordHtml += `<tr>
                         <td class="cell-left"><b>${r.imprimante}</b></td>
-                        <td class="cell-center"><b>${r.serial}</b><br><span style="color:#444; font-size:8.5pt;">${r.ip}</span></td>
+                        <td class="cell-center"><b>${r.serial}</b><br><span style="color:#444; font-size:8pt;">${r.ip}</span></td>
                         <td class="cell-center">${r.cellules}</td>
                         <td class="cell-center">${r.etatDot}</td>
                         <td class="cell-center">${r.roller}</td>
@@ -707,8 +830,8 @@
                     if(r.photos && r.photos.length > 0) {
                         hasPhotos = true;
                         r.photos.forEach(img => { 
-                            photosHtml += `<p style="margin-top:20px; font-size:11pt;"><b>(${photoIndex}) Visuel — S/N : ${r.serial} (${r.imprimante}) :</b></p>`;
-                            photosHtml += `<img class="word-img" src="${img}" /><br>`; 
+                            photosHtml += `<p style="margin-top:15px; font-size:11pt;"><b>制造 (${photoIndex}) Visuel — S/N : ${r.serial} (${r.imprimante}) :</b></p>`;
+                            photosHtml += `<img class="word-img" src="${img}" width="378" height="151" /><br>`; 
                         });
                         photoIndex++;
                     }
@@ -717,14 +840,13 @@
 
             wordHtml += `</tbody></table>`;
             
-            // Reprise fidèle du texte et des conseils de votre exemple de rapport
             wordHtml += `<div class="conseils-box">
                 <p><b>Remarque :</b></p>
                 <ul>
-                    <li>Faire un nettoyage régulier des têtes et rollers, vous permettrez de gagner en qualité d’impression et en longévité des têtes d’impression.</li>
-                    <li>Ne pas utiliser de cutter pour enlever les étiquettes collées sur le roller afin de ne pas l’abimer, utiliser de la bombe décolle étiquettes.</li>
+                    <li>Faire un nettoyage régulier des têtes et rollers, vous permettrez de gagner en qualité d’impression et en longévité des têtes d’impression.[cite: 3]</li>
+                    <li>Ne pas utiliser de cutter pour enlever les étiquettes collées sur le roller afin de ne pas l’abimer, utiliser de la bombe décolle étiquettes.[cite: 3]</li>
                 </ul>
-                <p style="font-size: 9.5pt; color: #555; margin-top:10px;">Ci-dessous, les têtes d’impression présentant un défaut d’impression à un ou plusieurs endroits soumis à votre attention pour un changement éventuel ou nécessaire, ainsi que les traces de manque de matière.</p>
+                <p style="font-size: 9pt; color: #555; margin-top:8px;">Ci-dessous, les têtes d’impression présentant un défaut d’impression à un ou plusieurs endroits soumis à votre attention pour un changement éventuel ou nécessaire, ainsi que les traces de manque de matière.[cite: 3]</p>
             </div>`;
 
             if(hasPhotos) wordHtml += "<br>" + photosHtml;
