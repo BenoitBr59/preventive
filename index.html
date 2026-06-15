@@ -1,750 +1,4 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rapport de Maintenance Préventive</title>
-    
-    <!-- Moteur de scan universel -->
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-    
-    <!-- Nouveau moteur de recadrage compatible 100% Mobile & Tactile (Cropper.js) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
-
-    <style>
-        :root {
-            --primary: #1a1a1a;
-            --accent: #c5a059;
-            --bg: #f5f5f7;
-            --card-bg: #ffffff;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg);
-            color: var(--primary);
-            margin: 0;
-            padding: 15px;
-        }
-
-        header {
-            background: var(--primary);
-            color: white;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-        }
-
-        header h1 { 
-            margin: 0 0 15px 0; 
-            font-size: 1.4rem; 
-            color: var(--accent); 
-        }
-
-        .header-inputs {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .header-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .header-group label {
-            font-size: 0.9rem;
-            opacity: 0.9;
-            min-width: 130px;
-            font-weight: normal;
-            margin: 0;
-        }
-
-        .header-group input, .header-group select {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-size: 0.9rem;
-            height: 35px;
-            flex: 1;
-            box-sizing: border-box;
-        }
-
-        .header-group select option {
-            background-color: var(--primary);
-            color: white;
-        }
-
-        .card {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 5px;
-            font-size: 0.9rem;
-        }
-
-        .input-scan-group {
-            display: flex;
-            gap: 8px;
-        }
-
-        input, select, textarea {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            box-sizing: border-box;
-            font-size: 1rem;
-            background-color: #fff;
-            height: 45px;
-        }
-
-        textarea { height: auto; }
-
-        .btn-scan {
-            width: auto;
-            padding: 0 15px;
-            background: #1a1a1a;
-            color: var(--accent);
-            border: 1px solid var(--accent);
-            border-radius: 6px;
-            font-weight: bold;
-            cursor: pointer;
-            white-space: nowrap;
-            height: 45px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.9rem;
-        }
-
-        #scanner-zone {
-            display: none;
-            margin: 15px 0;
-            background: #000;
-            border-radius: 8px;
-            overflow: hidden;
-            position: relative;
-            padding: 10px;
-        }
-
-        #reader {
-            width: 100%;
-            background: #000;
-        }
-
-        .scanner-controls {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .btn-action-scanner {
-            flex: 1;
-            padding: 12px;
-            text-align: center;
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: 6px;
-            color: white;
-            font-size: 0.95rem;
-        }
-
-        .btn-capture { background: #28a745; }
-        .btn-close { background: #dc3545; }
-
-        #crop-zone {
-            display: none;
-            background: #111;
-            padding: 15px;
-            border-radius: 12px;
-            margin: 15px 0;
-            color: white;
-            text-align: center;
-        }
-        .crop-container {
-            max-width: 100%;
-            height: 320px;
-            margin: 10px auto;
-            background: #222;
-            border-radius: 6px;
-            overflow: hidden;
-        }
-        .crop-container img {
-            max-width: 100%;
-            max-height: 100%;
-            display: block;
-        }
-        .crop-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-        .crop-buttons button {
-            flex: 1;
-            padding: 14px;
-            font-size: 0.95rem;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        .grid-status {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-
-        .status-box {
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 6px;
-            border: 1px solid #eee;
-        }
-
-        button {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 6px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .btn-add { background: var(--accent); color: white; margin-top: 10px; }
-        .btn-export { background: #e67e22; color: white; margin-top: 20px; }
-
-        .photo-container {
-            margin-top: 10px;
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .photo-preview {
-            width: 100px;
-            height: 40px;
-            object-fit: fill;
-            border-radius: 4px;
-            border: 1px solid var(--accent);
-        }
-
-        .table-container {
-            overflow-x: auto;
-            margin-top: 20px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.85rem;
-            margin-bottom: 20px;
-            table-layout: fixed;
-        }
-
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px 6px;
-            text-align: left;
-            word-wrap: break-word;
-        }
-
-        th { background: #eee; font-weight: bold; }
-        
-        /* Ajustements d'affichage écran (Resserré pour libérer Remarques) */
-        th:nth-child(1) { width: 13%; } /* Imprimante */
-        th:nth-child(2) { width: 12%; } /* S/N / IP */
-        th:nth-child(3) { width: 8%; }  
-        th:nth-child(4) { width: 10%; } 
-        th:nth-child(5) { width: 10%; } 
-        th:nth-child(6) { width: 8%; }  
-        th:nth-child(7) { width: 8%; }  
-        th:nth-child(8) { width: 35%; } /* Remarques maximisé à l'écran */
-        th:nth-child(9) { width: 6%; }  
-
-        .zone-header-row {
-            background-color: #dfd5c2 !important;
-            font-weight: bold;
-            color: #1a1a1a;
-            font-size: 0.95rem;
-            text-align: center;
-        }
-    </style>
-</head>
-<body>
-
-    <header>
-        <h1>Visite de Maintenance Préventive</h1>
-        <div class="header-inputs">
-            <div class="header-group">
-                <label for="headerSite">Client / Site :</label>
-                <input type="text" id="headerSite" placeholder="Nom du client ou du site...">
-            </div>
-            <div class="header-group">
-                <label for="headerBrand">Équipement du site :</label>
-                <select id="headerBrand">
-                    <option value="ZEBRA">Imprimantes ZEBRA</option>
-                    <option value="INTERMEC">Imprimantes INTERMEC</option>
-                    <option value="HONEYWELL">Imprimantes HONEYWELL</option>
-                    <option value="ZEBRA & INTERMEC">Imprimantes ZEBRA & INTERMEC</option>
-                </select>
-            </div>
-            <div class="header-group">
-                <label for="headerIntervenant">Intervenant(s) :</label>
-                <select id="headerIntervenant">
-                    <option value="Pascal CARTON & Benoit BRACKMAN">Pascal CARTON & Benoit BRACKMAN</option>
-                    <option value="Pascal CARTON">Pascal CARTON</option>
-                    <option value="Benoit BRACKMAN">Benoit BRACKMAN</option>
-                </select>
-            </div>
-            <div class="header-group">
-                <label for="headerDate">Date de visite :</label>
-                <input type="date" id="headerDate">
-            </div>
-        </div>
-    </header>
-
-    <div id="scanner-zone">
-        <div id="reader"></div>
-        <div class="scanner-controls">
-            <div class="btn-action-scanner btn-capture" onclick="forceCaptureAndDecode()">⚡ LIRE CE VISUEL</div>
-            <div class="btn-action-scanner btn-close" onclick="stopScanner()">Fermer</div>
-        </div>
-    </div>
-
-    <div id="crop-zone">
-        <h4 style="margin-top:0;">Recadrez l'élément à conserver (Format 10x4)</h4>
-        <div class="crop-container">
-            <img id="image-to-crop" src="" alt="A découper">
-        </div>
-        <div class="crop-buttons">
-            <button type="button" style="background:#28a745; color:white;" onclick="validateCrop()">Valider la sélection</button>
-            <button type="button" style="background:#dc3545; color:white;" onclick="cancelCrop()">Annuler</button>
-        </div>
-    </div>
-
-    <div class="card">
-        <h3>Saisie Machine</h3>
-        <form id="maintenanceForm" onsubmit="return false;">
-            
-            <div class="form-group">
-                <label for="printerZone">Zone / Secteur (Facultatif)</label>
-                <input type="text" id="printerZone" placeholder="Ex: LOGISTIQUE 1, SECTEUR BOL...">
-            </div>
-
-            <div class="form-group">
-                <label for="printerType">Imprimante (Modèle & Type de tête)</label>
-                <div class="input-scan-group">
-                    <input type="text" id="printerType" placeholder="Ex: ZT420 8 DOTS, ZT231...">
-                    <button type="button" class="btn-scan" onclick="startScanner('printerType')">📷 Scan</button>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="printerId">Machine ID (Lieu / Optionnel)</label>
-                <input type="text" id="printerId" placeholder="Saisir l'ID ou le Lieu au clavier...">
-            </div>
-
-            <div class="form-group">
-                <label for="serial">S/N (Numéro de série)</label>
-                <div class="input-scan-group">
-                    <input type="text" id="serial" placeholder="Flasher le S/N en ligne...">
-                    <button type="button" class="btn-scan" onclick="startScanner('serial')">📷 Scan</button>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="ipAddress">@ IP</label>
-                <input type="text" id="ipAddress" placeholder="Ex: 172.16.82.52">
-            </div>
-
-            <div class="form-group">
-                <label>Vérifications terrain</label>
-                <div class="grid-status">
-                    <div class="status-box">
-                        <label style="font-size:0.8rem;">Cellules</label>
-                        <select id="cellules">
-                            <option value="OK">OK</option>
-                            <option value="NOK">NOK</option>
-                            <option value="">Non renseigné (Non vu)</option>
-                        </select>
-                    </div>
-                    <div class="status-box">
-                        <label style="font-size:0.8rem;">Etat dot</label>
-                        <select id="etatDot">
-                            <option value="OK">OK</option>
-                            <option value="Nombreuses dots HS">Nombreuses dots HS</option>
-                            <option value="Défaut dots">Défaut dots / HS</option>
-                            <option value="NOK">NOK</option>
-                            <option value="">Non renseigné (Non vu)</option>
-                        </select>
-                    </div>
-                    <div class="status-box">
-                        <label style="font-size:0.8rem;">Pressing Roller</label>
-                        <select id="roller">
-                            <option value="OK">OK</option>
-                            <option value="Cutter">Cutter (Coup de cutter)</option>
-                            <option value="Coups de cutter">Coups de cutter</option>
-                            <option value="NOK">NOK</option>
-                            <option value="">Non renseigné (Non vu)</option>
-                        </select>
-                    </div>
-                    <div class="status-box">
-                        <label style="font-size:0.8rem;">Impression</label>
-                        <select id="impression">
-                            <option value="OK">OK</option>
-                            <option value="NOK">NOK</option>
-                            <option value="">Non renseigné (Non vu)</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="etatGeneral">Etat Général</label>
-                <select id="etatGeneral">
-                    <option value="OK">OK</option>
-                    <option value="Voir Rem">Voir Rem</option>
-                    <option value="Non vu">Non vu</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="remarque">Remarques / Actions à mener</label>
-                <textarea id="remarque" rows="2" placeholder="Saisir les remarques..."></textarea>
-            </div>
-
-            <div class="form-group">
-                <label for="photo">Photos des défauts / panne (Optionnel)</label>
-                <input type="file" id="photo" accept="image/*" capture="environment" style="padding:5px; height:auto;">
-                <div class="photo-container" id="previewContainer"></div>
-            </div>
-
-            <button type="button" class="btn-add" id="addBtn">Ajouter au tableau</button>
-        </form>
-    </div>
-
-    <div class="card">
-        <h3>Imprimantes enregistrées (<span id="count">0</span>)</h3>
-        <div class="table-container">
-            <table id="summaryTable">
-                <thead>
-                    <tr>
-                        <th>Imprimante / Lieu</th>
-                        <th>S/N <br> @ IP</th>
-                        <th>Cellules</th>
-                        <th>Etat dot</th>
-                        <th>Pressing Roller</th>
-                        <th>Impression</th>
-                        <th>Etat Général</th>
-                        <th>Remarques</th>
-                        <th>Photos</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody">
-                </tbody>
-            </table>
-        </div>
-        <button type="button" class="btn-export" id="exportBtn">Exporter le rapport officiel (.doc)</button>
-    </div>
-
-    <script>
-        const reportData = [];
-        const previewContainer = document.getElementById('previewContainer');
-        let currentPhotos = [];
-        let html5QrcodeScanner = null;
-        let activeTargetId = null;
-        let cropperInstance = null;
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('headerDate').value = today;
-        });
-
-        function getModelFromSerialNumber(sn) {
-            const snUpper = sn.toUpperCase().trim();
-            if (snUpper.startsWith("18J")) return "ZT420 8 DOTS";
-            if (snUpper.startsWith("19J")) return "ZT420 12 DOTS";
-            if (snUpper.startsWith("99J")) return "ZT421 8 DOTS";
-            if (snUpper.startsWith("98J")) return "ZT421 12 DOTS";
-            if (snUpper.startsWith("T3J")) return "ZT231 8 DOTS";
-            if (snUpper.startsWith("52J")) return "ZT230 8 DOTS";
-            if (snUpper.startsWith("51J")) return "ZT220 8 DOTS";
-            if (snUpper.startsWith("10J")) return "ZT410 8 DOTS";
-            if (snUpper.startsWith("11J")) return "ZT411 8 DOTS";
-            if (snUpper.startsWith("41J")) return "ZT510 8 DOTS";
-            if (snUpper.startsWith("48J")) return "ZT610 8 DOTS";
-            if (snUpper.startsWith("ZM4")) return "ZM400 8 DOTS";
-            if (snUpper.startsWith("ZM6")) return "ZM600 8 DOTS";
-            if (snUpper.startsWith("105SL") || snUpper.startsWith("15J")) return "105SL Plus";
-            if (snUpper.startsWith("220X")) return "220Xi4";
-            if (snUpper.startsWith("110X")) return "110Xi4";
-            if (snUpper.startsWith("ZD4") || snUpper.startsWith("D4J")) return "ZD420 / ZD421 Desktop";
-            if (snUpper.startsWith("ZD2") || snUpper.startsWith("D2J")) return "ZD220 / ZD230 Desktop";
-            if (snUpper.startsWith("GK4")) return "GK420t / GK420d";
-            if (snUpper.startsWith("GX4")) return "GX420 / GX430";
-            if (snUpper.startsWith("307") || snUpper.startsWith("308")) return "Intermec PF4i";
-            if (snUpper.startsWith("305") || snUpper.startsWith("306")) return "Intermec PM4i";
-            if (snUpper.startsWith("301") || snUpper.startsWith("302")) return "Intermec PD41 / PD42";
-            if (snUpper.startsWith("PM43") || snUpper.startsWith("223")) return "Honeywell PM43";
-            if (snUpper.startsWith("PC43") || snUpper.startsWith("234")) return "Honeywell PC43t";
-            if (snUpper.startsWith("PX4") || snUpper.startsWith("PX6")) return "Intermec PX4i / PX6i";
-            return "";
-        }
-
-        function processScannedBarcode(rawValue) {
-            let cleanStr = rawValue.trim();
-            if (cleanStr.startsWith("[)>") || cleanStr.includes("05800") || cleanStr.includes("3056T")) {
-                const patterns = /(T3J\d+|18J\d+|19J\d+|99J\d+|98J\d+|52J\d+|51J\d+|10J\d+|11J\d+|41J\d+|48J\d+|ZM\d+|307\d+|308\d+|305\d+|223\d+|234\d+)/i;
-                const match = cleanStr.match(patterns);
-                if (match) { cleanStr = match[1].toUpperCase(); } else {
-                    cleanStr = cleanStr.replace(/^.*?3056T/i, '');
-                    cleanStr = cleanStr.replace(/[^a-zA-Z0-9]/g, '');
-                }
-            }
-            cleanStr = cleanStr.replace(/^(S:|s:|P:|p:|1P|1p|Q|K)/, '').trim();
-            if (cleanStr.toUpperCase().startsWith("SERIAL #")) {
-                cleanStr = cleanStr.replace(/SERIAL #\s*/i, "").trim();
-            }
-
-            if (!activeTargetId) return false;
-
-            if (activeTargetId === 'printerType') {
-                document.getElementById('printerType').value = getModelFromSerialNumber(cleanStr) || cleanStr;
-                return true;
-            }
-
-            if (activeTargetId === 'serial') {
-                document.getElementById('serial').value = cleanStr;
-                const currentModelInput = document.getElementById('printerType').value;
-                if (!currentModelInput) {
-                    const deduced = getModelFromSerialNumber(cleanStr);
-                    if (deduced) document.getElementById('printerType').value = deduced;
-                }
-                return true;
-            }
-            return false;
-        }
-
-        function startScanner(targetId) {
-            activeTargetId = targetId;
-            document.getElementById('scanner-zone').style.display = 'block';
-            html5QrcodeScanner = new Html5Qrcode("reader");
-            const config = {
-                fps: 30,
-                videoConstraints: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-                qrbox: function(w, h) { return { width: Math.floor(w * 0.90), height: Math.floor(h * 0.22) }; },
-                formatsToSupport: [Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39]
-            };
-            html5QrcodeScanner.start({ facingMode: "environment" }, config,
-                (txt) => { if (processScannedBarcode(txt)) { if (navigator.vibrate) navigator.vibrate(80); stopScanner(); } },
-                (err) => {}
-            ).catch(() => { alert("Erreur d'accès à la caméra."); document.getElementById('scanner-zone').style.display = 'none'; });
-        }
-
-        function forceCaptureAndDecode() {
-            const video = document.querySelector("#reader video");
-            if (!video) return;
-            const canvas = document.createElement("canvas");
-            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-            canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
-            html5QrcodeScanner.scanFile(canvasToBlob(canvas), false)
-                .then(txt => { if (processScannedBarcode(txt)) { if (navigator.vibrate) navigator.vibrate(120); stopScanner(); } else { proposerSaisieAlternative(); } })
-                .catch(() => proposerSaisieAlternative());
-        }
-
-        function canvasToBlob(canvas) {
-            var dataURL = canvas.toDataURL('image/jpeg');
-            var bytes = atob(dataURL.split(',')[1]);
-            var arr = new ArrayBuffer(bytes.length);
-            var ua = new Uint8Array(arr);
-            for (var i = 0; i < bytes.length; i++) { ua[i] = bytes.charCodeAt(i); }
-            return new File([arr], "capture.jpg", {type: "image/jpeg"});
-        }
-
-        function proposerSaisieAlternative() {
-            const p = prompt("Code-barres non lisible automatiquement. Saisissez la valeur manuellement :");
-            if (p && p.trim() !== "") { processScannedBarcode(p); stopScanner(); }
-        }
-
-        function stopScanner() {
-            if (html5QrcodeScanner) {
-                html5QrcodeScanner.stop().then(() => { document.getElementById('scanner-zone').style.display = 'none'; html5QrcodeScanner = null; })
-                .catch(() => { document.getElementById('scanner-zone').style.display = 'none'; html5QrcodeScanner = null; });
-            } else { document.getElementById('scanner-zone').style.display = 'none'; }
-        }
-
-        document.getElementById('photo').addEventListener('change', function(e) {
-            if(e.target.files.length === 0) return;
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            
-            reader.onload = function(evt) {
-                const imageToCrop = document.getElementById('image-to-crop');
-                imageToCrop.src = evt.target.result;
-                document.getElementById('crop-zone').style.display = 'block';
-
-                if(cropperInstance) { cropperInstance.destroy(); }
-                
-                cropperInstance = new Cropper(imageToCrop, {
-                    aspectRatio: 2.5,
-                    viewMode: 1,
-                    autoCropArea: 0.8,
-                    responsive: true,
-                    restore: false,
-                    guides: true,
-                    highlight: false,
-                    cropBoxMovable: true,
-                    cropBoxResizable: true,
-                    toggleDragModeOnDblclick: false
-                });
-            };
-            reader.readAsDataURL(file);
-        });
-
-        function validateCrop() {
-            if(!cropperInstance) return;
-            
-            const canvas = cropperInstance.getCroppedCanvas({
-                width: 1000,
-                height: 400,
-                imageSmoothingEnabled: true,
-                imageSmoothingQuality: 'high'
-            });
-            
-            const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-            
-            previewContainer.innerHTML = '';
-            const previewImg = document.createElement('img');
-            previewImg.src = croppedDataUrl;
-            previewImg.classList.add('photo-preview');
-            previewContainer.appendChild(previewImg);
-            
-            currentPhotos = [croppedDataUrl];
-            
-            document.getElementById('crop-zone').style.display = 'none';
-            cropperInstance.destroy();
-            cropperInstance = null;
-        }
-
-        function cancelCrop() {
-            document.getElementById('crop-zone').style.display = 'none';
-            document.getElementById('photo').value = '';
-            if(cropperInstance) { 
-                cropperInstance.destroy(); 
-                cropperInstance = null; 
-            }
-        }
-
-        function formatRemarqueHTML(text) {
-            if (!text) return "";
-            const words = ["Tête à changer", "Tete a changer", "Prévoir", "Prevoir", "Remplacer", "Changement", "A changer", "HS"];
-            if (words.some(w => text.toLowerCase().includes(w.toLowerCase()))) {
-                return `<strong style="color: #b30000;">${text}</strong>`;
-            }
-            return text;
-        }
-
-        function renderTable() {
-            const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = ''; 
-            document.getElementById('count').innerText = reportData.length;
-            
-            const zones = [];
-            reportData.forEach(item => { if (!zones.includes(item.zone)) zones.push(item.zone); });
-
-            zones.forEach(z => {
-                const zoneData = reportData.filter(item => item.zone === z);
-                
-                if (z !== "") {
-                    tbody.innerHTML += `<tr><td colspan="9" class="zone-header-row">${z.toUpperCase()}</td></tr>`;
-                }
-                
-                zoneData.forEach(d => {
-                    const icon = (d.photos && d.photos.length > 0) ? `${d.photos.length} 📸` : '';
-                    
-                    let imprimanteCellule = `<b>${d.modele}</b>`;
-                    if (d.lieuId) {
-                        imprimanteCellule += `<br><span style="color:#666; font-size:0.8rem; font-style:italic;">${d.lieuId}</span>`;
-                    }
-
-                    tbody.innerHTML += `<tr>
-                        <td>${imprimanteCellule}</td>
-                        <td style="text-align:center;"><b>${d.serial}</b><br><span style="color:#555; font-size:0.8rem;">${d.ip}</span></td>
-                        <td style="text-align:center;">${d.cellules}</td>
-                        <td style="text-align:center;">${d.etatDot}</td>
-                        <td style="text-align:center;">${d.roller}</td>
-                        <td style="text-align:center;">${d.impression}</td>
-                        <td style="text-align:center;">${d.general}</td>
-                        <td>${formatRemarqueHTML(d.remarque)}</td>
-                        <td style="text-align:center;">${icon}</td>
-                    </tr>`;
-                });
-            });
-        }
-
-        document.getElementById('addBtn').addEventListener('click', function(e) {
-            e.preventDefault();
-            const model = document.getElementById('printerType').value.trim();
-            const id = document.getElementById('printerId').value.trim();
-            if(!model && !id) return alert("Renseignez le modèle ou l'ID.");
-
-            reportData.push({
-                zone: document.getElementById('printerZone').value.trim(),
-                modele: model || "Modèle inconnu",
-                lieuId: id || "",
-                serial: document.getElementById('serial').value.trim() || "N/A",
-                ip: document.getElementById('ipAddress').value.trim() || "",
-                cellules: document.getElementById('cellules').value,
-                etatDot: document.getElementById('etatDot').value,
-                roller: document.getElementById('roller').value,
-                impression: document.getElementById('impression').value,
-                general: document.getElementById('etatGeneral').value,
-                remarque: document.getElementById('remarque').value.trim(),
-                photos: [...currentPhotos]
-            });
-            renderTable();
-            document.getElementById('printerType').value = ''; document.getElementById('printerId').value = '';
-            document.getElementById('serial').value = ''; document.getElementById('ipAddress').value = '';
-            document.getElementById('remarque').value = ''; document.getElementById('photo').value = '';
-            previewContainer.innerHTML = ''; currentPhotos = [];
-        });
-
-        document.getElementById('exportBtn').addEventListener('click', function(e) {
-            e.preventDefault();
-            if(reportData.length === 0) return alert('Aucune donnée à exporter');
-            
-            const site = document.getElementById('headerSite').value || 'N/A';
-            const tech = document.getElementById('headerIntervenant').value;
-            const brandSelection = document.getElementById('headerBrand').value;
-            const dateV = document.getElementById('headerDate').value ? new Date(document.getElementById('headerDate').value).toLocaleDateString('fr-FR') : 'N/A';
-
-            // GENERATION DU FORMAT COMPATIBLE IMAGE AVEC CONTENEUR MULTIPART MHTML
-            let boundary = "NEXT_PART_BOUNDARY_MARKER";
-            let mhtml = `MIME-Version: 1.0\nContent-Type: multipart/related; boundary="${boundary}"\n\n`;
-            
-            // Partie principale : Document HTML de Word
-            mhtml += `--${boundary}\n`;
-            mhtml += `Content-Type: text/html; charset="utf-8"\n\n`;
-
-            let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
             <head>
             <meta charset="utf-8">
             <!--[if gte mso 9]><xml>
@@ -767,38 +21,43 @@
                 .meta-box { font-size: 11pt; margin-bottom: 20px; line-height: 1.5; }
                 
                 .main-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px; table-layout: fixed; }
-                .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 5px; font-size: 9.5pt; font-weight: bold; text-align: center; }
-                .main-table td { border: 1px solid #cccccc; padding: 5px; font-size: 9pt; vertical-align: middle; }
+                .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 3px 2px; font-size: 9.5pt; font-weight: bold; text-align: center; }
+                .main-table td { border: 1px solid #cccccc; padding: 2px; font-size: 9pt; vertical-align: middle; }
                 
                 /* AJUSTEMENT STRICT DES COLONNES EXPORT WORD */
-                .col-printer { width: 13%; }  /* Resserré au maximum */
-                .col-sn { width: 12%; }       /* Resserré au maximum */
+                .col-printer { width: 13%; }  
+                .col-sn { width: 8%; }       /* Resserré de 12% à 8% */
                 .col-cell { width: 8%; }
                 .col-dot { width: 10%; }
                 .col-roll { width: 10%; }
                 .col-print { width: 8%; }
                 .col-gen { width: 6%; }
-                .col-rem { width: 33%; }      /* Agrandissement majeur de l'espace Remarques */
+                .col-rem { width: 37%; }      /* Augmenté de 33% à 37% */
                 
                 .cell-left { text-align: left; }
                 .cell-center { text-align: center; }
                 .sub-lieu { color: #555555; font-size: 8.5pt; font-style: italic; }
                 
-                .zone-title-td { background-color: #dfd5c2; font-weight: bold; font-size: 10.5pt; color: #1a1a1a; padding: 6px; border: 1px solid #555555; text-transform: uppercase; text-align: center; }
+                .zone-title-td { background-color: #dfd5c2; font-weight: bold; font-size: 10.5pt; color: #1a1a1a; padding: 4px; border: 1px solid #555555; text-transform: uppercase; text-align: center; }
                 .action-required { font-weight: bold; color: #b30000; }
                 .conseils-box { background: #fafafa; border-left: 4px solid #c5a059; padding: 10px; margin-top: 25px; font-size: 10pt; line-height: 1.4; }
-                .word-img { width: 378px !important; height: 151px !important; margin: 8px 0; border: 1px solid #555555; display: block; }
+                
+                /* DISPOSITION DES PHOTOS CÔTE À CÔTE */
+                .annexe-container { width: 100%; margin-top: 15px; }
+                .annexe-column { width: 48%; display: inline-block; vertical-align: top; margin-right: 3%; }
+                .annexe-column.last { margin-right: 0; }
+                .word-img { width: 100% !important; max-width: 378px; height: auto !important; margin: 8px 0; border: 1px solid #555555; display: block; }
                 .annexe-title { font-size: 14pt; font-weight: bold; border-bottom: 2px solid #c5a059; margin-top: 35px; padding-bottom: 4px; }
             </style>
             </head>
             <body>
             <div class="Section1">
             <div class="title-doc">Rapport Visite de maintenance préventive</div>
-            <div class="subtitle-doc">${brandSelection}</div>
+            <div class="subtitle-doc">ZEBRA</div>
             <div class="meta-box">
-                <b>Client / Site :</b> ${site}<br>
-                <b>Visite effectuée le :</b> ${dateV}<br>
-                <b>Intervenant :</b> ${tech}
+                <b>Client / Site :</b> Test <br>
+                <b>Visite effectuée le :</b> 12/06/2026<br>
+                <b>Intervenant :</b> Benoit BRACKMAN
             </div>
             <table class="main-table">
                 <thead>
@@ -813,108 +72,55 @@
                         <th class="col-rem">Remarques</th>
                     </tr>
                 </thead>
-                <tbody>`;
-            
-            let photosHtml = `<div class="annexe-title">Annexes : Suivi visuel &amp; Défauts constatés</div>`;
-            let hasPhotos = false;
-            let photoIndex = 1;
-            
-            // Stockage temporaire des données d'images binaires pour la structure MHTML
-            let imagesParts = [];
-
-            const zones = [];
-            reportData.forEach(item => { if (!zones.includes(item.zone)) zones.push(item.zone); });
-
-            zones.forEach(zName => {
-                const zoneData = reportData.filter(item => item.zone === zName);
-                
-                if (zName !== "") {
-                    wordHtml += `<tr><td colspan="8" class="zone-title-td">${zName.toUpperCase()}</td></tr>`;
-                }
-                
-                zoneData.forEach(r => {
-                    let rem = r.remarque || "Rien à signaler";
-                    const words = ["Tête à changer", "Tete a changer", "Prévoir", "Prevoir", "Remplacer", "Changement", "A changer", "HS"];
-                    
-                    if(r.photos && r.photos.length > 0) {
-                        const notePhoto = ` (voir annexe (${photoIndex}))`;
-                        rem = (rem === "Rien à signaler") ? notePhoto.trim() : rem + notePhoto;
-                    }
-
-                    if (words.some(w => r.remarque.toLowerCase().includes(w.toLowerCase()))) {
-                        rem = `<span class="action-required">${rem}</span>`;
-                    }
-
-                    let imprimanteWordCell = `<b>${r.modele}</b>`;
-                    if (r.lieuId) {
-                        imprimanteWordCell += `<br><span class="sub-lieu">${r.lieuId}</span>`;
-                    }
-
-                    wordHtml += `<tr>
-                        <td class="cell-left">${imprimanteWordCell}</td>
-                        <td class="cell-center"><b>${r.serial}</b><br><span style="color:#444; font-size:8pt;">${r.ip}</span></td>
-                        <td class="cell-center">${r.cellules}</td>
-                        <td class="cell-center">${r.etatDot}</td>
-                        <td class="cell-center">${r.roller}</td>
-                        <td class="cell-center">${r.impression}</td>
-                        <td class="cell-center">${r.general}</td>
-                        <td class="cell-left">${rem}</td>
-                    </tr>`;
-
-                    if(r.photos && r.photos.length > 0) {
-                        hasPhotos = true;
-                        r.photos.forEach(imgDataUrl => { 
-                            let internalId = `img_photo_${photoIndex}`;
-                            photosHtml += `<p style="margin-top:15px; font-size:11pt;"><b>Visuel (${photoIndex}) — S/N : ${r.serial} (${r.modele}) :</b></p>`;
-                            photosHtml += `<img class="word-img" src="cid:${internalId}" width="378" height="151" /><br>`; 
-                            
-                            // On extrait la partie base64 pure
-                            let base64Content = imgDataUrl.split(',')[1];
-                            imagesParts.push({
-                                cid: internalId,
-                                content: base64Content
-                            });
-                        });
-                        photoIndex++;
-                    }
-                });
-            });
-
-            wordHtml += `</tbody></table>`;
-            
-            wordHtml += `<div class="conseils-box">
+                <tbody><tr>
+                        <td class="cell-left"><b>ZT421 8 DOTS</b><br><span class="sub-lieu">test</span></td>
+                        <td class="cell-center"><b>99J194300197</b><br><span style="color:#444; font-size:8pt;">192.168.213.125</span></td>
+                        <td class="cell-center">OK</td>
+                        <td class="cell-center">Nombreuses dots HS</td>
+                        <td class="cell-center">Coups de cutter</td>
+                        <td class="cell-center">OK</td>
+                        <td class="cell-center">Voir Rem</td>
+                        <td class="cell-left"><span class="action-required">Nombreuses dots HS, prévoir changement (1)
+Manque matière sur platen, prévoir changement</span></td>
+                    </tr><tr><td colspan="8" class="zone-title-td">TEST</td></tr><tr>
+                        <td class="cell-left"><b>ZT231 8 DOTS</b><br><span class="sub-lieu">Test</span></td>
+                        <td class="cell-center"><b>T3J231701883</b><br><span style="color:#444; font-size:8pt;">192.168.213.136</span></td>
+                        <td class="cell-center">OK</td>
+                        <td class="cell-center">OK</td>
+                        <td class="cell-center">OK</td>
+                        <td class="cell-center">OK</td>
+                        <td class="cell-center">Voir Rem</td>
+                        <td class="cell-left">(voir annexe (1))</td>
+                    </tr><tr>
+                        <td class="cell-left"><b>ZT421 8 DOTS</b><br><span class="sub-lieu">Test2</span></td>
+                        <td class="cell-center"><b>99J194300197</b><br><span style="color:#444; font-size:8pt;"></span></td>
+                        <td class="cell-center">OK</td>
+                        <td class="cell-center">Nombreuses dots HS</td>
+                        <td class="cell-center">OK</td>
+                        <td class="cell-center">OK</td>
+                        <td class="cell-center">Voir Rem</td>
+                        <td class="cell-left">(voir annexe (2))</td>
+                    </tr></tbody></table><div class="conseils-box">
                 <p><b>Remarque :</b></p>
                 <ul>
                     <li>Faire un nettoyage régulier des têtes et rollers, vous permettrez de gagner en qualité d’impression et en longévité des têtes d’impression.</li>
                     <li>Ne pas utiliser de cutter pour enlever les étiquettes collées sur le roller afin de ne pas l’abimer, utiliser de la bombe décolle étiquettes.</li>
                 </ul>
                 <p style="font-size: 9pt; color: #555; margin-top:8px;">Ci-dessous, les têtes d’impression présentant un défaut d’impression à un ou plusieurs endroits soumis à votre attention pour un changement éventuel ou nécessaire, ainsi que les traces de manque de matière.</p>
-            </div>`;
-
-            if(hasPhotos) wordHtml += "<br>" + photosHtml;
-            wordHtml += `</div></body></html>\n`;
-
-            mhtml += wordHtml;
-
-            // Ajout de chaque image convertie de façon transparente pour Word
-            imagesParts.forEach(img => {
-                mhtml += `--${boundary}\n`;
-                mhtml += `Content-ID: <${img.cid}>\n`;
-                mhtml += `Content-Transfer-Encoding: base64\n`;
-                mhtml += `Content-Type: image/jpeg\n\n`;
-                mhtml += img.content + "\n";
-            });
-
-            mhtml += `--${boundary}--`;
-
-            const blob = new Blob([mhtml], { type: 'application/msword' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.setAttribute("download", `Rapport_Maintenance_${site.replace(/[^a-zA-Z0-9]/g, "_")}.doc`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        });
-    </script>
-</body>
-</html>
+            </div><br>
+            
+            <div class="annexe-title">Annexes : Suivi visuel &amp; Défauts constatés</div>
+            
+            <!-- SECTION PHOTOS SCINDÉE EN DEUX -->
+            <div class="annexe-container">
+                <div class="annexe-column">
+                    <p style="margin-top:15px; font-size:11pt;"><b>Visuel (1) — S/N : T3J231701883 (ZT231 8 DOTS) :</b></p>
+                    <img class="word-img" src="cid:img_photo_1" width="378" height="151" />
+                </div>
+                <div class="annexe-column last">
+                    <p style="margin-top:15px; font-size:11pt;"><b>Visuel (2) — S/N : 99J194300197 (ZT421 8 DOTS) :</b></p>
+                    <img class="word-img" src="cid:img_photo_2" width="378" height="151" />
+                </div>
+            </div>
+            
+            </div></body></html>
