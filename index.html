@@ -8,9 +8,9 @@
     <!-- Moteur de scan universel -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     
-    <!-- Liens CDNJS sécurisés et stables pour le recadrage photo (Croppr.js) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/croppr/2.3.1/croppr.min.css" integrity="sha512-3XwYI9Z0olS0ZmoZJSW9S7Xzsh3z96rXEWZ0D8IasYbyG9IdOAras7AnCAtu6Wn2w88SgWkGgSmXpD6o3Vb99Q==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/croppr/2.3.1/croppr.min.js" integrity="sha512-Ym6fbyV6TKVY6LgS9K9O9g969M1uGZ1Z06A7U14A1M14A9z6U15U9U9U9U9U9U9U9U9U9U9U9U9U9U9U9U9Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <!-- Liens CDNJS sécurisés pour le recadrage photo (Croppr.js) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/croppr/2.3.1/croppr.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/croppr/2.3.1/croppr.min.js"></script>
 
     <style>
         :root {
@@ -198,6 +198,10 @@
             flex: 1;
             padding: 12px;
             font-size: 0.95rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
         }
 
         .grid-status {
@@ -312,11 +316,11 @@
         </div>
     </div>
 
-    <!-- Interface de Recadrage Photo Modifiée -->
+    <!-- Interface de Recadrage Photo Dynamique -->
     <div id="crop-zone">
         <h4 style="margin-top:0;">Sélectionnez l'élément à conserver (Format 10x4)</h4>
         <div class="crop-container" id="crop-target-wrapper">
-            <!-- L'image est injectée dynamiquement pour éviter les conflits d'initialisation -->
+            <!-- L'image est injectée ici -->
         </div>
         <div class="crop-buttons">
             <button type="button" style="background:#28a745; color:white;" onclick="validateCrop()">Valider la sélection</button>
@@ -330,7 +334,7 @@
             
             <div class="form-group">
                 <label for="printerZone">Zone / Secteur (Facultatif)</label>
-                <input type="text" id="printerZone" placeholder="Ex: LOGISTIQUE 1, SECTEUR BOL, IMPRIMANTES NON VUES...">
+                <input type="text" id="printerZone" placeholder="Ex: LOGISTIQUE 1, SECTEUR BOL...">
             </div>
 
             <div class="form-group">
@@ -577,7 +581,7 @@
             } else { document.getElementById('scanner-zone').style.display = 'none'; }
         }
 
-        // CORRECTIF DE LA GESTION PHOTO ET INITIALISATION DU CROP
+        // GESTION DU RECADRAGE PHOTO SANS CONFLITS D'INITIALISATION
         document.getElementById('photo').addEventListener('change', function(e) {
             if(e.target.files.length === 0) return;
             const file = e.target.files[0];
@@ -586,20 +590,17 @@
             reader.onload = function(evt) {
                 currentRawImgSrc = evt.target.result;
                 
-                // Nettoyage et injection propre de la balise image
                 const wrapper = document.getElementById('crop-target-wrapper');
                 wrapper.innerHTML = `<img id="image-to-crop" src="${currentRawImgSrc}" alt="A découper">`;
                 
-                // Affichage du volet de découpe
                 document.getElementById('crop-zone').style.display = 'block';
 
                 if(cropprInstance) { cropprInstance.destroy(); cropprInstance = null; }
                 
-                // Initialisation sécurisée après l'injection dans le DOM
                 setTimeout(() => {
                     try {
                         cropprInstance = new Croppr('#image-to-crop', {
-                            aspectRatio: 2.5, // Format 10x4 imposé
+                            aspectRatio: 2.5, 
                             startSize: [90, 36, '%'],
                             returnMode: 'pixels'
                         });
@@ -621,7 +622,7 @@
             img.onload = function() {
                 const canvas = document.createElement('canvas');
                 canvas.width = 1000;
-                canvas.height = 400; // Maintient le format proportionnel idéal
+                canvas.height = 400; 
                 
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(
@@ -640,7 +641,6 @@
                 
                 currentPhotos = [croppedDataUrl];
                 
-                // Masquer la zone de crop et réinitialiser l'outil
                 document.getElementById('crop-zone').style.display = 'none';
                 if(cropprInstance) { cropprInstance.destroy(); cropprInstance = null; }
             };
@@ -771,12 +771,12 @@
             </head>
             <body>
             <div class="Section1">
-            <div class="title-doc">Rapport Visite de maintenance préventive[cite: 3]</div>
+            <div class="title-doc">Rapport Visite de maintenance préventive</div>
             <div class="subtitle-doc">${brandSelection}</div>
             <div class="meta-box">
                 <b>Client / Site :</b> ${site}<br>
-                <b>Visite effectuée le :</b> ${dateV}[cite: 3]<br>
-                <b>Intervenant :</b> ${tech}[cite: 3]
+                <b>Visite effectuée le :</b> ${dateV}<br>
+                <b>Intervenant :</b> ${tech}
             </div>
             <table class="main-table">
                 <thead>
@@ -804,11 +804,11 @@
                 wordHtml += `<tr><td colspan="8" class="zone-title-td">${zName === "" ? "SANS SECTEUR" : zName.toUpperCase()}</td></tr>`;
                 
                 zoneData.forEach(r => {
-                    let rem = r.remarque || "Rien à signaler"[cite: 3];
+                    let rem = r.remarque || "Rien à signaler";
                     const words = ["Tête à changer", "Tete a changer", "Prévoir", "Prevoir", "Remplacer", "Changement", "A changer", "HS"];
                     
                     if(r.photos && r.photos.length > 0) {
-                        const notePhoto = ` (voir annexe (${photoIndex}))`;[cite: 3]
+                        const notePhoto = ` (voir annexe (${photoIndex}))`;
                         if (rem === "Rien à signaler") {
                             rem = notePhoto.trim();
                         } else {
@@ -847,10 +847,10 @@
             wordHtml += `<div class="conseils-box">
                 <p><b>Remarque :</b></p>
                 <ul>
-                    <li>Faire un nettoyage régulier des têtes et rollers, vous permettrez de gagner en qualité d’impression et en longévité des têtes d’impression.[cite: 3]</li>
-                    <li>Ne pas utiliser de cutter pour enlever les étiquettes collées sur le roller afin de ne pas l’abimer, utiliser de la bombe décolle étiquettes.[cite: 3]</li>
+                    <li>Faire un nettoyage régulier des têtes et rollers, vous permettrez de gagner en qualité d’impression et en longévité des têtes d’impression.</li>
+                    <li>Ne pas utiliser de cutter pour enlever les étiquettes collées sur le roller afin de ne pas l’abimer, utiliser de la bombe décolle étiquettes.</li>
                 </ul>
-                <p style="font-size: 9pt; color: #555; margin-top:8px;">Ci-dessous, les têtes d’impression présentant un défaut d’impression à un ou plusieurs endroits soumis à votre attention pour un changement éventuel ou nécessaire, ainsi que les traces de manque de matière.[cite: 3]</p>
+                <p style="font-size: 9pt; color: #555; margin-top:8px;">Ci-dessous, les têtes d’impression présentant un défaut d’impression à un ou plusieurs endroits soumis à votre attention pour un changement éventuel ou nécessaire, ainsi que les traces de manque de matière.</p>
             </div>`;
 
             if(hasPhotos) wordHtml += "<br>" + photosHtml;
