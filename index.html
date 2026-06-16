@@ -422,7 +422,7 @@
 
             <div class="form-group">
                 <label for="remarque">Remarques / Actions à mener (Utilisez le tiret '-' pour aller à la ligne)</label>
-                <textarea id="remarque" rows="3" placeholder="Saisir les remarques... Ex: Nettoyage effectué - Tête à changer"></textarea>
+                <textarea id="remarque" rows="3" placeholder="Saisir les remarques... Ex: - Nettoyage effectué - Tête à changer"></textarea>
             </div>
 
             <div class="form-group">
@@ -614,7 +614,6 @@
             if (p && p.trim() !== "") { processScannedBarcode(p); stopScanner(); }
         }
 
-        // --- ARRET SCANNER ---
         function stopScanner() {
             if (html5QrcodeScanner) {
                 html5QrcodeScanner.stop().then(() => { document.getElementById('scanner-zone').style.display = 'none'; html5QrcodeScanner = null; })
@@ -686,21 +685,23 @@
 
         function formatRemarqueHTML(text) {
             if (!text) return "";
+            
             let lines = text.split(/\s*-\s*/);
-            let formattedLines = lines.map(line => {
+            let formattedLines = lines.map((line, index) => {
                 line = line.trim();
                 if (!line) return "";
+                
                 const words = ["Tête à changer", "Tete a changer", "Prévoir", "Prevoir", "Remplacer", "Changement", "A changer", "HS"];
                 if (words.some(w => line.toLowerCase().includes(w.toLowerCase()))) {
-                    return `<strong style="color: #b30000;">${line}</strong>`;
+                    line = `<strong style="color: #b30000;">${line}</strong>`;
                 }
-                return line;
+                
+                return `- ${line}`;
             }).filter(l => l !== "");
 
             return formattedLines.join('<br>');
         }
 
-        // --- RENDU DU TABLEAU ---
         function renderTable() {
             const tbody = document.getElementById('tableBody');
             tbody.innerHTML = ''; 
@@ -711,11 +712,9 @@
 
             zones.forEach(z => {
                 const zoneData = reportData.filter(item => item.zone === z);
-                
                 if (z !== "") {
                     tbody.innerHTML += `<tr><td class="zone-header-row">${z.toUpperCase()}</td></tr>`;
                 }
-                
                 zoneData.forEach(d => {
                     tbody.innerHTML += `<tr>
                         <td><span class="green-arrow">➜</span> S/N : <b>${d.serial}</b> ${d.lieuId ? `<span style="color:#666; font-size:0.85rem; font-style:italic; margin-left: 10px;">(${d.lieuId})</span>` : ''}</td>
@@ -754,7 +753,7 @@
             previewContainer.innerHTML = ''; currentPhotos = [];
         });
 
-        // --- EXPORTATION FIABILISÉE ET OPTIMISÉE POUR MOBILE ---
+        // --- EXPORTATION AVEC SOUS-TITRE ADAPTATIF DYNAMIQUE ---
         document.getElementById('exportBtn').addEventListener('click', function(e) {
             e.preventDefault();
             if(reportData.length === 0) return alert('Aucune donnée à exporter');
@@ -763,6 +762,13 @@
             const tech = document.getElementById('headerIntervenant').value;
             const brandSelection = document.getElementById('headerBrand').value;
             const dateV = document.getElementById('headerDate').value ? new Date(document.getElementById('headerDate').value).toLocaleDateString('fr-FR') : 'N/A';
+
+            // Reconstruction du libellé selon le choix de la liste déroulante (ex: "Parc d'imprimantes ZEBRA")
+            let dynamicSubtitle = "Parc d'" + brandSelection.toLowerCase();
+            // Petite correction grammaticale automatique pour le rendu esthétique
+            if(brandSelection.includes("&")) {
+                dynamicSubtitle = "Parc d'" + brandSelection;
+            }
 
             let boundary = "NEXT_PART_BOUNDARY_MARKER";
             let mhtml = `MIME-Version: 1.0\nContent-Type: multipart/related; boundary="${boundary}"\n\n`;
@@ -783,41 +789,65 @@
             <style>
                 @page Section1 {
                     size: 11.0in 8.5in;
-                    margin: 0.4in 0.4in 0.4in 0.4in;
+                    margin: 0.3in 0.3in 0.3in 0.3in;
                     mso-page-orientation: landscape;
                 }
                 div.Section1 { page: Section1; }
-                body { font-family: 'Arial', sans-serif; color: #1a1a1a; }
-                .title-doc { font-size: 19pt; font-weight: bold; color: #1a1a1a; margin-bottom: 2px; }
-                .subtitle-doc { font-size: 14pt; font-weight: bold; color: #c5a059; margin-top: 0; margin-bottom: 15px; }
-                .meta-box { font-size: 11pt; margin-bottom: 20px; line-height: 1.4; }
                 
-                .main-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 30px; table-layout: fixed; }
-                .main-table th { background: #f2f2f2; border: 1px solid #555555; padding: 2px; font-size: 9.5pt; font-weight: bold; text-align: center; line-height: 1.1; }
-                .main-table td { border: 1px solid #cccccc; padding: 3px 2px; font-size: 8.5pt; vertical-align: middle; line-height: 1.2; }
+                body, p, table, td, th, span { 
+                    font-family: 'Arial', sans-serif; 
+                    color: #1a1a1a;
+                    line-height: 1.0 !important;
+                    margin-top: 0in !important;
+                    margin-bottom: 0in !important;
+                    mso-line-height-rule: exactly;
+                }
+                
+                .title-doc { font-size: 17pt; font-weight: bold; margin-bottom: 2pt !important; }
+                .subtitle-doc { font-size: 12pt; font-weight: bold; color: #c5a059; margin-bottom: 10pt !important; text-transform: capitalize; }
+                
+                .meta-box { font-size: 10pt; margin-bottom: 12pt !important; }
+                .meta-box td { padding: 1px 0px; }
+                
+                .main-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+                .main-table th { 
+                    background: #f2f2f2; 
+                    border: 1px solid #555555; 
+                    padding: 3px 2px !important; 
+                    font-size: 9pt; 
+                    font-weight: bold; 
+                    text-align: center;
+                }
+                .main-table td { 
+                    border: 1px solid #cccccc; 
+                    padding: 2px 3px !important; 
+                    font-size: 8.5pt; 
+                    vertical-align: middle;
+                }
                 
                 .col-printer { width: 15%; }  
                 .col-sn { width: 15%; }       
-                .col-cell { width: 8%; }
-                .col-dot { width: 10%; }
-                .col-roll { width: 10%; }
-                .col-print-st { width: 8%; }
+                .col-cell { width: 7%; }
+                .col-dot { width: 11%; }
+                .col-roll { width: 11%; }
+                .col-print-st { width: 7%; }
                 .col-gen { width: 6%; }
                 .col-rem { width: 28%; }      
 
-                .row-zone { background-color: #dfd5c2; font-weight: bold; font-size: 9.5pt; color: #1a1a1a; text-align: center; padding: 3px; }
+                .row-zone { background-color: #dfd5c2; font-weight: bold; font-size: 9pt; color: #1a1a1a; text-align: center; padding: 2px !important; }
                 .center { text-align: center; }
 
-                .annexe-title { font-size: 15pt; font-weight: bold; color: #1a1a1a; margin-top: 40px; margin-bottom: 10px; page-break-before: always; }
+                .annexe-title { font-size: 14pt; font-weight: bold; color: #1a1a1a; margin-top: 20pt !important; margin-bottom: 8pt !important; page-break-before: always; }
                 .annexe-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-                .annexe-table th { background: #1a1a1a; color: white; border: 1px solid #1a1a1a; padding: 5px; font-size: 10pt; text-align: left; }
-                .annexe-table td { border: 1px solid #cccccc; padding: 10px; font-size: 9pt; vertical-align: middle; background: #fafafa; }
+                .annexe-table td { border: 1px solid #dddddd; padding: 6px; vertical-align: top; background: #fafafa; }
+                .photo-block { font-size: 8.5pt; text-align: left; }
+                .photo-wrapper { text-align: center; margin-top: 4px; }
             </style>
             </head>
             <body>
             <div class="Section1">
                 <p class="title-doc">RAPPORT DE MAINTENANCE PRÉVENTIVE</p>
-                <p class="subtitle-doc">Parc d'imprimantes thermiques</p>
+                <p class="subtitle-doc">${dynamicSubtitle}</p>
                 
                 <table class="meta-box" cellspacing="0" cellpadding="0" border="0">
                     <tr><td><b>Client / Site :</b></td><td style="padding-left:10px;">${site}</td></tr>
@@ -846,7 +876,7 @@
 
             let imageCounter = 0;
             let attachedParts = "";
-            let annexeRowsHtml = "";
+            let photosToRender = [];
 
             zones.forEach(z => {
                 const zoneData = reportData.filter(item => item.zone === z);
@@ -874,16 +904,12 @@
                         let base64Data = d.photos[0].split(',')[1];
                         let imageLocation = `annexe_photo_${imageCounter}.jpg`;
                         
-                        annexeRowsHtml += `<tr>
-                            <td style="width: 35%; width: 2.5in;">
-                                <b style="font-size:10pt; color:#1a1a1a;">Machine : ${d.modele}</b><br>
-                                ${d.lieuId ? `Lieu : <i>${d.lieuId}</i><br>` : ''}
-                                S/N : <b>${d.serial}</b>
-                            </td>
-                            <td style="width: 65%; width: 4.5in; text-align: center;">
-                                <img width="250" height="100" src="cid:${imageLocation}" style="width:250px; height:100px; display:block; margin:5px auto;">
-                            </td>
-                        </tr>`;
+                        photosToRender.push({
+                            cid: imageLocation,
+                            modele: d.modele,
+                            lieuId: d.lieuId,
+                            serial: d.serial
+                        });
 
                         attachedParts += `--${boundary}\n`;
                         attachedParts += `Content-ID: <${imageLocation}>\n`;
@@ -897,26 +923,51 @@
 
             wordHtml += `</tbody></table>`;
 
-            if (imageCounter > 0) {
-                wordHtml += `<p class="annexe-title">ANNEXE PHOTOGRAPHIQUE (DÉFAUTS & CONSTATIONS)</p>`;
-                wordHtml += `<table class="annexe-table">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 35%;">Désignation de l'équipement</th>
-                                        <th style="width: 65%; text-align:center;">Visuel du constat terrain</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${annexeRowsHtml}
-                                </tbody>
-                             </table>`;
+            if (photosToRender.length > 0) {
+                wordHtml += `<p class="annexe-title">ANNEXE PHOTOGRAPHIQUE (CONSTATS TERRAIN)</p>`;
+                wordHtml += `<table class="annexe-table"><tbody>`;
+                
+                for (let i = 0; i < photosToRender.length; i += 2) {
+                    wordHtml += `<tr>`;
+                    
+                    let p1 = photosToRender[i];
+                    wordHtml += `<td>
+                        <div class="photo-block">
+                            <b>Machine : ${p1.modele}</b><br>
+                            ${p1.lieuId ? `Lieu : <i>${p1.lieuId}</i><br>` : ''}
+                            S/N : <b>${p1.serial}</b>
+                        </div>
+                        <div class="photo-wrapper">
+                            <img width="310" height="124" src="cid:${p1.cid}" style="width:310px; height:124px; border:1px solid #cccccc;">
+                        </div>
+                    </td>`;
+                    
+                    if (i + 1 < photosToRender.length) {
+                        let p2 = photosToRender[i + 1];
+                        wordHtml += `<td>
+                            <div class="photo-block">
+                                <b>Machine : ${p2.modele}</b><br>
+                                ${p2.lieuId ? `Lieu : <i>${p2.lieuId}</i><br>` : ''}
+                                S/N : <b>${p2.serial}</b>
+                            </div>
+                            <div class="photo-wrapper">
+                                <img width="310" height="124" src="cid:${p2.cid}" style="width:310px; height:124px; border:1px solid #cccccc;">
+                            </div>
+                        </td>`;
+                    } else {
+                        wordHtml += `<td style="border:none; background:transparent;"></td>`;
+                    }
+                    
+                    wordHtml += `</tr>`;
+                }
+                
+                wordHtml += `</tbody></table>`;
             }
 
             wordHtml += `</div></body></html>\n\n`;
             
             let finalDoc = mhtml + wordHtml + attachedParts + `--${boundary}--`;
 
-            // Utilisation du type universel "application/vnd.ms-word" pour forcer l'ouverture par Word sur mobile
             let blob = new Blob([finalDoc], { type: 'application/vnd.ms-word;charset=utf-8' });
             let url = URL.createObjectURL(blob);
             
@@ -924,36 +975,28 @@
             let cleanDate = dateV.replace(/\//g, "-");
             let filename = `Rapport_Maintenance_${cleanSiteName}_${cleanDate}.doc`;
 
-            // Création sécurisée du lien de téléchargement
             let a = document.createElement('a');
             a.href = url;
             a.download = filename;
             a.style.display = 'none';
             document.body.appendChild(a);
             
-            // Simulation d'un clic réel
             try {
                 a.click();
             } catch (err) {
-                console.error("Le clic automatique a échoué", err);
+                console.error(err);
             }
             
-            // Nettoyage de la mémoire à retardement pour laisser au mobile le temps de réagir
             setTimeout(() => {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             }, 300);
 
-            // --- PLAN B SI LE TÉLÉCHARGEMENT DIRECT RESTE BLOQUÉ PAR LE NAVIGATEUR ---
             setTimeout(() => {
-                if(confirm("Le téléchargement a été demandé.\n\n⚠️ Si rien ne s'est produit, le navigateur de votre smartphone bloque peut-être les téléchargements automatiques.\n\nVoulez-vous forcer l'ouverture du document dans un nouvel onglet ?")) {
-                    let backupWindow = window.open(url, '_blank');
-                    if(!backupWindow) {
-                        alert("L'ouverture a été bloquée par l'anti-popup de votre téléphone. Veuillez autoriser les fenêtres pop-up pour cette page ou essayer depuis le navigateur natif (Safari / Chrome).");
-                    }
+                if(confirm("Le téléchargement a été demandé.\n\nEn cas de blocage sur votre smartphone, voulez-vous forcer l'ouverture directe ?")) {
+                    window.open(url, '_blank');
                 }
-                
-                if(confirm("Voulez-vous réinitialiser l'application pour commencer un nouveau rapport (Vos données actuelles seront effacées) ?")) {
+                if(confirm("Voulez-vous réinitialiser l'application pour commencer un nouveau rapport ?")) {
                     clearLocalStorageData();
                     location.reload();
                 }
