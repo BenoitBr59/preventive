@@ -274,6 +274,12 @@
             text-align: center;
             padding: 6px;
         }
+
+        .green-arrow {
+            color: #28a745;
+            font-weight: bold;
+            margin-right: 5px;
+        }
     </style>
 </head>
 <body>
@@ -429,14 +435,13 @@
         </form>
     </div>
 
-    <!-- Affichage ultra-allégé -->
     <div class="card">
         <h3>Imprimantes enregistrées (<span id="count">0</span>)</h3>
         <div class="table-container">
             <table id="summaryTable">
                 <thead>
                     <tr>
-                        <th>Numéros de Série ($S/N$) enregistrés</th>
+                        <th>Numéros de Série (S/N) enregistrés</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
@@ -609,6 +614,7 @@
             if (p && p.trim() !== "") { processScannedBarcode(p); stopScanner(); }
         }
 
+        // --- ARRET SCANNER ---
         function stopScanner() {
             if (html5QrcodeScanner) {
                 html5QrcodeScanner.stop().then(() => { document.getElementById('scanner-zone').style.display = 'none'; html5QrcodeScanner = null; })
@@ -694,7 +700,7 @@
             return formattedLines.join('<br>');
         }
 
-        // --- AFFICHAGE ULTRA-ALLÉGÉ DU TABLEAU SUR L'ÉCRAN ---
+        // --- RENDU DU TABLEAU MIS À JOUR ---
         function renderTable() {
             const tbody = document.getElementById('tableBody');
             tbody.innerHTML = ''; 
@@ -706,15 +712,13 @@
             zones.forEach(z => {
                 const zoneData = reportData.filter(item => item.zone === z);
                 
-                // On n'affiche la ligne de secteur que si l'utilisateur a écrit quelque chose dedans
                 if (z !== "") {
                     tbody.innerHTML += `<tr><td class="zone-header-row">${z.toUpperCase()}</td></tr>`;
                 }
                 
-                // On affiche uniquement la liste des S/N reliés à cette zone
                 zoneData.forEach(d => {
                     tbody.innerHTML += `<tr>
-                        <td>📟 S/N : <b>${d.serial}</b> ${d.lieuId ? `<span style="color:#666; font-size:0.85rem; font-style:italic; margin-left: 10px;">(${d.lieuId})</span>` : ''}</td>
+                        <td><span class="green-arrow">➜</span> S/N : <b>${d.serial}</b> ${d.lieuId ? `<span style="color:#666; font-size:0.85rem; font-style:italic; margin-left: 10px;">(${d.lieuId})</span>` : ''}</td>
                     </tr>`;
                 });
             });
@@ -765,7 +769,6 @@
             mhtml += `--${boundary}\n`;
             mhtml += `Content-Type: text/html; charset="utf-8"\n\n`;
 
-            // Le Word conserve TOUTES les colonnes officielles intactes
             let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
             <head>
             <meta charset="utf-8">
