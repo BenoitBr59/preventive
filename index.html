@@ -700,7 +700,7 @@
             return formattedLines.join('<br>');
         }
 
-        // --- RENDU DU TABLEAU MIS À JOUR ---
+        // --- RENDU DU TABLEAU ---
         function renderTable() {
             const tbody = document.getElementById('tableBody');
             tbody.innerHTML = ''; 
@@ -754,6 +754,7 @@
             previewContainer.innerHTML = ''; currentPhotos = [];
         });
 
+        // --- EXPORTATION FIABILISÉE ET OPTIMISÉE POUR MOBILE ---
         document.getElementById('exportBtn').addEventListener('click', function(e) {
             e.preventDefault();
             if(reportData.length === 0) return alert('Aucune donnée à exporter');
@@ -915,24 +916,48 @@
             
             let finalDoc = mhtml + wordHtml + attachedParts + `--${boundary}--`;
 
-            let blob = new Blob([finalDoc], { type: 'application/msword;charset=utf-8' });
+            // Utilisation du type universel "application/vnd.ms-word" pour forcer l'ouverture par Word sur mobile
+            let blob = new Blob([finalDoc], { type: 'application/vnd.ms-word;charset=utf-8' });
             let url = URL.createObjectURL(blob);
-            let a = document.createElement('a');
-            a.href = url;
             
             let cleanSiteName = site.replace(/[^a-zA-Z0-9]/g, "_");
             let cleanDate = dateV.replace(/\//g, "-");
-            a.download = `Rapport_Maintenance_${cleanSiteName}_${cleanDate}.doc`;
-            
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            let filename = `Rapport_Maintenance_${cleanSiteName}_${cleanDate}.doc`;
 
-            if(confirm("Le fichier Word a été généré avec succès.\nVoulez-vous réinitialiser l'application pour commencer un nouveau rapport ?")) {
-                clearLocalStorageData();
-                location.reload();
+            // Création sécurisée du lien de téléchargement
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            
+            // Simulation d'un clic réel
+            try {
+                a.click();
+            } catch (err) {
+                console.error("Le clic automatique a échoué", err);
             }
+            
+            // Nettoyage de la mémoire à retardement pour laisser au mobile le temps de réagir
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 300);
+
+            // --- PLAN B SI LE TÉLÉCHARGEMENT DIRECT RESTE BLOQUÉ PAR LE NAVIGATEUR ---
+            setTimeout(() => {
+                if(confirm("Le téléchargement a été demandé.\n\n⚠️ Si rien ne s'est produit, le navigateur de votre smartphone bloque peut-être les téléchargements automatiques.\n\nVoulez-vous forcer l'ouverture du document dans un nouvel onglet ?")) {
+                    let backupWindow = window.open(url, '_blank');
+                    if(!backupWindow) {
+                        alert("L'ouverture a été bloquée par l'anti-popup de votre téléphone. Veuillez autoriser les fenêtres pop-up pour cette page ou essayer depuis le navigateur natif (Safari / Chrome).");
+                    }
+                }
+                
+                if(confirm("Voulez-vous réinitialiser l'application pour commencer un nouveau rapport (Vos données actuelles seront effacées) ?")) {
+                    clearLocalStorageData();
+                    location.reload();
+                }
+            }, 1000);
         });
     </script>
 </body>
