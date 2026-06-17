@@ -34,11 +34,30 @@
             border-radius: 12px;
             margin-bottom: 20px;
             border-bottom: 4px solid var(--accent);
-            position: relative;
             display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
+            flex-direction: row;
+            align-items: center; /* Aligne verticalement le logo et le contenu */
             gap: 20px;
+        }
+
+        /* LOGO REPLACÉ À GAUCHE ET CENTRÉ VERTICALEMENT */
+        .header-logo-container {
+            background: white;
+            padding: 6px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 115px;
+            height: 78px;
+            box-sizing: border-box;
+            flex-shrink: 0;
+        }
+
+        .header-logo-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
 
         .header-left {
@@ -46,7 +65,7 @@
         }
 
         header h1 { 
-            margin: 0 0 15px 0; 
+            margin: 0 0 12px 0; 
             font-size: 1.4rem; 
             color: #ffffff; 
         }
@@ -87,26 +106,6 @@
         .header-group select option {
             background-color: var(--primary);
             color: white;
-        }
-
-        /* Container du logo en haut à droite du header */
-        .header-logo-container {
-            background: white;
-            padding: 5px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 113px;
-            height: 76px;
-            box-sizing: border-box;
-            align-self: center;
-        }
-
-        .header-logo-container img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
         }
 
         .card {
@@ -326,8 +325,8 @@
             border-top: 1px solid #e1e8ed;
         }
         .footer-logo {
-            width: 113px;  /* 3cm environ à l'écran */
-            height: 76px;  /* 2cm environ à l'écran */
+            width: 113px;
+            height: 76px;
             object-fit: contain;
         }
     </style>
@@ -335,6 +334,10 @@
 <body>
 
     <header>
+        <div class="header-logo-container">
+            <img id="app-header-img" src="" alt="Logo">
+        </div>
+        
         <div class="header-left">
             <h1>Visite de Maintenance Préventive</h1>
             <div class="header-inputs">
@@ -365,9 +368,6 @@
                 </div>
             </div>
         </div>
-        <div class="header-logo-container">
-            <img id="app-header-img" src="" alt="Logo">
-        </div>
     </header>
 
     <div id="scanner-zone">
@@ -385,4 +385,99 @@
         </div>
         <div class="crop-buttons">
             <button type="button" style="background:#28a745; color:white;" onclick="validateCrop()">Valider la sélection</button>
-            <button type="button" style="background:var(--accent); color:white
+            <button type="button" style="background:var(--accent); color:white;" onclick="cancelCrop()">Annuler</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Saisie Machine</h3>
+        <form id="maintenanceForm" onsubmit="return false;">
+            
+            <div class="form-group">
+                <label for="printerZone">Zone / Secteur (Facultatif)</label>
+                <input type="text" id="printerZone" placeholder="Ex: LOGISTIQUE 1, SECTEUR BOL...">
+            </div>
+
+            <div class="form-group">
+                <label for="printerType">Imprimante (Modèle & Type de tête)</label>
+                <div class="input-scan-group">
+                    <input type="text" id="printerType" placeholder="Ex: ZT420 8 DOTS, ZT231...">
+                    <button type="button" class="btn-scan" onclick="startScanner('printerType')">📷 Scan</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="printerId">Machine ID (Lieu / Optionnel)</label>
+                <input type="text" id="printerId" placeholder="Saisir l'ID ou le Lieu au clavier...">
+            </div>
+
+            <div class="form-group">
+                <label for="serial">S/N (Numéro de série)</label>
+                <div class="input-scan-group">
+                    <input type="text" id="serial" placeholder="Flasher le S/N en ligne...">
+                    <button type="button" class="btn-scan" onclick="startScanner('serial')">📷 Scan</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="ipAddress">@ IP</label>
+                <input type="text" id="ipAddress" placeholder="Ex: 192.168.1.50">
+            </div>
+
+            <div class="form-group">
+                <label>Vérifications terrain</label>
+                <div class="grid-status">
+                    <div class="status-box">
+                        <label style="font-size:0.8rem;">Cellules</label>
+                        <select id="cellules">
+                            <option value="OK">OK</option>
+                            <option value="NOK">NOK</option>
+                            <option value="">Non renseigné</option>
+                        </select>
+                    </div>
+                    <div class="status-box">
+                        <label style="font-size:0.8rem;">Etat dot</label>
+                        <select id="etatDot">
+                            <option value="OK">OK</option>
+                            <option value="Nombreuses dots HS">Nombreuses dots HS</option>
+                            <option value="Défaut dots">Défaut dots / HS</option>
+                            <option value="NOK">NOK</option>
+                            <option value="">Non renseigné</option>
+                        </select>
+                    </div>
+                    <div class="status-box">
+                        <label style="font-size:0.8rem;">Pressing Roller</label>
+                        <select id="roller">
+                            <option value="OK">OK</option>
+                            <option value="Cutter">Cutter (Coup de cutter)</option>
+                            <option value="Coups de cutter">Coups de cutter</option>
+                            <option value="NOK">NOK</option>
+                            <option value="">Non renseigné</option>
+                        </select>
+                    </div>
+                    <div class="status-box">
+                        <label style="font-size:0.8rem;">Impression</label>
+                        <select id="impression">
+                            <option value="OK">OK</option>
+                            <option value="NOK">NOK</option>
+                            <option value="">Non renseigné</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="etatGeneral">Etat Général</label>
+                <select id="etatGeneral">
+                    <option value="OK">OK</option>
+                    <option value="Voir Rem">Voir Rem</option>
+                    <option value="Non vu">Non vu</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="remarque">Remarques / Actions à mener (Utilisez le tiret '-' pour aller à la ligne)</label>
+                <textarea id="remarque" rows="3" placeholder="Saisir les remarques... Ex: - Nettoyage effectué - Tête à changer"></textarea>
+            </div>
+
+            <div class="
