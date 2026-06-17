@@ -12,9 +12,9 @@
 
     <style>
         :root {
-            --primary: #0a2540; /* Bleu Nuit */
-            --accent: #d92727;  /* Rouge Vif */
-            --yellow-logo: #f2a900; /* Jaune Officiel */
+            --primary: #0a2540; 
+            --accent: #d92727;  
+            --yellow-logo: #f2a900; 
             --bg: #f4f7fa;      
             --card-bg: #ffffff;
             --secondary-blue: #20639b; 
@@ -52,7 +52,6 @@
             flex: 1;
         }
 
-        /* CONTENEUR DU LOGO À DROITE DU TITRE */
         .header-logo-container {
             background: white;
             padding: 5px;
@@ -60,7 +59,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 95px;
+            width: 105px;
             height: 65px;
             box-sizing: border-box;
             flex-shrink: 0;
@@ -191,7 +190,7 @@
             padding: 10px;
         }
 
-        #reader { width: 100%; background: #000; }
+        #reader { width: 100%; background: #000; min-height: 250px; }
 
         .scanner-controls {
             display: flex;
@@ -268,7 +267,6 @@
 
         .btn-add { background: var(--secondary-blue); color: white; margin-top: 10px; }
         
-        /* BOUTON EXPORT EN JAUNE ASSORTI AU LOGO */
         .btn-export { 
             background: var(--yellow-logo); 
             color: #000000; 
@@ -337,12 +335,12 @@
             <h1>Visite de Maintenance Préventive</h1>
             <div class="header-logo-container">
                 <svg viewBox="0 0 120 70" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="120" height="70" fill="#0a2540" rx="4"/>
-                    <circle cx="35" cy="35" r="18" fill="#f2a900"/>
-                    <path d="M25 35 L45 35 M35 25 L35 45" stroke="#0a2540" stroke-width="4"/>
-                    <text x="62" y="32" font-family="Arial, sans-serif" font-size="16" font-weight="900" fill="#ffffff">TRAC</text>
-                    <text x="62" y="48" font-family="Arial, sans-serif" font-size="15" font-weight="900" fill="#d92727">INFO</text>
-                    <rect x="5" y="60" width="110" height="4" fill="#d92727"/>
+                    <rect width="120" height="70" fill="#0a2540" rx="6"/>
+                    <circle cx="30" cy="35" r="16" fill="#f2a900"/>
+                    <path d="M20 35 L40 35 M30 25 L30 45" stroke="#0a2540" stroke-width="4" stroke-linecap="round"/>
+                    <text x="56" y="32" font-family="'Arial Black', sans-serif" font-size="15" font-weight="900" fill="#ffffff" letter-spacing="0.5">TRAC</text>
+                    <text x="56" y="50" font-family="'Arial Black', sans-serif" font-size="15" font-weight="900" fill="#d92727" letter-spacing="0.5">INFO</text>
+                    <line x1="10" y1="60" x2="110" y2="60" stroke="#d92727" stroke-width="3" stroke-linecap="round"/>
                 </svg>
             </div>
         </div>
@@ -378,6 +376,7 @@
 
     <div id="scanner-zone">
         <div id="reader"></div>
+        <input type="file" id="fallback-camera-input" accept="image/*" capture="environment" style="display:none;">
         <div class="scanner-controls">
             <div class="btn-action-scanner btn-capture" onclick="forceCaptureAndDecode()">⚡ LIRE CE VISUEL</div>
             <div class="btn-action-scanner btn-close" onclick="stopScanner()">Fermer</div>
@@ -520,7 +519,7 @@
         let activeTargetId = null;
         let cropperInstance = null;
 
-        // Base64 simplifiée et robuste du logo de repli technique pour le fichier Word exporté
+        // Base64 simplifiée pour l'intégration de secours dans le fichier Word exporté
         const WORD_LOGO_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAGQAAABGAwMAAAAUK57NAAAABlBMVEUAIwX///9eN7gFAAAAAXRSTlMAQObYZgAAADlJREFUOMtjYKA7YGBgYGBwYGBgYmBiYgIDRhwKGBgYmBiYwIDhBoYgZgMDwz8GBgYmBiYwYMRBAADZpAyme99VAAAAAElFTkSuQmCC";
 
         // --- ENREGISTREMENT ET PERSISTANCE ---
@@ -560,9 +559,25 @@
             document.getElementById('headerBrand').addEventListener('change', saveAppStateToLocalStorage);
             document.getElementById('headerIntervenant').addEventListener('change', saveAppStateToLocalStorage);
             document.getElementById('headerDate').addEventListener('change', saveAppStateToLocalStorage);
+            
+            // Écouteur pour la méthode de scan alternative (photo fichier si le flux vidéo bloque)
+            document.getElementById('fallback-camera-input').addEventListener('change', function(e) {
+                if (e.target.files.length === 0) return;
+                const file = e.target.files[0];
+                if (html5QrcodeScanner) {
+                    html5QrcodeScanner.scanFile(file, true)
+                        .then(txt => { if(processScannedBarcode(txt)) { stopScanner(); } else { proposerSaisieAlternative(); } })
+                        .catch(() => proposerSaisieAlternative());
+                } else {
+                    const tempScanner = new Html5Qrcode("reader");
+                    tempScanner.scanFile(file, true)
+                        .then(txt => { processScannedBarcode(txt); document.getElementById('scanner-zone').style.display='none'; })
+                        .catch(() => { proposerSaisieAlternative(); document.getElementById('scanner-zone').style.display='none'; });
+                }
+            });
         });
 
-        // --- SCRIPT SCAN ET LOGIQUE METIER ---
+        // --- LOGIQUE METIER ET ASSIGNATION ---
         function getModelFromSerialNumber(sn) {
             const snUpper = sn.toUpperCase().trim();
             if (snUpper.startsWith("18J")) return "ZT420 8 DOTS";
@@ -590,4 +605,121 @@
                 document.getElementById('printerType').value = getModelFromSerialNumber(cleanStr) || cleanStr;
                 return true;
             }
-            if (activeTargetId === 'serial')
+            if (activeTargetId === 'serial') {
+                document.getElementById('serial').value = cleanStr;
+                const currentModelInput = document.getElementById('printerType').value;
+                if (!currentModelInput) {
+                    const deduced = getModelFromSerialNumber(cleanStr);
+                    if (deduced) document.getElementById('printerType').value = deduced;
+                }
+                return true;
+            }
+            return false;
+        }
+
+        // --- NOUVELLE LOGIQUE DE SCAN SECURISÉE ---
+        function startScanner(targetId) {
+            activeTargetId = targetId;
+            document.getElementById('scanner-zone').style.display = 'block';
+            
+            if (html5QrcodeScanner) {
+                try { html5QrcodeScanner.clear(); } catch(e){}
+            }
+            
+            html5QrcodeScanner = new Html5Qrcode("reader");
+            const config = {
+                fps: 25,
+                qrbox: function(w, h) { return { width: Math.floor(w * 0.90), height: Math.floor(h * 0.40) }; },
+                formatsToSupport: [Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39, Html5QrcodeSupportedFormats.QR_CODE]
+            };
+            
+            // Essai de démarrage du flux caméra arrière
+            html5QrcodeScanner.start(
+                { facingMode: "environment" }, 
+                config,
+                (txt) => { if (processScannedBarcode(txt)) { stopScanner(); } },
+                (err) => {}
+            ).catch((error) => {
+                // FALLBACK : Si le flux vidéo est bloqué par le système, on bascule sur l'appareil photo natif
+                console.log("Flux vidéo bloqué, bascule sur capture photo.");
+                document.getElementById('fallback-camera-input').click();
+            });
+        }
+
+        function forceCaptureAndDecode() {
+            const video = document.querySelector("#reader video");
+            if (!video) {
+                // Si pas de vidéo, l'utilisateur peut reprendre une photo directement
+                document.getElementById('fallback-camera-input').click();
+                return;
+            }
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+            canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+            html5QrcodeScanner.scanFile(canvasToBlob(canvas), false)
+                .then(txt => { if (processScannedBarcode(txt)) { stopScanner(); } else { proposerSaisieAlternative(); } })
+                .catch(() => proposerSaisieAlternative());
+        }
+
+        function canvasToBlob(canvas) {
+            var dataURL = canvas.toDataURL('image/jpeg');
+            var bytes = atob(dataURL.split(',')[1]);
+            var arr = new ArrayBuffer(bytes.length);
+            var ua = new Uint8Array(arr);
+            for (var i = 0; i < bytes.length; i++) { ua[i] = bytes.charCodeAt(i); }
+            return new File([arr], "capture.jpg", {type: "image/jpeg"});
+        }
+
+        function proposerSaisieAlternative() {
+            const p = prompt("Code-barres non détecté automatiquement. Saisissez la valeur manuellement ou réessayez :");
+            if (p && p.trim() !== "") { processScannedBarcode(p); stopScanner(); }
+        }
+
+        function stopScanner() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().then(() => { 
+                    document.getElementById('scanner-zone').style.display = 'none'; 
+                    html5QrcodeScanner = null; 
+                }).catch(() => {
+                    document.getElementById('scanner-zone').style.display = 'none';
+                    html5QrcodeScanner = null;
+                });
+            } else { document.getElementById('scanner-zone').style.display = 'none'; }
+        }
+
+        // --- PHOTOS ET RECADRAGE ---
+        document.getElementById('photo').addEventListener('change', function(e) {
+            if(e.target.files.length === 0) return;
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const imageToCrop = document.getElementById('image-to-crop');
+                imageToCrop.src = evt.target.result;
+                document.getElementById('crop-zone').style.display = 'block';
+                if(cropperInstance) { cropperInstance.destroy(); }
+                cropperInstance = new Cropper(imageToCrop, { aspectRatio: 2.5, viewMode: 1 });
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function validateCrop() {
+            if(!cropperInstance) return;
+            const canvas = cropperInstance.getCroppedCanvas({ width: 1000, height: 400 });
+            const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            previewContainer.innerHTML = `<img src="${croppedDataUrl}" class="photo-preview">`;
+            currentPhotos = [croppedDataUrl];
+            document.getElementById('crop-zone').style.display = 'none';
+            cropperInstance.destroy(); cropperInstance = null;
+        }
+
+        function cancelCrop() {
+            document.getElementById('crop-zone').style.display = 'none';
+            document.getElementById('photo').value = '';
+            if(cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+        }
+
+        // --- TABLEAU ET AVANCEMENT ---
+        function formatRemarqueHTML(text) {
+            if (!text) return "";
+            let lines = text.split(/[\n-]+/);
+            let formattedLines =
