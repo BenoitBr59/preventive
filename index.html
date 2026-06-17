@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Générateur de Rapport de Maintenance</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .status-ok { background-color: #def7ec; color: #03543f; font-weight: bold; }
         .status-nok { background-color: #fde8e8; color: #9b1c1c; font-weight: bold; }
@@ -121,7 +121,7 @@
             </div>
 
             <div class="md:col-span-4 flex justify-end gap-2 mt-2">
-                <button type="submit" class="bg-blue-900 hover:bg-blue-950 text-white font-bold text-sm px-6 py-2 rounded shadow">
+                <button type="submit" class="bg-blue-900 hover:bg-blue-950 text-white font-bold text-sm px-6 py-2 rounded shadow cursor-pointer">
                     Ajouter au tableau
                 </button>
             </div>
@@ -131,7 +131,7 @@
             <div class="text-sm font-medium text-gray-700">
                 Machines enregistrées : <span id="machineCount" class="font-bold text-blue-900">0</span>
             </div>
-            <button id="exportBtn" class="bg-green-700 hover:bg-green-800 text-white font-bold text-sm px-6 py-2 rounded shadow flex items-center gap-2">
+            <button id="exportBtn" class="bg-green-700 hover:bg-green-800 text-white font-bold text-sm px-6 py-2 rounded shadow flex items-center gap-2 cursor-pointer">
                 💾 Exporter en format Word (.doc)
             </button>
         </div>
@@ -155,7 +155,8 @@
                     </tr>
                 </thead>
                 <tbody id="reportTableBody" class="bg-white divide-y divide-gray-200">
-                    </tbody>
+                    <tr><td colspan="12" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport pour le moment.</td></tr>
+                </tbody>
             </table>
         </div>
 
@@ -165,10 +166,10 @@
         let reportData = [];
         let currentPhotoBase64 = null;
 
-        // Configuration de la date du jour par défaut
+        // Date du jour par défaut
         document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
 
-        // Capture et conversion de l'image ajoutée
+        // Capture de l'image
         document.getElementById('photoInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
@@ -183,13 +184,12 @@
             }
         });
 
-        // Formatage simple des retours à la ligne pour l'affichage HTML
         function formatRemarqueHTML(text) {
             if (!text) return "";
             return text.replace(/\n/g, "<br>");
         }
 
-        // Soumission du formulaire d'ajout
+        // Soumission
         document.getElementById('machineForm').addEventListener('submit', function(e) {
             e.preventDefault();
 
@@ -212,7 +212,7 @@
             reportData.push(machine);
             updateTable();
             
-            // Réinitialisation partielle du formulaire
+            // Reset partiel
             document.getElementById('modele').value = '';
             document.getElementById('serial').value = '';
             document.getElementById('lieuId').value = '';
@@ -223,7 +223,7 @@
             currentPhotoBase64 = null;
         });
 
-        // Mise à jour de l'affichage du tableau
+        // Rendu du tableau dynamique
         function updateTable() {
             const tbody = document.getElementById('reportTableBody');
             tbody.innerHTML = '';
@@ -234,7 +234,6 @@
                 return;
             }
 
-            // Regroupement par zone
             const zones = [...new Set(reportData.map(item => item.zone))];
 
             zones.forEach(z => {
@@ -280,13 +279,12 @@
             });
         }
 
-        // Supprimer une machine du tableau
         window.deleteMachine = function(idKey) {
             reportData = reportData.filter(item => item.idKey !== idKey);
             updateTable();
         };
 
-        // --- EXPORTATION MISE À JOUR AVEC LOGO EMBEDDÉ AUTOMATIQUEMENT ---
+        // Export MHTML / Word sécurisé
         document.getElementById('exportBtn').addEventListener('click', function(e) {
             e.preventDefault();
             if(reportData.length === 0) return alert('Aucune donnée à exporter. Ajoutez des machines d\'abord.');
@@ -299,7 +297,6 @@
             let dynamicSubtitle = "Parc d'imprimantes " + brandSelection;
             let boundary = "NEXT_PART_BOUNDARY_MARKER";
 
-            // Encodage complet et sécurisé du logo image_527924.png
             const logoBase64 = "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";
 
             let mhtml = `MIME-Version: 1.0\nContent-Type: multipart/related; boundary="${boundary}"\n\n`;
@@ -388,7 +385,6 @@
                     let cleanRemarque = formatRemarqueHTML(d.remarque) || "Aucune";
                     let photoHtml = "-";
 
-                    // Attachement des photos capturées par zone
                     if (d.photos && d.photos.length > 0) {
                         const photoCid = `photo_${z.replace(/[^a-zA-Z0-9]/g, '')}_${index}_${Date.now()}`;
                         photoHtml = `<img src="cid:${photoCid}" class="photo-img">`;
@@ -416,17 +412,14 @@
             wordHtml += `</tbody></table></div></body></html>\n`;
             mhtml += wordHtml;
 
-            // Ajout de la pièce jointe statique pour l'image du logo
             mhtml += `\n--${boundary}\nContent-Location: cid:logo_img\nContent-Transfer-Encoding: base64\n\n${logoBase64}\n`;
             
-            // Ajout des images de machines collectées
             if(imageAttachments !== "") {
                 mhtml += imageAttachments;
             }
             
             mhtml += `\n--${boundary}--\n`;
 
-            // Compilation et téléchargement
             const blob = new Blob([mhtml], { type: 'application/msword;charset=utf-8' });
             const link = document.createElement('a');
             const safeSite = site.replace(/[^a-zA-Z0-9_-]/g, '_') || "Rapport";
