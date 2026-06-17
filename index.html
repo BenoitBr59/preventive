@@ -16,7 +16,6 @@
         .status-ok { background-color: #def7ec; color: #03543f; font-weight: bold; }
         .status-nok { background-color: #fde8e8; color: #9b1c1c; font-weight: bold; }
         .zone-header { background-color: #e6f0fa; font-weight: bold; color: #0a2540; }
-        /* Style nécessaire pour la boîte de recadrage */
         .cropper-container { max-height: 400px; width: 100%; }
         #image-to-crop { max-width: 100%; display: block; }
     </style>
@@ -58,22 +57,28 @@
                 <label class="block text-xs font-medium text-gray-700 mb-1">Zone / Emplacement</label>
                 <input type="text" id="zone" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ex: Expédition" required>
             </div>
+            
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Modèle d'imprimante</label>
-                <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ex: ZT421 8 DOTS" required>
+                <div class="flex">
+                    <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm" placeholder="Ex: ZT421 8 DOTS" required>
+                    <button type="button" onclick="openScanner('modele')" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-3 text-xs font-bold cursor-pointer" title="Scanner le modèle">📷</button>
+                </div>
             </div>
+            
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Machine ID / Lieu précis</label>
-                <input type="text" id="lieuId" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="ID Interne / Emplacement">
+                <div class="flex">
+                    <input type="text" id="lieuId" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm" placeholder="ID Interne / Emplacement">
+                    <button type="button" onclick="openScanner('lieuId')" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-3 text-xs font-bold cursor-pointer" title="Scanner l'ID">📷</button>
+                </div>
             </div>
             
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Numéro de Série (S/N)</label>
                 <div class="flex">
                     <input type="text" id="serial" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm focus:outline-blue-500" placeholder="S/N" required>
-                    <button type="button" id="scanBarBtn" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-3 text-sm flex items-center justify-center cursor-pointer" title="Scanner le code-barres">
-                        📷 Scan
-                    </button>
+                    <button type="button" onclick="openScanner('serial')" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-3 text-xs font-bold cursor-pointer" title="Scanner le S/N">📷 Scan</button>
                 </div>
             </div>
 
@@ -132,11 +137,22 @@
                 <textarea id="remarque" rows="2" class="w-full bg-white border border-gray-300 rounded px-3 py-1 text-sm" placeholder="Nettoyage, changement de pièce..."></textarea>
             </div>
 
-            <div class="md:col-span-4 bg-blue-50 p-3 rounded border border-blue-200">
-                <label class="block text-xs font-bold text-blue-900 mb-1">Prendre une Photo (S'ouvre dans l'éditeur de recadrage)</label>
-                <input type="file" id="photoInput" accept="image/*" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
-                <div id="photoPreviewContainer" class="mt-2 hidden">
-                    <p class="text-xs font-medium text-gray-500 mb-1">Aperçu de l'image recadrée :</p>
+            <div class="md:col-span-4 bg-blue-50 p-4 rounded border border-blue-200">
+                <label class="block text-xs font-bold text-blue-900 mb-2">Ajouter une Photo d'illustration</label>
+                <div class="flex flex-wrap gap-3">
+                    <button type="button" id="capturePhotoBtn" class="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs px-4 py-2.5 rounded shadow flex items-center gap-2 cursor-pointer">
+                        📷 Prendre une Photo (Appareil photo)
+                    </button>
+                    <button type="button" id="selectPhotoBtn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold text-xs px-4 py-2.5 rounded shadow flex items-center gap-2 cursor-pointer">
+                        📁 Choisir un fichier (Galerie)
+                    </button>
+                </div>
+                
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+                <input type="file" id="galleryInput" accept="image/*" class="hidden">
+                
+                <div id="photoPreviewContainer" class="mt-3 hidden">
+                    <p class="text-xs font-medium text-gray-500 mb-1">Miniature de l'image recadrée retenue :</p>
                     <img id="photoPreview" src="" class="h-24 w-auto rounded border shadow-sm">
                 </div>
             </div>
@@ -183,26 +199,28 @@
     <div id="scannerModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-lg p-4 max-w-md w-full shadow-2xl">
             <div class="flex justify-between items-center mb-3">
-                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Scanner Caméra</h3>
+                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Scanner de Code-barres</h3>
                 <button type="button" id="closeScannerBtn" class="text-gray-500 hover:text-gray-800 text-2xl font-bold cursor-pointer">&times;</button>
             </div>
-            <div id="scannerContainer" class="w-full bg-black rounded overflow-hidden shadow-inner" style="min-height: 250px;"></div>
-            <p class="text-[11px] text-gray-500 mt-2 text-center italic">Note : L'accès caméra requiert les autorisations de votre navigateur.</p>
+            <div id="scannerContainer" class="w-full bg-black rounded overflow-hidden shadow-inner relative" style="min-height: 260px;">
+                <div class="absolute inset-x-0 top-1/2 h-[2px] bg-red-500 z-10 pointer-events-none opacity-80 shadow-[0_0_4px_rgba(239,68,68,0.9)]"></div>
+            </div>
+            <p class="text-[11px] text-gray-500 mt-2 text-center italic">Positionnez la ligne rouge au centre de votre code-barres (Code 128, 39, QR).</p>
         </div>
     </div>
 
     <div id="cropperModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-lg p-4 max-w-lg w-full shadow-2xl flex flex-col max-h-[90vh]">
             <div class="flex justify-between items-center mb-3">
-                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Recadrer la photo</h3>
+                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Recadrer le cliché</h3>
                 <button type="button" id="closeCropperBtn" class="text-gray-500 hover:text-gray-800 text-2xl font-bold cursor-pointer">&times;</button>
             </div>
-            <div class="overflow-hidden flex-1 bg-gray-100 flex items-center justify-center rounded border border-gray-200" style="max-height: 50vh;">
+            <div class="overflow-hidden flex-1 bg-gray-100 flex items-center justify-center rounded border border-gray-200" style="max-height: 55vh;">
                 <img id="imageToCrop" src="">
             </div>
             <div class="flex justify-end gap-2 mt-4">
                 <button type="button" id="cancelCropBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold text-xs px-4 py-2 rounded cursor-pointer">Annuler</button>
-                <button type="button" id="saveCropBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded shadow cursor-pointer">Valider le recadrage</button>
+                <button type="button" id="saveCropBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded shadow cursor-pointer">Enregistrer le recadrage</button>
             </div>
         </div>
     </div>
@@ -212,34 +230,47 @@
         let currentPhotoBase64 = null;
         let html5QrCode = null;
         let cropperInstance = null;
+        let activeScanField = 'serial';
 
-        // Configuration de la date automatique du jour
         document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
 
         /* ==========================================
-           GESTION DU SCANNER DE CODE-BARRES (Html5Qrcode)
+           FONCTIONNEMENT DU SCANNER (OPTIMISÉ CODE 128)
            ========================================== */
-        document.getElementById('scanBarBtn').addEventListener('click', function() {
+        window.openScanner = function(targetFieldId) {
+            activeScanField = targetFieldId;
             document.getElementById('scannerModal').classList.remove('hidden');
+            
             if (!html5QrCode) {
-                html5QrCode = new Html5Qrcode("scannerContainer");
+                // Déclaration explicite des formats industriels requis
+                const formats = [
+                    Html5QrcodeSupportedFormats.CODE_128,
+                    Html5QrcodeSupportedFormats.CODE_39,
+                    Html5QrcodeSupportedFormats.EAN_13,
+                    Html5QrcodeSupportedFormats.QR_CODE
+                ];
+                html5QrCode = new Html5Qrcode("scannerContainer", { formatsToSupport: formats });
             }
             
-            const config = { fps: 15, qrbox: { width: 260, height: 130 } };
+            // Zone de focus horizontale (320x100) parfaitement calibrée pour les étiquettes S/N longues
+            const config = { 
+                fps: 20, 
+                qrbox: { width: 320, height: 100 }
+            };
             
             html5QrCode.start(
                 { facingMode: "environment" }, 
                 config, 
                 (decodedText) => {
-                    document.getElementById('serial').value = decodedText;
+                    document.getElementById(activeScanField).value = decodedText;
                     stopBarcodeScanner();
                 },
-                (errorMessage) => { /* Silencieux pour éviter de saturer la console */ }
+                (errorMessage) => { }
             ).catch(err => {
-                alert("Erreur d'accès à la caméra. Vérifiez les autorisations.");
+                alert("Impossible de démarrer la caméra. Vérifiez les autorisations système.");
                 stopBarcodeScanner();
             });
-        });
+        };
 
         function stopBarcodeScanner() {
             document.getElementById('scannerModal').classList.add('hidden');
@@ -251,12 +282,17 @@
 
 
         /* ==========================================
-           GESTION DU RECADRAGE PHOTO (Cropper.js)
+           FONCTIONNEMENT DE LA CAPTURE ET DU CROP
            ========================================== */
-        const photoInput = document.getElementById('photoInput');
+        const cameraInput = document.getElementById('cameraInput');
+        const galleryInput = document.getElementById('galleryInput');
         const imageToCrop = document.getElementById('imageToCrop');
 
-        photoInput.addEventListener('change', function(e) {
+        // Mapping des clics sur les boutons personnalisés
+        document.getElementById('capturePhotoBtn').addEventListener('click', () => cameraInput.click());
+        document.getElementById('selectPhotoBtn').addEventListener('click', () => galleryInput.click());
+
+        function handleFileSelection(e) {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
@@ -264,31 +300,27 @@
                     imageToCrop.src = event.target.result;
                     document.getElementById('cropperModal').classList.remove('hidden');
                     
-                    if (cropperInstance) {
-                        cropperInstance.destroy();
-                    }
+                    if (cropperInstance) cropperInstance.destroy();
                     
-                    // Initialisation de Cropper en mode libre (libre choix des proportions)
+                    // Lancement du recadrage libre
                     cropperInstance = new Cropper(imageToCrop, {
                         aspectRatio: NaN,
                         viewMode: 1,
-                        autoCropArea: 0.85
+                        autoCropArea: 0.9
                     });
                 };
                 reader.readAsDataURL(file);
             }
-        });
+        }
+
+        cameraInput.addEventListener('change', handleFileSelection);
+        galleryInput.addEventListener('change', handleFileSelection);
 
         document.getElementById('saveCropBtn').addEventListener('click', function() {
             if (cropperInstance) {
-                const canvas = cropperInstance.getCroppedCanvas({
-                    maxWidth: 800,
-                    maxHeight: 600
-                });
-                
+                const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 800, maxHeight: 600 });
                 currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
                 
-                // Met à jour la miniature visible dans le formulaire
                 const preview = document.getElementById('photoPreview');
                 preview.src = currentPhotoBase64;
                 document.getElementById('photoPreviewContainer').classList.remove('hidden');
@@ -303,16 +335,15 @@
                 cropperInstance.destroy();
                 cropperInstance = null;
             }
+            cameraInput.value = '';
+            galleryInput.value = '';
         }
         document.getElementById('closeCropperBtn').addEventListener('click', closeCropperModal);
-        document.getElementById('cancelCropBtn').addEventListener('click', () => {
-            closeCropperModal();
-            photoInput.value = '';
-        });
+        document.getElementById('cancelCropBtn').addEventListener('click', closeCropperModal);
 
 
         /* ==========================================
-           GESTION DU TABLEAU ET DES DONNÉES
+           GESTION INTERACTIVE DES APPORTS ET DU TABLEAU
            ========================================== */
         document.getElementById('machineForm').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -336,13 +367,12 @@
             reportData.push(item);
             updateTable();
             
-            // Réinitialisation partielle des champs de saisie de la machine
+            // Remise à zéro sélective pour enchaîner les saisies de la zone
             document.getElementById('modele').value = '';
             document.getElementById('lieuId').value = '';
             document.getElementById('serial').value = '';
             document.getElementById('ip').value = '';
             document.getElementById('remarque').value = '';
-            photoInput.value = '';
             document.getElementById('photoPreviewContainer').classList.add('hidden');
             currentPhotoBase64 = null;
         });
@@ -363,7 +393,7 @@
                 if (z !== "") {
                     const zRow = document.createElement('tr');
                     zRow.className = "zone-header";
-                    zRow.innerHTML = `<td colspan="10" class="px-3 py-1.5 text-left text-xs uppercase tracking-wider bg-blue-50 border-y border-gray-200 pl-4 font-bold">${z}</td>`;
+                    zRow.innerHTML = `<td colspan="10" class="px-3 py-2 text-left text-xs uppercase bg-blue-50 border-y border-gray-200 pl-4 font-bold">${z}</td>`;
                     tbody.appendChild(zRow);
                 }
 
@@ -413,10 +443,10 @@
 
 
         /* ==========================================
-           EXPORTATION EXCEL / WORD PRO CONFORME (.doc)
+           EXPORTATION GENERATRICE DES DOCUMENTS COMPATIBLES WORD
            ========================================== */
         document.getElementById('exportBtn').addEventListener('click', function() {
-            if (reportData.length === 0) return alert('Le rapport est vide.');
+            if (reportData.length === 0) return alert('Le rapport ne contient aucune donnée.');
 
             const site = document.getElementById('headerSite').value || 'N/A';
             const tech = document.getElementById('headerIntervenant').value || 'N/A';
@@ -434,8 +464,8 @@
                 @page Section1 { size: 11.0in 8.5in; margin: 0.4in; mso-page-orientation: landscape; }
                 div.Section1 { page: Section1; }
                 body, p, table, td, th { font-family: 'Arial', sans-serif; color: #0a2540; line-height: 1.2; margin: 0; }
-                .title-doc { font-size: 18pt; font-weight: bold; color: #0a2540; text-align: center; }
-                .subtitle-doc { font-size: 12pt; font-weight: bold; color: #20639b; text-align: center; margin-bottom: 10pt; }
+                .title-doc { font-size: 18pt; font-weight: bold; color: #0a2540; }
+                .subtitle-doc { font-size: 12pt; font-weight: bold; color: #20639b; margin-bottom: 10pt; }
                 table { border-collapse: collapse; width: 100%; margin-bottom: 12pt; }
                 th, td { border: 1pt solid #ced4da; padding: 5pt 4pt; font-size: 9pt; vertical-align: middle; text-align: center; }
                 th { background-color: #0a2540; color: #ffffff; font-weight: bold; }
@@ -451,8 +481,8 @@
                 <table style="border:none; width:100%; margin-bottom:15pt;">
                     <tr>
                         <td style="border:none; text-align:left; width:65%;">
-                            <div class="title-doc" style="text-align:left;">RAPPORT DE MAINTENANCE PREVENTIVE</div>
-                            <div class="subtitle-doc" style="text-align:left;">Parc d'imprimantes ${brand}</div>
+                            <div class="title-doc">RAPPORT DE MAINTENANCE PREVENTIVE</div>
+                            <div class="subtitle-doc">Parc d'imprimantes ${brand}</div>
                         </td>
                         <td style="border:none; text-align:right; font-size:9.5pt; line-height:1.4;">
                             <strong>Date :</strong> ${dateV}<br>
@@ -512,7 +542,7 @@
 
             docHtml += `</tbody></table></div></body></html>\n`;
             mhtml += docHtml;
-            mhtml += attachments ? attachments : '';
+            mhtml += attachments;
             mhtml += `\n--${boundary}--\n`;
 
             const blob = new Blob([mhtml], { type: 'application/msword;charset=utf-8' });
