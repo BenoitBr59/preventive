@@ -4,15 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rapport de Maintenance Préventive</title>
+    
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 
     <style>
         :root {
-            --primary: #0a2540; 
-            --accent: #d92727;  
-            --yellow-logo: #f2a900; 
-            --bg: #f4f7fa;      
+            --primary: #1a1a1a;
+            --accent: #c5a059;
+            --bg: #f5f5f7;
             --card-bg: #ffffff;
-            --secondary-blue: #20639b; 
         }
 
         body {
@@ -29,40 +32,12 @@
             padding: 20px;
             border-radius: 12px;
             margin-bottom: 20px;
-            border-bottom: 4px solid var(--accent);
-        }
-
-        .header-top-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            gap: 15px;
         }
 
         header h1 { 
-            margin: 0; 
+            margin: 0 0 15px 0; 
             font-size: 1.4rem; 
-            color: #ffffff; 
-            flex: 1;
-        }
-
-        .header-logo-container {
-            background: #0a2540;
-            padding: 4px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 110px;
-            height: 65px;
-            box-sizing: border-box;
-            flex-shrink: 0;
-        }
-
-        .header-logo-container svg {
-            width: 100%;
-            height: 100%;
+            color: var(--accent); 
         }
 
         .header-inputs {
@@ -78,27 +53,23 @@
         }
 
         .header-group label {
-            font-size: 0.95rem;
-            min-width: 140px;
-            font-weight: bold;
+            font-size: 0.9rem;
+            opacity: 0.9;
+            min-width: 130px;
+            font-weight: normal;
             margin: 0;
-            color: #ffffff;
         }
 
         .header-group input, .header-group select {
-            background: rgba(255, 255, 255, 0.25);
-            border: 1px solid rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
             color: white;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 0.95rem;
-            height: 38px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            height: 35px;
             flex: 1;
             box-sizing: border-box;
-        }
-
-        .header-group input::placeholder {
-            color: rgba(255, 255, 255, 0.7);
         }
 
         .header-group select option {
@@ -110,15 +81,8 @@
             background: var(--card-bg);
             padding: 20px;
             border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(10,37,64,0.08);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             margin-bottom: 20px;
-        }
-
-        h3 {
-            color: var(--primary);
-            margin-top: 0;
-            border-bottom: 2px solid #e1e8ed;
-            padding-bottom: 8px;
         }
 
         .form-group {
@@ -130,7 +94,6 @@
             font-weight: bold;
             margin-bottom: 5px;
             font-size: 0.9rem;
-            color: var(--primary);
         }
 
         .input-scan-group {
@@ -141,28 +104,22 @@
         input, select, textarea {
             width: 100%;
             padding: 12px;
-            border: 1px solid #ced4da;
+            border: 1px solid #ccc;
             border-radius: 6px;
             box-sizing: border-box;
             font-size: 1rem;
             background-color: #fff;
             height: 45px;
-            color: var(--primary);
         }
 
         textarea { height: auto; }
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: var(--secondary-blue);
-            box-shadow: 0 0 0 3px rgba(32,99,155,0.15);
-        }
 
         .btn-scan {
             width: auto;
             padding: 0 15px;
-            background: var(--primary);
-            color: white;
-            border: 1px solid var(--primary);
+            background: #1a1a1a;
+            color: var(--accent);
+            border: 1px solid var(--accent);
             border-radius: 6px;
             font-weight: bold;
             cursor: pointer;
@@ -174,7 +131,6 @@
             font-size: 0.9rem;
         }
 
-        /* ZONE PHOTO & SCAN CAPTURE MANUELLE ET FLUX */
         #scanner-zone {
             display: none;
             margin: 15px 0;
@@ -183,15 +139,11 @@
             overflow: hidden;
             position: relative;
             padding: 10px;
-            text-align: center;
         }
 
-        #native-video { 
-            width: 100%; 
-            max-height: 280px; 
-            background: #000; 
-            border-radius: 6px;
-            display: block;
+        #reader {
+            width: 100%;
+            background: #000;
         }
 
         .scanner-controls {
@@ -211,10 +163,9 @@
             font-size: 0.95rem;
         }
 
-        .btn-capture { background: #28a745; border: none; }
-        .btn-close { background: var(--accent); border: none; }
+        .btn-capture { background: #28a745; }
+        .btn-close { background: #dc3545; }
 
-        /* ZONE DE ROGNAGE INTEGREE SANS COMPOSANTS EXTERNES PLANTEURS */
         #crop-zone {
             display: none;
             background: #111;
@@ -224,37 +175,24 @@
             color: white;
             text-align: center;
         }
-        
-        .crop-box-viewport {
-            position: relative;
+        .crop-container {
             max-width: 100%;
-            height: 260px;
+            height: 320px;
             margin: 10px auto;
             background: #222;
             border-radius: 6px;
             overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
-
-        #image-to-crop {
+        .crop-container img {
             max-width: 100%;
             max-height: 100%;
-            object-fit: contain;
+            display: block;
         }
-
-        .crop-overlay-frame {
-            position: absolute;
-            border: 3px dashed var(--yellow-logo);
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
-            width: 85%;
-            height: 40%;
-            pointer-events: none;
-            box-sizing: border-box;
+        .crop-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
         }
-
-        .crop-buttons { display: flex; gap: 10px; margin-top: 15px; }
         .crop-buttons button {
             flex: 1;
             padding: 14px;
@@ -275,7 +213,7 @@
             background: #f8f9fa;
             padding: 10px;
             border-radius: 6px;
-            border: 1px solid #e1e8ed;
+            border: 1px solid #eee;
         }
 
         button {
@@ -286,16 +224,10 @@
             font-size: 1rem;
             font-weight: bold;
             cursor: pointer;
-            transition: background 0.2s;
         }
 
-        .btn-add { background: var(--secondary-blue); color: white; margin-top: 10px; }
-        
-        .btn-export { 
-            background: var(--yellow-logo); 
-            color: #000000; 
-            margin-top: 20px; 
-        }
+        .btn-add { background: var(--accent); color: white; margin-top: 10px; }
+        .btn-export { background: #e67e22; color: white; margin-top: 20px; }
 
         .photo-container {
             margin-top: 10px;
@@ -309,7 +241,7 @@
             height: 40px;
             object-fit: fill;
             border-radius: 4px;
-            border: 1px solid var(--secondary-blue);
+            border: 1px solid var(--accent);
         }
 
         .table-container {
@@ -325,17 +257,18 @@
         }
 
         th, td {
-            border: 1px solid #ced4da;
+            border: 1px solid #ddd;
             padding: 10px;
             text-align: left;
         }
 
-        th { background: #f8f9fa; font-weight: bold; color: var(--primary); }
+        th { background: #eee; font-weight: bold; }
 
         .zone-header-row {
-            background-color: #e6f0fa !important;
+            background-color: #dfd5c2 !important;
             font-weight: bold;
-            color: var(--primary);
+            color: #1a1a1a;
+            font-size: 0.95rem;
             text-align: center;
             padding: 6px;
         }
@@ -350,24 +283,7 @@
 <body>
 
     <header>
-        <div class="header-top-row">
-            <h1>Visite de Maintenance Préventive</h1>
-            <div class="header-logo-container">
-                <svg viewBox="0 0 130 75" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="130" height="75" fill="#0a2540" rx="8"/>
-                    
-                    <circle cx="34" cy="34" r="19" fill="#f2a900"/>
-                    <path d="M15 34 H53 M34 15 V53" stroke="#0a2540" stroke-width="3"/>
-                    <circle cx="34" cy="34" r="11" stroke="#0a2540" stroke-width="2" fill="none"/>
-                    
-                    <text x="60" y="30" font-family="'Arial Black', Gadget, sans-serif" font-size="16" font-weight="900" fill="#ffffff" letter-spacing="0.5">TRAC</text>
-                    <text x="60" y="49" font-family="'Arial Black', Gadget, sans-serif" font-size="16" font-weight="900" fill="#d92727" letter-spacing="0.5">INFO</text>
-                    
-                    <path d="M12 62 L42 59 L65 64 L90 59 L118 62" stroke="#d92727" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-                </svg>
-            </div>
-        </div>
-        
+        <h1>Visite de Maintenance Préventive</h1>
         <div class="header-inputs">
             <div class="header-group">
                 <label for="headerSite">Client / Site :</label>
@@ -398,23 +314,21 @@
     </header>
 
     <div id="scanner-zone">
-        <video id="native-video" autoplay playsinline></video>
-        <input type="file" id="fallback-file-input" accept="image/*" capture="environment" style="display:none;">
+        <div id="reader"></div>
         <div class="scanner-controls">
-            <div class="btn-action-scanner btn-capture" onclick="captureNativeFrame()">⚡ LIRE CE VISUEL</div>
-            <div class="btn-action-scanner btn-close" onclick="stopNativeScanner()">Fermer</div>
+            <div class="btn-action-scanner btn-capture" onclick="forceCaptureAndDecode()">⚡ LIRE CE VISUEL</div>
+            <div class="btn-action-scanner btn-close" onclick="stopScanner()">Fermer</div>
         </div>
     </div>
 
     <div id="crop-zone">
-        <h4 style="margin-top:0;">Ajustement de l'image (Format Vignette)</h4>
-        <div class="crop-box-viewport">
-            <img id="image-to-crop" src="" alt="Cible">
-            <div class="crop-overlay-frame"></div>
+        <h4 style="margin-top:0;">Recadrez l'élément à conserver (Format 10x4)</h4>
+        <div class="crop-container">
+            <img id="image-to-crop" src="" alt="A découper">
         </div>
         <div class="crop-buttons">
-            <button type="button" style="background:#28a745; color:white;" onclick="processNativeCrop()">Valider le rognage</button>
-            <button type="button" style="background:var(--accent); color:white;" onclick="cancelNativeCrop()">Annuler</button>
+            <button type="button" style="background:#28a745; color:white;" onclick="validateCrop()">Valider la sélection</button>
+            <button type="button" style="background:#dc3545; color:white;" onclick="cancelCrop()">Annuler</button>
         </div>
     </div>
 
@@ -431,7 +345,7 @@
                 <label for="printerType">Imprimante (Modèle & Type de tête)</label>
                 <div class="input-scan-group">
                     <input type="text" id="printerType" placeholder="Ex: ZT420 8 DOTS, ZT231...">
-                    <button type="button" class="btn-scan" onclick="launchSecureCapture('printerType')">📷 Scan</button>
+                    <button type="button" class="btn-scan" onclick="startScanner('printerType')">📷 Scan</button>
                 </div>
             </div>
 
@@ -444,7 +358,7 @@
                 <label for="serial">S/N (Numéro de série)</label>
                 <div class="input-scan-group">
                     <input type="text" id="serial" placeholder="Flasher le S/N en ligne...">
-                    <button type="button" class="btn-scan" onclick="launchSecureCapture('serial')">📷 Scan</button>
+                    <button type="button" class="btn-scan" onclick="startScanner('serial')">📷 Scan</button>
                 </div>
             </div>
 
@@ -461,7 +375,7 @@
                         <select id="cellules">
                             <option value="OK">OK</option>
                             <option value="NOK">NOK</option>
-                            <option value="">Non renseigné</option>
+                            <option value="">Non renseigné (Non vu)</option>
                         </select>
                     </div>
                     <div class="status-box">
@@ -471,7 +385,7 @@
                             <option value="Nombreuses dots HS">Nombreuses dots HS</option>
                             <option value="Défaut dots">Défaut dots / HS</option>
                             <option value="NOK">NOK</option>
-                            <option value="">Non renseigné</option>
+                            <option value="">Non renseigné (Non vu)</option>
                         </select>
                     </div>
                     <div class="status-box">
@@ -481,7 +395,7 @@
                             <option value="Cutter">Cutter (Coup de cutter)</option>
                             <option value="Coups de cutter">Coups de cutter</option>
                             <option value="NOK">NOK</option>
-                            <option value="">Non renseigné</option>
+                            <option value="">Non renseigné (Non vu)</option>
                         </select>
                     </div>
                     <div class="status-box">
@@ -489,7 +403,7 @@
                         <select id="impression">
                             <option value="OK">OK</option>
                             <option value="NOK">NOK</option>
-                            <option value="">Non renseigné</option>
+                            <option value="">Non renseigné (Non vu)</option>
                         </select>
                     </div>
                 </div>
@@ -539,13 +453,11 @@
         let reportData = [];
         const previewContainer = document.getElementById('previewContainer');
         let currentPhotos = [];
+        let html5QrcodeScanner = null;
         let activeTargetId = null;
-        let localVideoStream = null;
+        let cropperInstance = null;
 
-        // Base64 épurée et fiable du logo TRACINFO pour l'intégration automatique dans MS Word
-        const WORD_LOGO_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAGQAAABGAwMAAAAUK57NAAAABlBMVEUAIwX///9eN7gFAAAAAXRSTlMAQObYZgAAADlJREFUOMtjYKA7YGBgYGBwYGBgYmBiYgIDRhwKGBgYmBiYwIDhBoYgZgMDwz8GBgYmBiYwYMRBAADZpAyme99VAAAAAElFTkSuQmCC";
-
-        // --- SAUVEGARDE & PERSISTANCE ---
+        // --- GESTION DE LA PERSISTANCE (LOCALSTORAGE) ---
         function saveAppStateToLocalStorage() {
             localStorage.setItem('preventive_reportData', JSON.stringify(reportData));
             localStorage.setItem('preventive_site', document.getElementById('headerSite').value);
@@ -560,9 +472,15 @@
                 reportData = JSON.parse(savedData);
                 renderTable();
             }
-            if (localStorage.getItem('preventive_site')) document.getElementById('headerSite').value = localStorage.getItem('preventive_site');
-            if (localStorage.getItem('preventive_brand')) document.getElementById('headerBrand').value = localStorage.getItem('preventive_brand');
-            if (localStorage.getItem('preventive_intervenant')) document.getElementById('headerIntervenant').value = localStorage.getItem('preventive_intervenant');
+            if (localStorage.getItem('preventive_site') !== null) {
+                document.getElementById('headerSite').value = localStorage.getItem('preventive_site');
+            }
+            if (localStorage.getItem('preventive_brand') !== null) {
+                document.getElementById('headerBrand').value = localStorage.getItem('preventive_brand');
+            }
+            if (localStorage.getItem('preventive_intervenant') !== null) {
+                document.getElementById('headerIntervenant').value = localStorage.getItem('preventive_intervenant');
+            }
             if (localStorage.getItem('preventive_date')) {
                 document.getElementById('headerDate').value = localStorage.getItem('preventive_date');
             } else {
@@ -570,21 +488,24 @@
             }
         }
 
+        function clearLocalStorageData() {
+            localStorage.removeItem('preventive_reportData');
+            localStorage.removeItem('preventive_site');
+            localStorage.removeItem('preventive_brand');
+            localStorage.removeItem('preventive_intervenant');
+            localStorage.removeItem('preventive_date');
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             loadAppStateFromLocalStorage();
+
             document.getElementById('headerSite').addEventListener('input', saveAppStateToLocalStorage);
             document.getElementById('headerBrand').addEventListener('change', saveAppStateToLocalStorage);
             document.getElementById('headerIntervenant').addEventListener('change', saveAppStateToLocalStorage);
             document.getElementById('headerDate').addEventListener('change', saveAppStateToLocalStorage);
-            
-            // Écouteur pour la méthode fichier si la vidéo en direct est bloquée par l'OS du smartphone
-            document.getElementById('fallback-file-input').addEventListener('change', function(e) {
-                if (e.target.files.length === 0) return;
-                parseFileAndExtractText(e.target.files[0]);
-            });
         });
 
-        // --- DÉDUCTION DES MACHINES ---
+        // --- LOGIQUE DE L'APPLICATION ---
         function getModelFromSerialNumber(sn) {
             const snUpper = sn.toUpperCase().trim();
             if (snUpper.startsWith("18J")) return "ZT420 8 DOTS";
@@ -595,23 +516,49 @@
             if (snUpper.startsWith("52J")) return "ZT230 8 DOTS";
             if (snUpper.startsWith("51J")) return "ZT220 8 DOTS";
             if (snUpper.startsWith("10J")) return "ZT410 8 DOTS";
-            if (snUpper.startsWith("11J")) return "ZT411 12 DOTS";
+            if (snUpper.startsWith("11J")) return "ZT411 8 DOTS";
             if (snUpper.startsWith("41J")) return "ZT510 8 DOTS";
             if (snUpper.startsWith("48J")) return "ZT610 8 DOTS";
             if (snUpper.startsWith("ZM4")) return "ZM400 8 DOTS";
             if (snUpper.startsWith("ZM6")) return "ZM600 8 DOTS";
+            if (snUpper.startsWith("105SL") || snUpper.startsWith("15J")) return "105SL Plus";
+            if (snUpper.startsWith("220X")) return "220Xi4";
+            if (snUpper.startsWith("110X")) return "110Xi4";
+            if (snUpper.startsWith("ZD4") || snUpper.startsWith("D4J")) return "ZD420 / ZD421 Desktop";
+            if (snUpper.startsWith("ZD2") || snUpper.startsWith("D2J")) return "ZD220 / ZD230 Desktop";
+            if (snUpper.startsWith("GK4")) return "GK420t / GK420d";
+            if (snUpper.startsWith("GX4")) return "GX420 / GX430";
+            if (snUpper.startsWith("307") || snUpper.startsWith("308")) return "Intermec PF4i";
+            if (snUpper.startsWith("305") || snUpper.startsWith("306")) return "Intermec PM4i";
+            if (snUpper.startsWith("301") || snUpper.startsWith("302")) return "Intermec PD41 / PD42";
+            if (snUpper.startsWith("PM43") || snUpper.startsWith("223")) return "Honeywell PM43";
+            if (snUpper.startsWith("PC43") || snUpper.startsWith("234")) return "Honeywell PC43t";
+            if (snUpper.startsWith("PX4") || snUpper.startsWith("PX6")) return "Intermec PX4i / PX6i";
             return "";
         }
 
         function processScannedBarcode(rawValue) {
             let cleanStr = rawValue.trim();
+            if (cleanStr.startsWith("[)>") || cleanStr.includes("05800") || cleanStr.includes("3056T")) {
+                const patterns = /(T3J\d+|18J\d+|19J\d+|99J\d+|98J\d+|52J\d+|51J\d+|10J\d+|11J\d+|41J\d+|48J\d+|ZM\d+|307\d+|308\d+|305\d+|223\d+|234\d+)/i;
+                const match = cleanStr.match(patterns);
+                if (match) { cleanStr = match[1].toUpperCase(); } else {
+                    cleanStr = cleanStr.replace(/^.*?3056T/i, '');
+                    cleanStr = cleanStr.replace(/[^a-zA-Z0-9]/g, '');
+                }
+            }
             cleanStr = cleanStr.replace(/^(S:|s:|P:|p:|1P|1p|Q|K)/, '').trim();
+            if (cleanStr.toUpperCase().startsWith("SERIAL #")) {
+                cleanStr = cleanStr.replace(/SERIAL #\s*/i, "").trim();
+            }
+
             if (!activeTargetId) return false;
 
             if (activeTargetId === 'printerType') {
                 document.getElementById('printerType').value = getModelFromSerialNumber(cleanStr) || cleanStr;
                 return true;
             }
+
             if (activeTargetId === 'serial') {
                 document.getElementById('serial').value = cleanStr;
                 const currentModelInput = document.getElementById('printerType').value;
@@ -624,120 +571,133 @@
             return false;
         }
 
-        // --- SYSTÈME DE CAPTURE CAMÉRA SECURISE SANS DEPENDANCES ---
-        function launchSecureCapture(targetId) {
+        function startScanner(targetId) {
             activeTargetId = targetId;
             document.getElementById('scanner-zone').style.display = 'block';
-            
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-                .then(function(stream) {
-                    localVideoStream = stream;
-                    const videoElement = document.getElementById('native-video');
-                    videoElement.srcObject = stream;
-                    videoElement.style.display = 'block';
-                })
-                .catch(function(err) {
-                    // Si l'OS bloque le flux continu, on simule l'ouverture via l'appareil photo natif
-                    switchToNativeCameraFallback();
-                });
-            } else {
-                switchToNativeCameraFallback();
-            }
-        }
-
-        function switchToNativeCameraFallback() {
-            document.getElementById('native-video').style.display = 'none';
-            document.getElementById('fallback-file-input').click();
-        }
-
-        function captureNativeFrame() {
-            const video = document.getElementById('native-video');
-            if (!video || !localVideoStream) {
-                switchToNativeCameraFallback();
-                return;
-            }
-            const canvas = document.createElement("canvas");
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 480;
-            canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            // Simulation algorithmique autonome pour les tests terrain
-            executeFallbackTextPrompt();
-        }
-
-        function parseFileAndExtractText(file) {
-            const reader = new FileReader();
-            reader.onload = function() {
-                executeFallbackTextPrompt();
+            html5QrcodeScanner = new Html5Qrcode("reader");
+            const config = {
+                fps: 30,
+                videoConstraints: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+                qrbox: function(w, h) { return { width: Math.floor(w * 0.90), height: Math.floor(h * 0.22) }; },
+                formatsToSupport: [Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39]
             };
-            reader.readAsDataURL(file);
+            html5QrcodeScanner.start({ facingMode: "environment" }, config,
+                (txt) => { if (processScannedBarcode(txt)) { if (navigator.vibrate) navigator.vibrate(80); stopScanner(); } },
+                (err) => {}
+            ).catch(() => { alert("Erreur d'accès à la caméra."); document.getElementById('scanner-zone').style.display = 'none'; });
         }
 
-        function executeFallbackTextPrompt() {
-            stopNativeScanner();
-            const inputVal = prompt("Saisissez ou collez la valeur lue (S/N ou Modèle) :");
-            if (inputVal && inputVal.trim() !== "") {
-                processScannedBarcode(inputVal);
-            }
+        function forceCaptureAndDecode() {
+            const video = document.querySelector("#reader video");
+            if (!video) return;
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+            canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+            html5QrcodeScanner.scanFile(canvasToBlob(canvas), false)
+                .then(txt => { if (processScannedBarcode(txt)) { if (navigator.vibrate) navigator.vibrate(120); stopScanner(); } else { proposerSaisieAlternative(); } })
+                .catch(() => proposerSaisieAlternative());
         }
 
-        function stopNativeScanner() {
-            document.getElementById('scanner-zone').style.display = 'none';
-            if (localVideoStream) {
-                localVideoStream.getTracks().forEach(track => track.stop());
-                localVideoStream = null;
-            }
+        function canvasToBlob(canvas) {
+            var dataURL = canvas.toDataURL('image/jpeg');
+            var bytes = atob(dataURL.split(',')[1]);
+            var arr = new ArrayBuffer(bytes.length);
+            var ua = new Uint8Array(arr);
+            for (var i = 0; i < bytes.length; i++) { ua[i] = bytes.charCodeAt(i); }
+            return new File([arr], "capture.jpg", {type: "image/jpeg"});
         }
 
-        // --- SYSTÈME DE ROGNAGE VISUEL INTÉGRÉ ---
+        function proposerSaisieAlternative() {
+            const p = prompt("Code-barres non lisible automatiquement. Saisissez la valeur manuellement :");
+            if (p && p.trim() !== "") { processScannedBarcode(p); stopScanner(); }
+        }
+
+        function stopScanner() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().then(() => { document.getElementById('scanner-zone').style.display = 'none'; html5QrcodeScanner = null; })
+                .catch(() => { document.getElementById('scanner-zone').style.display = 'none'; html5QrcodeScanner = null; });
+            } else { document.getElementById('scanner-zone').style.display = 'none'; }
+        }
+
         document.getElementById('photo').addEventListener('change', function(e) {
             if(e.target.files.length === 0) return;
             const file = e.target.files[0];
             const reader = new FileReader();
+            
             reader.onload = function(evt) {
-                document.getElementById('image-to-crop').src = evt.target.result;
+                const imageToCrop = document.getElementById('image-to-crop');
+                imageToCrop.src = evt.target.result;
                 document.getElementById('crop-zone').style.display = 'block';
+
+                if(cropperInstance) { cropperInstance.destroy(); }
+                
+                cropperInstance = new Cropper(imageToCrop, {
+                    aspectRatio: 2.5,
+                    viewMode: 1,
+                    autoCropArea: 0.8,
+                    responsive: true,
+                    restore: false,
+                    guides: true,
+                    highlight: false,
+                    cropBoxMovable: true,
+                    cropBoxResizable: true,
+                    toggleDragModeOnDblclick: false
+                });
             };
             reader.readAsDataURL(file);
         });
 
-        function processNativeCrop() {
-            const img = document.getElementById('image-to-crop');
-            const canvas = document.createElement('canvas');
-            // Sauvegarde de la vignette dans des dimensions optimisées
-            canvas.width = 600; 
-            canvas.height = 240;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, 600, 240);
+        function validateCrop() {
+            if(!cropperInstance) return;
             
-            const croppedUrl = canvas.toDataURL('image/jpeg', 0.85);
-            previewContainer.innerHTML = `<img src="${croppedUrl}" class="photo-preview">`;
-            currentPhotos = [croppedUrl];
+            const canvas = cropperInstance.getCroppedCanvas({
+                width: 1000,
+                height: 400,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high'
+            });
+            
+            const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            
+            previewContainer.innerHTML = '';
+            const previewImg = document.createElement('img');
+            previewImg.src = croppedDataUrl;
+            previewImg.classList.add('photo-preview');
+            previewContainer.appendChild(previewImg);
+            
+            currentPhotos = [croppedDataUrl];
             
             document.getElementById('crop-zone').style.display = 'none';
+            cropperInstance.destroy();
+            cropperInstance = null;
         }
 
-        function cancelNativeCrop() {
+        function cancelCrop() {
             document.getElementById('crop-zone').style.display = 'none';
             document.getElementById('photo').value = '';
-            currentPhotos = [];
+            if(cropperInstance) { 
+                cropperInstance.destroy(); 
+                cropperInstance = null; 
+            }
         }
 
-        // --- TRAITEMENT DU FORMULAIRE ET EXPORTATION ---
         function formatRemarqueHTML(text) {
             if (!text) return "";
-            let lines = text.split(/[\n-]+/);
-            let formattedLines = lines.map(line => {
+            
+            let lines = text.split(/\s*-\s*/);
+            let formattedLines = lines.map((line, index) => {
                 line = line.trim();
                 if (!line) return "";
-                const criticalWords = ["tête", "tete", "changer", "hs", "remplacer", "manque", "platen", "roller", "cutter"];
-                if (criticalWords.some(w => line.toLowerCase().includes(w))) {
-                    return `- <strong style="color: #d92727;">${line}</strong>`;
+                
+                const words = ["Tête à changer", "Tete a changer", "Prévoir", "Prevoir", "Remplacer", "Changement", "A changer", "HS"];
+                if (words.some(w => line.toLowerCase().includes(w.toLowerCase()))) {
+                    line = `<strong style="color: #b30000;">${line}</strong>`;
                 }
+                
                 return `- ${line}`;
             }).filter(l => l !== "");
-            return formattedLines.join('<br style="mso-data-placement:same-cell;">');
+
+            return formattedLines.join('<br>');
         }
 
         function renderTable() {
@@ -749,12 +709,13 @@
             reportData.forEach(item => { if (!zones.includes(item.zone)) zones.push(item.zone); });
 
             zones.forEach(z => {
+                const zoneData = reportData.filter(item => item.zone === z);
                 if (z !== "") {
                     tbody.innerHTML += `<tr><td class="zone-header-row">${z.toUpperCase()}</td></tr>`;
                 }
-                reportData.filter(item => item.zone === z).forEach(d => {
+                zoneData.forEach(d => {
                     tbody.innerHTML += `<tr>
-                        <td><span class="green-arrow">➜</span> S/N : <b>${d.serial}</b> ${d.lieuId ? `<span style="color:#666; font-size:0.85rem; font-style:italic; margin-left:10px;">(${d.lieuId})</span>` : ''}</td>
+                        <td><span class="green-arrow">➜</span> S/N : <b>${d.serial}</b> ${d.lieuId ? `<span style="color:#666; font-size:0.85rem; font-style:italic; margin-left: 10px;">(${d.lieuId})</span>` : ''}</td>
                     </tr>`;
                 });
             });
@@ -764,7 +725,7 @@
             e.preventDefault();
             const model = document.getElementById('printerType').value.trim();
             const id = document.getElementById('printerId').value.trim();
-            if(!model && !id) return alert("Renseignez le modèle ou l'ID de la machine avant d'ajouter.");
+            if(!model && !id) return alert("Renseignez le modèle ou l'ID.");
 
             reportData.push({
                 zone: document.getElementById('printerZone').value.trim(),
@@ -781,7 +742,8 @@
                 photos: [...currentPhotos]
             });
             
-            renderTable(); saveAppStateToLocalStorage();
+            renderTable();
+            saveAppStateToLocalStorage();
             
             document.getElementById('printerType').value = ''; document.getElementById('printerId').value = '';
             document.getElementById('serial').value = ''; document.getElementById('ipAddress').value = '';
@@ -789,14 +751,18 @@
             previewContainer.innerHTML = ''; currentPhotos = [];
         });
 
+        // --- EXPORTATION MISE À JOUR AVEC REMARQUES ET TEXTE CORRIGÉ ---
         document.getElementById('exportBtn').addEventListener('click', function(e) {
             e.preventDefault();
-            if(reportData.length === 0) return alert('Aucune donnée à exporter.');
+            if(reportData.length === 0) return alert('Aucune donnée à exporter');
             
             const site = document.getElementById('headerSite').value || 'N/A';
             const tech = document.getElementById('headerIntervenant').value;
             const brandSelection = document.getElementById('headerBrand').value;
             const dateV = document.getElementById('headerDate').value ? new Date(document.getElementById('headerDate').value).toLocaleDateString('fr-FR') : 'N/A';
+
+            // Ajout correct et dynamique du terme "imprimantes"
+            let dynamicSubtitle = "Parc d'imprimantes " + brandSelection;
 
             let boundary = "NEXT_PART_BOUNDARY_MARKER";
             let mhtml = `MIME-Version: 1.0\nContent-Type: multipart/related; boundary="${boundary}"\n\n`;
@@ -810,84 +776,74 @@
             <style>
                 @page Section1 {
                     size: 11.0in 8.5in;
-                    margin: 0.4in 0.4in 0.4in 0.4in;
+                    margin: 0.3in 0.3in 0.3in 0.3in;
                     mso-page-orientation: landscape;
                 }
                 div.Section1 { page: Section1; }
                 
                 body, p, table, td, th, span { 
                     font-family: 'Arial', sans-serif; 
-                    color: #0a2540;
-                    line-height: 1.2 !important;
+                    color: #1a1a1a;
+                    line-height: 1.0 !important;
                     margin-top: 0in !important;
                     margin-bottom: 0in !important;
+                    mso-line-height-rule: exactly;
                 }
                 
-                .title-doc { font-size: 18pt; font-weight: bold; color: #0a2540; }
-                .subtitle-doc { font-size: 12pt; font-weight: bold; color: #20639b; margin-bottom: 10pt !important; }
+                .title-doc { font-size: 17pt; font-weight: bold; margin-bottom: 2pt !important; }
+                .subtitle-doc { font-size: 12pt; font-weight: bold; color: #c5a059; margin-bottom: 10pt !important; }
                 
-                .meta-table { width: 100%; margin-bottom: 10pt !important; border: 2px solid #0a2540; padding: 10px; background: #ffffff; }
-                .meta-box { font-size: 10pt; color: #0a2540; vertical-align: middle; }
-                .meta-box td { padding: 3px 0px; }
-                .logo-header-zone { text-align: right; vertical-align: middle; padding-right: 5px; }
+                .meta-box { font-size: 10pt; margin-bottom: 5pt !important; }
+                .meta-box td { padding: 1px 0px; }
                 
                 .main-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
                 .main-table th { 
-                    background: #0a2540; 
-                    color: #ffffff;
-                    border: 1px solid #0a2540; 
-                    padding: 6px 3px !important; 
+                    background: #f2f2f2; 
+                    border: 1px solid #555555; 
+                    padding: 3px 2px !important; 
                     font-size: 9pt; 
                     font-weight: bold; 
                     text-align: center;
                 }
                 .main-table td { 
-                    border: 1px solid #ced4da; 
-                    padding: 5px 6px !important; 
+                    border: 1px solid #cccccc; 
+                    padding: 2px 3px !important; 
                     font-size: 8.5pt; 
                     vertical-align: middle;
-                    word-wrap: break-word;
                 }
                 
                 .col-printer { width: 15%; }  
                 .col-sn { width: 15%; }       
-                .col-cell { width: 8%; }
+                .col-cell { width: 7%; }
                 .col-dot { width: 11%; }
                 .col-roll { width: 11%; }
-                .col-print-st { width: 8%; }
-                .col-gen { width: 7%; }
-                .col-rem { width: 25%; }      
+                .col-print-st { width: 7%; }
+                .col-gen { width: 6%; }
+                .col-rem { width: 28%; }      
 
-                .row-zone { background-color: #e6f0fa; font-weight: bold; font-size: 9pt; color: #0a2540; text-align: center; padding: 4px !important; border: 1px solid #ced4da; }
+                .row-zone { background-color: #dfd5c2; font-weight: bold; font-size: 9pt; color: #1a1a1a; text-align: center; padding: 2px !important; }
                 .center { text-align: center; }
 
-                .annexe-title { font-size: 13pt; font-weight: bold; color: #0a2540; margin-top: 20pt !important; margin-bottom: 8pt !important; page-break-before: always; }
+                .annexe-title { font-size: 14pt; font-weight: bold; color: #1a1a1a; margin-top: 20pt !important; margin-bottom: 8pt !important; page-break-before: always; }
                 .annexe-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-                .annexe-table td { border: 1px solid #ced4da; padding: 8px; vertical-align: top; background: #f8f9fa; }
+                .annexe-table td { border: 1px solid #dddddd; padding: 6px; vertical-align: top; background: #fafafa; }
+                .photo-block { font-size: 8.5pt; text-align: left; }
+                .photo-wrapper { text-align: center; margin-top: 4px; }
             </style>
             </head>
             <body>
             <div class="Section1">
                 <p class="title-doc">RAPPORT DE MAINTENANCE PRÉVENTIVE</p>
-                <p class="subtitle-doc">Parc d'imprimantes ${brandSelection}</p>
+                <p class="subtitle-doc">${dynamicSubtitle}</p>
                 
-                <table class="meta-table" cellspacing="0" cellpadding="0" border="0">
-                    <tr>
-                        <td class="meta-box" width="75%">
-                            <table cellspacing="0" cellpadding="0" border="0" width="100%">
-                                <tr><td width="25%"><b>Client / Site :</b></td><td>${site}</td></tr>
-                                <tr><td><b>Équipement du site :</b></td><td>${brandSelection}</td></tr>
-                                <tr><td><b>Intervenant(s) :</b></td><td>${tech}</td></tr>
-                                <tr><td><b>Date de visite :</b></td><td>${dateV}</td></tr>
-                            </table>
-                        </td>
-                        <td class="logo-header-zone" width="25%">
-                            <img width="113" height="76" src="cid:logo_officiel.png" style="width:3.0cm; height:2.0cm;">
-                        </td>
-                    </tr>
+                <table class="meta-box" cellspacing="0" cellpadding="0" border="0">
+                    <tr><td><b>Client / Site :</b></td><td style="padding-left:10px;">${site}</td></tr>
+                    <tr><td><b>Équipement du site :</b></td><td style="padding-left:10px;">${brandSelection}</td></tr>
+                    <tr><td><b>Intervenant(s) :</b></td><td style="padding-left:10px;">${tech}</td></tr>
+                    <tr><td><b>Date de visite :</b></td><td style="padding-left:10px;">${dateV}</td></tr>
                 </table>
 
-                <p style="margin-top: 5pt !important;">&nbsp;</p>
+                <p style="margin-top: 12pt !important; margin-bottom: 0in !important;">&nbsp;</p>
 
                 <table class="main-table">
                     <thead>
@@ -912,13 +868,14 @@
             let photosToRender = [];
 
             zones.forEach(z => {
+                const zoneData = reportData.filter(item => item.zone === z);
                 if (z !== "") {
                     wordHtml += `<tr><td colspan="8" class="row-zone">${z.toUpperCase()}</td></tr>`;
                 }
 
-                reportData.filter(item => item.zone === z).forEach(d => {
+                zoneData.forEach(d => {
                     let labelLieu = d.lieuId ? `<br><span style="color:#555555; font-size:7.5pt; font-style:italic;">${d.lieuId}</span>` : '';
-                    let ipDisplay = d.ip ? `<br><span style="color:#20639b; font-size:7.5pt;">${d.ip}</span>` : '';
+                    let ipDisplay = d.ip ? `<br><span style="color:#444444; font-size:7.5pt;">${d.ip}</span>` : '';
 
                     wordHtml += `<tr>
                         <td><b>${d.modele}</b>${labelLieu}</td>
@@ -936,13 +893,19 @@
                         let base64Data = d.photos[0].split(',')[1];
                         let imageLocation = `annexe_photo_${imageCounter}.jpg`;
                         
-                        photosToRender.push({ cid: imageLocation, modele: d.modele, lieuId: d.lieuId, serial: d.serial });
+                        photosToRender.push({
+                            cid: imageLocation,
+                            modele: d.modele,
+                            lieuId: d.lieuId,
+                            serial: d.serial
+                        });
 
                         attachedParts += `--${boundary}\n`;
                         attachedParts += `Content-ID: <${imageLocation}>\n`;
                         attachedParts += `Content-Location: ${imageLocation}\n`;
                         attachedParts += `Content-Transfer-Encoding: base64\n`;
-                        attachedParts += `Content-Type: image/jpeg\n\n${base64Data}\n\n`;
+                        attachedParts += `Content-Type: image/jpeg\n\n`;
+                        attachedParts += base64Data + "\n\n";
                     }
                 });
             });
@@ -952,44 +915,71 @@
             if (photosToRender.length > 0) {
                 wordHtml += `<p class="annexe-title">ANNEXE PHOTOGRAPHIQUE (CONSTATS TERRAIN)</p>`;
                 wordHtml += `<table class="annexe-table"><tbody>`;
+                
                 for (let i = 0; i < photosToRender.length; i += 2) {
                     wordHtml += `<tr>`;
+                    
                     let p1 = photosToRender[i];
                     wordHtml += `<td>
-                        <div style="font-size:8.5pt;"><b>Machine : ${p1.modele}</b><br>${p1.lieuId ? `Lieu : <i>${p1.lieuId}</i><br>` : ''}S/N : <b>${p1.serial}</b></div>
-                        <div style="text-align:center; margin-top:4px;"><img width="310" height="124" src="cid:${p1.cid}" style="width:310px; height:124px; border:1px solid #ced4da;"></div>
+                        <div class="photo-block">
+                            <b>Machine : ${p1.modele}</b><br>
+                            ${p1.lieuId ? `Lieu : <i>${p1.lieuId}</i><br>` : ''}
+                            S/N : <b>${p1.serial}</b>
+                        </div>
+                        <div class="photo-wrapper">
+                            <img width="310" height="124" src="cid:${p1.cid}" style="width:310px; height:124px; border:1px solid #cccccc;">
+                        </div>
                     </td>`;
+                    
                     if (i + 1 < photosToRender.length) {
                         let p2 = photosToRender[i + 1];
                         wordHtml += `<td>
-                            <div style="font-size:8.5pt;"><b>Machine : ${p2.modele}</b><br>${p2.lieuId ? `Lieu : <i>${p2.lieuId}</i><br>` : ''}S/N : <b>${p2.serial}</b></div>
-                            <div style="text-align:center; margin-top:4px;"><img width="310" height="124" src="cid:${p2.cid}" style="width:310px; height:124px; border:1px solid #ced4da;"></div>
+                            <div class="photo-block">
+                                <b>Machine : ${p2.modele}</b><br>
+                                ${p2.lieuId ? `Lieu : <i>${p2.lieuId}</i><br>` : ''}
+                                S/N : <b>${p2.serial}</b>
+                            </div>
+                            <div class="photo-wrapper">
+                                <img width="310" height="124" src="cid:${p2.cid}" style="width:310px; height:124px; border:1px solid #cccccc;">
+                            </div>
                         </td>`;
                     } else {
                         wordHtml += `<td style="border:none; background:transparent;"></td>`;
                     }
+                    
                     wordHtml += `</tr>`;
                 }
+                
                 wordHtml += `</tbody></table>`;
             }
 
             wordHtml += `</div></body></html>\n\n`;
             
-            attachedParts += `--${boundary}\n`;
-            attachedParts += `Content-ID: <logo_officiel.png>\n`;
-            attachedParts += `Content-Location: logo_officiel.png\n`;
-            attachedParts += `Content-Transfer-Encoding: base64\n`;
-            attachedParts += `Content-Type: image/png\n\n${WORD_LOGO_BASE64}\n\n`;
-
             let finalDoc = mhtml + wordHtml + attachedParts + `--${boundary}--`;
+
             let blob = new Blob([finalDoc], { type: 'application/vnd.ms-word;charset=utf-8' });
             let url = URL.createObjectURL(blob);
             
-            let filename = `Rapport_Maintenance_${site.replace(/[^a-zA-Z0-9]/g, "_")}_${dateV.replace(/\//g, "-")}.doc`;
+            let cleanSiteName = site.replace(/[^a-zA-Z0-9]/g, "_");
+            let cleanDate = dateV.replace(/\//g, "-");
+            let filename = `Rapport_Maintenance_${cleanSiteName}_${cleanDate}.doc`;
+
             let a = document.createElement('a');
-            a.href = url; a.download = filename; a.style.display = 'none';
-            document.body.appendChild(a); a.click();
-            setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 300);
+            a.href = url;
+            a.download = filename;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            
+            try {
+                a.click();
+            } catch (err) {
+                console.error(err);
+            }
+            
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 300);
         });
     </script>
 </body>
