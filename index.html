@@ -36,22 +36,23 @@
             border-bottom: 4px solid var(--accent);
             display: flex;
             flex-direction: row;
-            align-items: center; /* Aligne verticalement le logo et le contenu */
-            gap: 20px;
+            align-items: center; /* Centrage vertical du logo avec les champs */
+            gap: 25px;
         }
 
-        /* LOGO REPLACÉ À GAUCHE ET CENTRÉ VERTICALEMENT */
+        /* LOGO APPLICATIF EN HAUT À GAUCHE CENTRÉ */
         .header-logo-container {
             background: white;
-            padding: 6px;
+            padding: 8px;
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 115px;
-            height: 78px;
+            width: 120px;
+            height: 82px;
             box-sizing: border-box;
             flex-shrink: 0;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
         }
 
         .header-logo-container img {
@@ -65,7 +66,7 @@
         }
 
         header h1 { 
-            margin: 0 0 12px 0; 
+            margin: 0 0 15px 0; 
             font-size: 1.4rem; 
             color: #ffffff; 
         }
@@ -83,24 +84,27 @@
         }
 
         .header-group label {
-            font-size: 0.9rem;
-            opacity: 0.9;
-            min-width: 130px;
-            font-weight: normal;
+            font-size: 0.95rem;
+            min-width: 140px;
+            font-weight: bold;
             margin: 0;
-            color: white;
+            color: #ffffff;
         }
 
         .header-group input, .header-group select {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.2); /* Plus opaque pour une meilleure lisibilité */
+            border: 1px solid rgba(255, 255, 255, 0.5);
             color: white;
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-size: 0.9rem;
-            height: 35px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            height: 38px;
             flex: 1;
             box-sizing: border-box;
+        }
+
+        .header-group input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
         }
 
         .header-group select option {
@@ -205,8 +209,8 @@
             font-size: 0.95rem;
         }
 
-        .btn-capture { background: #28a745; }
-        .btn-close { background: var(--accent); }
+        .btn-capture { background: #28a745; border: none; }
+        .btn-close { background: var(--accent); border: none; }
 
         #crop-zone {
             display: none;
@@ -315,7 +319,6 @@
             margin-right: 5px;
         }
 
-        /* Alignement du logo applicatif en bas de page à gauche */
         .footer-logo-container {
             display: flex;
             justify-content: flex-start;
@@ -421,7 +424,7 @@
 
             <div class="form-group">
                 <label for="ipAddress">@ IP</label>
-                <input type="text" id="ipAddress" placeholder="Ex: 192.168.1.50">
+                <input type="text" id="ipAddress" placeholder="Ex: 172.16.82.52">
             </div>
 
             <div class="form-group">
@@ -480,4 +483,54 @@
                 <textarea id="remarque" rows="3" placeholder="Saisir les remarques... Ex: - Nettoyage effectué - Tête à changer"></textarea>
             </div>
 
-            <div class="
+            <div class="form-group">
+                <label for="photo">Photos des défauts / panne (Optionnel)</label>
+                <input type="file" id="photo" accept="image/*" capture="environment" style="padding:5px; height:auto;">
+                <div class="photo-container" id="previewContainer"></div>
+            </div>
+
+            <button type="button" class="btn-add" id="addBtn">Ajouter au tableau</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>Imprimantes enregistrées (<span id="count">0</span>)</h3>
+        <div class="table-container">
+            <table id="summaryTable">
+                <thead>
+                    <tr>
+                        <th>Numéros de Série (S/N) enregistrés</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                </tbody>
+            </table>
+        </div>
+        <button type="button" class="btn-export" id="exportBtn">Exporter le rapport officiel (.doc)</button>
+    </div>
+
+    <div class="footer-logo-container">
+        <img class="footer-logo" id="app-footer-img" src="" alt="Logo" />
+    </div>
+
+    <script>
+        let reportData = [];
+        const previewContainer = document.getElementById('previewContainer');
+        let currentPhotos = [];
+        let html5QrcodeScanner = null;
+        let activeTargetId = null;
+        let cropperInstance = null;
+
+        // Base64 intégrale et certifiée du logo officiel
+        const LOGO_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAJYAAABmCAMAAADgE2SFAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAMaeVExURX6m/n9m////8/Hwfv7mvr9mvz/mf3+mfv+mvj9mvr+mvr9mfr9mfj8mfn9mvr9mvv+mvv9m/z+m/v8mvr9mfz9mvr9mvz+mvv+mvz+m/z+mvr9mvr9mvz+m/3+mvr9mvz+m/39m///m/z+mvr9mv39m///mfr9mvz+m/z+mv3+mvr9mfz+mvr9mfz9mvr9mfz+mvr9mfz9mvr9mfz9mvr9mfz9mvr+mfr9mvr9mfz+mfr9mvz+mvz+m/z+mvz+mvr9mfv9mfz+mv39m/z9mvz+m/3+mfz+mfr9mvr9mfr9mvr9mfn9mv39m/z+mvr9mfn9mvv9mvv9mfn9mvr9mvr9mv39mfr9mfv9mv39mfr9mfz9mv39m///mv39mfr9mfn9mvz9mv39mfr+mv39mfr9mfn9mfr9mvr9mfn9mvr9mf39mfz9mfr9mfn9mfr9mfn9mv39mfn9mfr9mvr9mfn9mv39mfn9mvr+mfn9mv39mvz9mv39mfr+mfn9mf39mf39mfr+mfn9mfr9mfn9mv39mfv9mv39mfn9mfz9mv39mv39mf39mv39mv39mv39mv39mf39mfr+mfn9mfn9mfr+mfn9mf39mf39mfr+mfn9mfn9mv39mf39mfr+mfn9mfr9mfn9mv39mfr+mfn9mv39mfn9mfr9mfn9mfr9mfn9mf39mfr+mfn+mfn9mf39mv39mf39mv39mv39mv39mv39mfn9mfn9mfr9mfn9mfn9mfr+mfn9mfn9mv39mfn9mv39mv39mf39mfr9mfn9mfn9mv39mf39mf39mf39mf39mfn+mfn9mv39mv39mv39mf39mv39mv39mv39mv39mv39mf39mf39mfn9mfn9mv39mfn9mv39mv39mf39mv39mv39mv39mv39mv39mv39mv39mf39mv39mfn9mfn+mfn9mfn+mfn9mv39mf39mf39mf39mv39mv39mv39mv39mv39mf39mv39mfn9mfn9mv39mfn9mv39mv39mf39m///mf39mfn9mfn9mv39mf39mf39mv39mv39mv39mf39m///mZ04VtoAAAA9dFJOUwCgUGCg8P8wIP//gEDw/8D/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";
+
+        // Injection des images
+        document.getElementById('app-header-img').src = "data:image/png;base64," + LOGO_BASE64;
+        document.getElementById('app-footer-img').src = "data:image/png;base64," + LOGO_BASE64;
+
+        // --- ENREGISTREMENT ET PERSISTANCE ---
+        function saveAppStateToLocalStorage() {
+            localStorage.setItem('preventive_reportData', JSON.stringify(reportData));
+            localStorage.setItem('preventive_site', document.getElementById('headerSite').value);
+            localStorage.setItem('preventive_brand', document.getElementById('headerBrand').value);
+            localStorage.setItem('preventive_intervenant',
