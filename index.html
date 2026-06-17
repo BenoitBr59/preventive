@@ -1,176 +1,388 @@
-<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<!DOCTYPE html>
+<html lang="fr">
 <head>
-<meta charset="utf-8">
-<style>
-    @page Section1 {
-        size: 11.0in 8.5in;
-        margin: 0.4in 0.4in 0.4in 0.4in;
-        mso-page-orientation: landscape;
-    }
-    div.Section1 { page: Section1; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rapport de Maintenance Préventive</title>
     
-    body, p, table, td, th, span { 
-        font-family: 'Arial', sans-serif; 
-        color: #0a2540; /* Bleu Nuit */
-        line-height: 1.1 !important;
-        margin-top: 0in !important;
-        margin-bottom: 0in !important;
-        mso-line-height-rule: exactly;
-    }
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     
-    .title-doc { font-size: 18pt; font-weight: bold; color: #0a2540; margin-bottom: 2pt !important; }
-    .subtitle-doc { font-size: 12pt; font-weight: bold; color: #20639b; margin-bottom: 12pt !important; }
-    
-    /* Encadré d'en-tête modifié pour intégrer le logo à droite */
-    .meta-table { width: 100%; margin-bottom: 5pt !important; }
-    .meta-box { font-size: 10pt; color: #0a2540; width: 70%; }
-    .meta-box td { padding: 2px 0px; }
-    .logo-header-zone { width: 30%; text-align: right; vertical-align: middle; }
-    
-    .main-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    .main-table th { 
-        background: #0a2540; 
-        color: #ffffff;
-        border: 1px solid #0a2540; 
-        padding: 4px 2px !important; 
-        font-size: 9pt; 
-        font-weight: bold; 
-        text-align: center;
-    }
-    .main-table td { 
-        border: 1px solid #ced4da; 
-        padding: 3px 4px !important; 
-        font-size: 8.5pt; 
-        vertical-align: middle;
-    }
-    
-    .col-printer { width: 15%; }  
-    .col-sn { width: 15%; }       
-    .col-cell { width: 7%; }
-    .col-dot { width: 11%; }
-    .col-roll { width: 11%; }
-    .col-print-st { width: 7%; }
-    .col-gen { width: 6%; }
-    .col-rem { width: 28%; }      
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 
-    .row-zone { background-color: #e6f0fa; font-weight: bold; font-size: 9pt; color: #0a2540; text-align: center; padding: 3px !important; border: 1px solid #ced4da; }
-    .center { text-align: center; }
+    <style>
+        :root {
+            --primary: #0a2540; /* Bleu Nuit du Logo */
+            --accent: #d92727;  /* Rouge Vif du Logo */
+            --bg: #f4f7fa;      /* Fond très légèrement bleuté */
+            --card-bg: #ffffff;
+            --secondary-blue: #20639b; /* Bleu secondaire */
+        }
 
-    .annexe-title { font-size: 13pt; font-weight: bold; color: #0a2540; margin-top: 20pt !important; margin-bottom: 8pt !important; page-break-before: always; }
-    .annexe-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    .annexe-table td { border: 1px solid #ced4da; padding: 6px; vertical-align: top; background: #f8f9fa; }
-    .photo-block { font-size: 8.5pt; text-align: left; }
-    .photo-wrapper { text-align: center; margin-top: 4px; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--primary);
+            margin: 0;
+            padding: 15px;
+        }
 
-    /* Alignement du logo en bas de page à gauche */
-    .word-footer {
-        margin-top: 30px !important;
-        text-align: left;
-        width: 100%;
-    }
-</style>
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border-bottom: 4px solid var(--accent);
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+        }
+
+        .header-left {
+            flex: 1;
+        }
+
+        header h1 { 
+            margin: 0 0 15px 0; 
+            font-size: 1.4rem; 
+            color: #ffffff; 
+        }
+
+        .header-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .header-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-group label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            min-width: 130px;
+            font-weight: normal;
+            margin: 0;
+            color: white;
+        }
+
+        .header-group input, .header-group select {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            height: 35px;
+            flex: 1;
+            box-sizing: border-box;
+        }
+
+        .header-group select option {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        /* Container du logo en haut à droite du header */
+        .header-logo-container {
+            background: white;
+            padding: 5px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 113px;
+            height: 76px;
+            box-sizing: border-box;
+            align-self: center;
+        }
+
+        .header-logo-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(10,37,64,0.08);
+            margin-bottom: 20px;
+        }
+
+        h3 {
+            color: var(--primary);
+            margin-top: 0;
+            border-bottom: 2px solid #e1e8ed;
+            padding-bottom: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: var(--primary);
+        }
+
+        .input-scan-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1rem;
+            background-color: #fff;
+            height: 45px;
+            color: var(--primary);
+        }
+
+        textarea { height: auto; }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--secondary-blue);
+            box-shadow: 0 0 0 3px rgba(32,99,155,0.15);
+        }
+
+        .btn-scan {
+            width: auto;
+            padding: 0 15px;
+            background: var(--primary);
+            color: white;
+            border: 1px solid var(--primary);
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        #scanner-zone {
+            display: none;
+            margin: 15px 0;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            padding: 10px;
+        }
+
+        #reader { width: 100%; background: #000; }
+
+        .scanner-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn-action-scanner {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 6px;
+            color: white;
+            font-size: 0.95rem;
+        }
+
+        .btn-capture { background: #28a745; }
+        .btn-close { background: var(--accent); }
+
+        #crop-zone {
+            display: none;
+            background: #111;
+            padding: 15px;
+            border-radius: 12px;
+            margin: 15px 0;
+            color: white;
+            text-align: center;
+        }
+        .crop-container {
+            max-width: 100%;
+            height: 320px;
+            margin: 10px auto;
+            background: #222;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .crop-container img { max-width: 100%; max-height: 100%; display: block; }
+        .crop-buttons { display: flex; gap: 10px; margin-top: 15px; }
+        .crop-buttons button {
+            flex: 1;
+            padding: 14px;
+            font-size: 0.95rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .grid-status {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .status-box {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #e1e8ed;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-add { background: var(--secondary-blue); color: white; margin-top: 10px; }
+        .btn-export { background: var(--accent); color: white; margin-top: 20px; }
+
+        .photo-container {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .photo-preview {
+            width: 100px;
+            height: 40px;
+            object-fit: fill;
+            border-radius: 4px;
+            border: 1px solid var(--secondary-blue);
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+            margin-bottom: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ced4da;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th { background: #f8f9fa; font-weight: bold; color: var(--primary); }
+
+        .zone-header-row {
+            background-color: #e6f0fa !important;
+            font-weight: bold;
+            color: var(--primary);
+            font-size: 0.95rem;
+            text-align: center;
+            padding: 6px;
+            border-left: 4px solid var(--secondary-blue);
+        }
+
+        .green-arrow {
+            color: #28a745;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        /* Alignement du logo applicatif en bas de page à gauche */
+        .footer-logo-container {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #e1e8ed;
+        }
+        .footer-logo {
+            width: 113px;  /* 3cm environ à l'écran */
+            height: 76px;  /* 2cm environ à l'écran */
+            object-fit: contain;
+        }
+    </style>
 </head>
 <body>
-<div class="Section1">
-    <p class="title-doc">RAPPORT DE MAINTENANCE PRÉVENTIVE</p>
-    <p class="subtitle-doc">Parc d'imprimantes ZEBRA</p>
-    
-    <!-- Table d'en-tête avec les informations et le logo intégré à droite -->
-    <table class="meta-table" cellspacing="0" cellpadding="0" border="0">
-        <tr>
-            <td class="meta-box">
-                <table cellspacing="0" cellpadding="0" border="0" width="100%">
-                    <tr><td><b>Client / Site :</b></td><td style="padding-left:10px;">Test </td></tr>
-                    <tr><td><b>Équipement du site :</b></td><td style="padding-left:10px;">ZEBRA</td></tr>
-                    <tr><td><b>Intervenant(s) :</b></td><td style="padding-left:10px;">Pascal CARTON & Benoit BRACKMAN</td></tr>
-                    <tr><td><b>Date de visite :</b></td><td style="padding-left:10px;">17/06/2026</td></tr>
-                </table>
-            </td>
-            <td class="logo-header-zone">
-                <img width="113" height="76" src="cid:logo_officiel.png" style="width:3.0cm; height:2.0cm;" alt="Logo Application">
-            </td>
-        </tr>
-    </table>
 
-    <p style="margin-top: 12pt !important; margin-bottom: 0in !important;">&nbsp;</p>
+    <header>
+        <div class="header-left">
+            <h1>Visite de Maintenance Préventive</h1>
+            <div class="header-inputs">
+                <div class="header-group">
+                    <label for="headerSite">Client / Site :</label>
+                    <input type="text" id="headerSite" placeholder="Nom du client ou du site...">
+                </div>
+                <div class="header-group">
+                    <label for="headerBrand">Équipement du site :</label>
+                    <select id="headerBrand">
+                        <option value="ZEBRA">Imprimantes ZEBRA</option>
+                        <option value="INTERMEC">Imprimantes INTERMEC</option>
+                        <option value="HONEYWELL">Imprimantes HONEYWELL</option>
+                        <option value="ZEBRA & INTERMEC">Imprimantes ZEBRA & INTERMEC</option>
+                    </select>
+                </div>
+                <div class="header-group">
+                    <label for="headerIntervenant">Intervenant(s) :</label>
+                    <select id="headerIntervenant">
+                        <option value="Pascal CARTON & Benoit BRACKMAN">Pascal CARTON & Benoit BRACKMAN</option>
+                        <option value="Pascal CARTON">Pascal CARTON</option>
+                        <option value="Benoit BRACKMAN">Benoit BRACKMAN</option>
+                    </select>
+                </div>
+                <div class="header-group">
+                    <label for="headerDate">Date de visite :</label>
+                    <input type="date" id="headerDate">
+                </div>
+            </div>
+        </div>
+        <div class="header-logo-container">
+            <img id="app-header-img" src="" alt="Logo">
+        </div>
+    </header>
 
-    <table class="main-table">
-        <thead>
-            <tr>
-                <th class="col-printer">Imprimante / Lieu</th>
-                <th class="col-sn">S/N<br>@ IP</th>
-                <th class="col-cell">Cellules</th>
-                <th class="col-dot">Etat dot</th>
-                <th class="col-roll">Pressing Roller</th>
-                <th class="col-print-st">Impression</th>
-                <th class="col-gen">Etat Général</th>
-                <th class="col-rem">Remarques / Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr><td colspan="8" class="row-zone">TEST</td></tr>
-            <tr>
-                <td><b>ZT421 8 DOTS</b><br><span style="color:#555555; font-size:7.5pt; font-style:italic;">Test</span></td>
-                <td class="center"><b>99J194300197</b><br><span style="color:#20639b; font-size:7.5pt;">192.168.213.136</span></td>
-                <td class="center">OK</td>
-                <td class="center">Nombreuses dots HS</td>
-                <td class="center">Cutter</td>
-                <td class="center">OK</td>
-                <td class="center">Voir Rem</td>
-                <td>
-                    - <strong style="color: #d92727;">nombreuses dots HS prévoir changement tête d'impression</strong><br>
-                    - <strong style="color: #d92727;">manque matière sur platen prévoir changement</strong>
-                </td>
-            </tr>
-            <tr><td colspan="8" class="row-zone">TEST 2</td></tr>
-            <tr>
-                <td><b>ZT231 8 DOTS</b><br><span style="color:#555555; font-size:7.5pt; font-style:italic;">Test2</span></td>
-                <td class="center"><b>T3J231903809</b><br><span style="color:#20639b; font-size:7.5pt;">192.168.213.163</span></td>
-                <td class="center">OK</td>
-                <td class="center">Nombreuses dots HS</td>
-                <td class="center">OK</td>
-                <td class="center">OK</td>
-                <td class="center">Voir Rem</td>
-                <td>
-                    - <strong style="color: #d92727;">Nombreuses dots HS prévoir changement</strong>
-                </td>
-            </tr>
-        </tbody>
-    </table>
-
-    <p class="annexe-title">ANNEXE PHOTOGRAPHIQUE (CONSTATS TERRAIN)</p>
-    <table class="annexe-table">
-        <tbody>
-            <tr>
-                <td>
-                    <div class="photo-block">
-                        <b>Machine : ZT421 8 DOTS</b><br>
-                        Lieu : <i>Test</i><br>
-                        S/N : <b>99J194300197</b>
-                    </div>
-                    <div class="photo-wrapper">
-                        <img width="310" height="124" src="cid:annexe_photo_1.jpg" style="width:310px; height:124px; border:1px solid #ced4da;">
-                    </div>
-                </td>
-                <td>
-                    <div class="photo-block">
-                        <b>Machine : ZT231 8 DOTS</b><br>
-                        Lieu : <i>Test2</i><br>
-                        S/N : <b>T3J231903809</b>
-                    </div>
-                    <div class="photo-wrapper">
-                        <img width="310" height="124" src="cid:annexe_photo_2.jpg" style="width:310px; height:124px; border:1px solid #ced4da;">
-                    </div>
-                </td>
-            </tr>
-        </tbody>
-    </table>
-
-    <!-- Pied de page avec le logo aligné à gauche -->
-    <div class="word-footer">
-        <br><br>
-        <img width="113" height="76" src="cid:logo_officiel.png" style="width:3.0cm; height:2.0cm;" alt="Logo Officiel">
+    <div id="scanner-zone">
+        <div id="reader"></div>
+        <div class="scanner-controls">
+            <div class="btn-action-scanner btn-capture" onclick="forceCaptureAndDecode()">⚡ LIRE CE VISUEL</div>
+            <div class="btn-action-scanner btn-close" onclick="stopScanner()">Fermer</div>
+        </div>
     </div>
-</div>
-</body>
-</html>
+
+    <div id="crop-zone">
+        <h4 style="margin-top:0;">Recadrez l'élément à conserver (Format 10x4)</h4>
+        <div class="crop-container">
+            <img id="image-to-crop" src="" alt="A découper">
+        </div>
+        <div class="crop-buttons">
+            <button type="button" style="background:#28a745; color:white;" onclick="validateCrop()">Valider la sélection</button>
+            <button type="button" style="background:var(--accent); color:white
