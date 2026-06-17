@@ -12,12 +12,12 @@
 
     <style>
         :root {
-            --primary: #0a2540; /* Bleu Nuit du Logo */
-            --accent: #d92727;  /* Rouge Vif du Logo */
-            --yellow-logo: #f2a900; /* Jaune Officiel du Logo */
-            --bg: #f4f7fa;      /* Fond très légèrement bleuté */
+            --primary: #0a2540; /* Bleu Nuit */
+            --accent: #d92727;  /* Rouge Vif */
+            --yellow-logo: #f2a900; /* Jaune Officiel */
+            --bg: #f4f7fa;      
             --card-bg: #ffffff;
-            --secondary-blue: #20639b; /* Bleu secondaire */
+            --secondary-blue: #20639b; 
         }
 
         body {
@@ -52,7 +52,7 @@
             flex: 1;
         }
 
-        /* LOGO PLACÉ À DROITE DU TITRE */
+        /* CONTENEUR DU LOGO À DROITE DU TITRE */
         .header-logo-container {
             background: white;
             padding: 5px;
@@ -67,10 +67,9 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.15);
         }
 
-        .header-logo-container img {
+        .header-logo-container svg {
             width: 100%;
             height: 100%;
-            object-fit: contain;
         }
 
         .header-inputs {
@@ -337,7 +336,14 @@
         <div class="header-top-row">
             <h1>Visite de Maintenance Préventive</h1>
             <div class="header-logo-container">
-                <img id="app-header-img" src="" alt="Logo">
+                <svg viewBox="0 0 120 70" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="120" height="70" fill="#0a2540" rx="4"/>
+                    <circle cx="35" cy="35" r="18" fill="#f2a900"/>
+                    <path d="M25 35 L45 35 M35 25 L35 45" stroke="#0a2540" stroke-width="4"/>
+                    <text x="62" y="32" font-family="Arial, sans-serif" font-size="16" font-weight="900" fill="#ffffff">TRAC</text>
+                    <text x="62" y="48" font-family="Arial, sans-serif" font-size="15" font-weight="900" fill="#d92727">INFO</text>
+                    <rect x="5" y="60" width="110" height="4" fill="#d92727"/>
+                </svg>
             </div>
         </div>
         
@@ -514,11 +520,8 @@
         let activeTargetId = null;
         let cropperInstance = null;
 
-        // Base64 restaurée du logo officiel
-        const LOGO_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAJYAAABmCAMAAADgE2SFAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAMaeVExURX6m/n9m////8/Hwfv7mvr9mvz/mf3+mfv+mvj9mvr+mvr9mfr9mfj8mfn9mvr9mvv+mvv9m/z+m/v8mvr9mfz9mvr9mvz+mvv+mvz+m/z+mvr9mvr9mvz+m/3+mvr9mvz+m/39m///m/z+mvr9mv39m///mfr9mvz+m/z+mv3+mvr9mfz+mvr9mfz9mvr9mfz+mvr9mfz9mvr9mfz9mvr9mfz9mvr+mfr9mvr9mfz+mfr9mvz+mvz+m/z+mvz+mvr9mfv9mfz+mv39m/z9mvz+m/3+mfz+mfr9mvr9mfr9mvr9mfn9mv39m/z+mvr9mfn9mvv9mvv9mfn9mvr9mvr9mv39mfr9mfv9mv39mfr9mfz9mv39m///mv39mfr9mfn9mvz9mv39mfr+mv39mfr9mfn9mfr9mvr9mfn9mvr9mf39mfz9mfr9mfn9mfr9mfn9mv39mfn9mfr9mvr9mfn9mv39mfn9mvr+mfn9mv39mvz9mv39mfr+mfn9mf39mf39mfr+mfn9mfr9mfn9mv39mfv9mv39mfn9mfz9mv39mv39mf39mv39mv39mv39mv39mf39mfr+mfn9mfn9mfr+mfn9mf39mf39mfr+mfn9mfn9mv39mf39mfr+mfn9mfr9mfn9mv39mfr+mfn9mv39mfn9mfr9mfn9mfr9mfn9mf39mfr+mfn+mfn9mf39mv39mf39mv39mv39mv39mv39mfn9mfn9mfr9mfn9mfn9mfr+mfn9mfn9mv39mfn9mv39mv39mf39mfr9mfn9mfn9mv39mf39mf39mf39mf39mfn+mfn9mv39mv39mv39mf39mv39mv39mv39mv39mv39mf39mf39mfn9mfn9mv39mfn9mv39mv39mf39mv39mv39mv39mv39mv39mv39mv39mf39mv39mfn9mfn+mfn9mfn+mfn9mv39mf39mf39mf39mv39mv39mv39mv39mv39mf39mv39mfn9mfn9mv39mfn9mv39mv39mf39m///mf39mfn9mfn9mv39mf39mf39mv39mv39mv39mf39m///mZ04VtoAAAA9dFJOUwCgUGCg8P8wIP//gEDw/8D/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";
-
-        // Injection automatique du logo en haut
-        document.getElementById('app-header-img').src = "data:image/png;base64," + LOGO_BASE64;
+        // Base64 simplifiée et robuste du logo de repli technique pour le fichier Word exporté
+        const WORD_LOGO_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAGQAAABGAwMAAAAUK57NAAAABlBMVEUAIwX///9eN7gFAAAAAXRSTlMAQObYZgAAADlJREFUOMtjYKA7YGBgYGBwYGBgYmBiYgIDRhwKGBgYmBiYwIDhBoYgZgMDwz8GBgYmBiYwYMRBAADZpAyme99VAAAAAElFTkSuQmCC";
 
         // --- ENREGISTREMENT ET PERSISTANCE ---
         function saveAppStateToLocalStorage() {
@@ -587,33 +590,4 @@
                 document.getElementById('printerType').value = getModelFromSerialNumber(cleanStr) || cleanStr;
                 return true;
             }
-            if (activeTargetId === 'serial') {
-                document.getElementById('serial').value = cleanStr;
-                const currentModelInput = document.getElementById('printerType').value;
-                if (!currentModelInput) {
-                    const deduced = getModelFromSerialNumber(cleanStr);
-                    if (deduced) document.getElementById('printerType').value = deduced;
-                }
-                return true;
-            }
-            return false;
-        }
-
-        function startScanner(targetId) {
-            activeTargetId = targetId;
-            document.getElementById('scanner-zone').style.display = 'block';
-            
-            if (html5QrcodeScanner) {
-                html5QrcodeScanner.clear();
-            }
-            
-            html5QrcodeScanner = new Html5Qrcode("reader");
-            const config = {
-                fps: 30,
-                qrbox: function(w, h) { return { width: Math.floor(w * 0.90), height: Math.floor(h * 0.30) }; },
-                formatsToSupport: [Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39]
-            };
-            html5QrcodeScanner.start({ facingMode: "environment" }, config,
-                (txt) => { if (processScannedBarcode(txt)) { stopScanner(); } },
-                (err) => {}
-            ).catch(() => { alert("Erreur d'accès caméra. Veuillez rééssayer."); });
+            if (activeTargetId === 'serial')
