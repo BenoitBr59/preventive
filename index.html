@@ -14,6 +14,7 @@
         :root {
             --primary: #0a2540; /* Bleu Nuit du Logo */
             --accent: #d92727;  /* Rouge Vif du Logo */
+            --yellow-logo: #f2a900; /* Jaune Officiel du Logo */
             --bg: #f4f7fa;      /* Fond très légèrement bleuté */
             --card-bg: #ffffff;
             --secondary-blue: #20639b; /* Bleu secondaire */
@@ -48,9 +49,10 @@
             margin: 0; 
             font-size: 1.4rem; 
             color: #ffffff; 
+            flex: 1;
         }
 
-        /* LOGO PLACÉ À CÔTÉ DU TITRE */
+        /* LOGO PLACÉ À DROITE DU TITRE */
         .header-logo-container {
             background: white;
             padding: 5px;
@@ -58,8 +60,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 90px;
-            height: 60px;
+            width: 95px;
+            height: 65px;
             box-sizing: border-box;
             flex-shrink: 0;
             box-shadow: 0 2px 4px rgba(0,0,0,0.15);
@@ -266,7 +268,16 @@
         }
 
         .btn-add { background: var(--secondary-blue); color: white; margin-top: 10px; }
-        .btn-export { background: var(--accent); color: white; margin-top: 20px; }
+        
+        /* BOUTON EXPORT EN JAUNE ASSORTI AU LOGO */
+        .btn-export { 
+            background: var(--yellow-logo); 
+            color: #000000; 
+            margin-top: 20px; 
+        }
+        .btn-export:hover {
+            background: #e09b00;
+        }
 
         .photo-container {
             margin-top: 10px;
@@ -317,20 +328,6 @@
             color: #28a745;
             font-weight: bold;
             margin-right: 5px;
-        }
-
-        .footer-logo-container {
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            margin-top: 30px;
-            padding-top: 15px;
-            border-top: 1px solid #e1e8ed;
-        }
-        .footer-logo {
-            width: 113px;
-            height: 76px;
-            object-fit: contain;
         }
     </style>
 </head>
@@ -509,10 +506,6 @@
         <button type="button" class="btn-export" id="exportBtn">Exporter le rapport officiel (.doc)</button>
     </div>
 
-    <div class="footer-logo-container">
-        <img class="footer-logo" id="app-footer-img" src="" alt="Logo" />
-    </div>
-
     <script>
         let reportData = [];
         const previewContainer = document.getElementById('previewContainer');
@@ -521,11 +514,11 @@
         let activeTargetId = null;
         let cropperInstance = null;
 
-        // Chaîne Base64 complète et certifiée
-        const LOGO_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAJYAAABmCAMAAADgE2SFAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAMaeVExURX6m/n9m////8/Hwfv7mvr9mvz/mf3+mfv+mvj9mvr+mvr9mfr9mfj8mfn9mvr9mvv+mvv9m/z+m/v8mvr9mfz9mvr9mvz+mvv+mvz+m/z+mvr9mvr9mvz+m/3+mvr9mvz+m/39m///m/z+mvr9mv39m///mfr9mvz+m/z+mv3+mvr9mfz+mvr9mfz9mvr9mfz+mvr9mfz9mvr9mfz9mvr9mfz9mvr+mfr9mvr9mfz+mfr9mvz+mvz+m/z+mvz+mvr9mfv9mfz+mv39m/z9mvz+m/3+mfz+mfr9mvr9mfr9mvr9mfn9mv39m/z+mvr9mfn9mvv9mvv9mfn9mvr9mvr9mv39mfr9mfv9mv39mfr9mfz9mv39m///mv39mfr9mfn9mvz9mv39mfr+mv39mfr9mfn9mfr9mvr9mfn9mvr9mf39mfz9mfr9mfn9mfr9mfn9mv39mfn9mfr9mvr9mfn9mv39mfn9mvr+mfn9mv39mvz9mv39mfr+mfn9mf39mf39mfr+mfn9mfr9mfn9mv39mfv9mv39mfn9mfz9mv39mv39mf39mv39mv39mv39mv39mf39mfr+mfn9mfn9mfr+mfn9mf39mf39mfr+mfn9mfn9mv39mf39mfr+mfn9mfr9mfn9mv39mfr+mfn9mv39mfn9mfr9mfn9mfr9mfn9mf39mfr+mfn+mfn9mf39mv39mf39mv39mv39mv39mv39mfn9mfn9mfr9mfn9mfn9mfr+mfn9mfn9mv39mfn9mv39mv39mf39mfr9mfn9mfn9mv39mf39mf39mf39mf39mfn+mfn9mv39mv39mv39mf39mv39mv39mv39mv39mv39mf39mf39mfn9mfn9mv39mfn9mv39mv39mf39mv39mv39mv39mv39mv39mv39mv39mf39mv39mfn9mfn+mfn9mfn+mfn9mv39mf39mf39mf39mv39mv39mv39mv39mv39mf39mv39mfn9mfn9mv39mfn9mv39mv39mf39m///mf39mfn9mfn9mv39mf39mf39mv39mv39mv39mf39m///mZ04VtoAAAA9dFJOUwCgUGCg8P8wIP//gEDw/8D/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";
+        // Base64 restaurée du logo officiel
+        const LOGO_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAJYAAABmCAMAAADgE2SFAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAMaeVExURX6m/n9m////8/Hwfv7mvr9mvz/mf3+mfv+mvj9mvr+mvr9mfr9mfj8mfn9mvr9mvv+mvv9m/z+m/v8mvr9mfz9mvr9mvz+mvv+mvz+m/z+mvr9mvr9mvz+m/3+mvr9mvz+m/39m///m/z+mvr9mv39m///mfr9mvz+m/z+mv3+mvr9mfz+mvr9mfz9mvr9mfz+mvr9mfz9mvr9mfz9mvr9mfz9mvr+mfr9mvr9mfz+mfr9mvz+mvz+m/z+mvz+mvr9mfv9mfz+mv39m/z9mvz+m/3+mfz+mfr9mvr9mfr9mvr9mfn9mv39m/z+mvr9mfn9mvv9mvv9mfn9mvr9mvr9mv39mfr9mfv9mv39mfr9mfz9mv39m///mv39mfr9mfn9mvz9mv39mfr+mv39mfr9mfn9mfr9mvr9mfn9mvr9mf39mfz9mfr9mfn9mfr9mfn9mv39mfn9mfr9mvr9mfn9mv39mfn9mvr+mfn9mv39mvz9mv39mfr+mfn9mf39mf39mfr+mfn9mfr9mfn9mv39mfv9mv39mfn9mfz9mv39mv39mf39mv39mv39mv39mv39mf39mfr+mfn9mfn9mfr+mfn9mf39mf39mfr+mfn9mfn9mv39mf39mfr+mfn9mfr9mfn9mv39mfr+mfn9mv39mfn9mfr9mfn9mfr9mfn9mf39mfr+mfn+mfn9mf39mv39mf39mv39mv39mv39mv39mfn9mfn9mfr9mfn9mfn9mfr+mfn9mfn9mv39mfn9mv39mv39mf39mfr9mfn9mfn9mv39mf39mf39mf39mf39mfn+mfn9mv39mv39mv39mf39mv39mv39mv39mv39mv39mf39mf39mfn9mfn9mv39mfn9mv39mv39mf39mv39mv39mv39mv39mv39mv39mv39mf39mv39mfn9mfn+mfn9mfn+mfn9mv39mf39mf39mf39mv39mv39mv39mv39mv39mf39mv39mfn9mfn9mv39mfn9mv39mv39mf39m///mf39mfn9mfn9mv39mf39mf39mv39mv39mv39mf39m///mZ04VtoAAAA9dFJOUwCgUGCg8P8wIP//gEDw/8D/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";
 
+        // Injection automatique du logo en haut
         document.getElementById('app-header-img').src = "data:image/png;base64," + LOGO_BASE64;
-        document.getElementById('app-footer-img').src = "data:image/png;base64," + LOGO_BASE64;
 
         // --- ENREGISTREMENT ET PERSISTANCE ---
         function saveAppStateToLocalStorage() {
@@ -624,355 +617,3 @@
                 (txt) => { if (processScannedBarcode(txt)) { stopScanner(); } },
                 (err) => {}
             ).catch(() => { alert("Erreur d'accès caméra. Veuillez rééssayer."); });
-        }
-
-        function forceCaptureAndDecode() {
-            const video = document.querySelector("#reader video");
-            if (!video) return;
-            const canvas = document.createElement("canvas");
-            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-            canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
-            html5QrcodeScanner.scanFile(canvasToBlob(canvas), false)
-                .then(txt => { if (processScannedBarcode(txt)) { stopScanner(); } else { proposerSaisieAlternative(); } })
-                .catch(() => proposerSaisieAlternative());
-        }
-
-        function canvasToBlob(canvas) {
-            var dataURL = canvas.toDataURL('image/jpeg');
-            var bytes = atob(dataURL.split(',')[1]);
-            var arr = new ArrayBuffer(bytes.length);
-            var ua = new Uint8Array(arr);
-            for (var i = 0; i < bytes.length; i++) { ua[i] = bytes.charCodeAt(i); }
-            return new File([arr], "capture.jpg", {type: "image/jpeg"});
-        }
-
-        function proposerSaisieAlternative() {
-            const p = prompt("Code-barres non lisible automatiquement. Saisissez la valeur manuellement :");
-            if (p && p.trim() !== "") { processScannedBarcode(p); stopScanner(); }
-        }
-
-        function stopScanner() {
-            if (html5QrcodeScanner) {
-                html5QrcodeScanner.stop().then(() => { 
-                    document.getElementById('scanner-zone').style.display = 'none'; 
-                    html5QrcodeScanner = null; 
-                }).catch(() => {
-                    document.getElementById('scanner-zone').style.display = 'none';
-                });
-            } else { document.getElementById('scanner-zone').style.display = 'none'; }
-        }
-
-        // --- PHOTOS ET RECADRAGE ---
-        document.getElementById('photo').addEventListener('change', function(e) {
-            if(e.target.files.length === 0) return;
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                const imageToCrop = document.getElementById('image-to-crop');
-                imageToCrop.src = evt.target.result;
-                document.getElementById('crop-zone').style.display = 'block';
-                if(cropperInstance) { cropperInstance.destroy(); }
-                cropperInstance = new Cropper(imageToCrop, { aspectRatio: 2.5, viewMode: 1 });
-            };
-            reader.readAsDataURL(file);
-        });
-
-        function validateCrop() {
-            if(!cropperInstance) return;
-            const canvas = cropperInstance.getCroppedCanvas({ width: 1000, height: 400 });
-            const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-            previewContainer.innerHTML = `<img src="${croppedDataUrl}" class="photo-preview">`;
-            currentPhotos = [croppedDataUrl];
-            document.getElementById('crop-zone').style.display = 'none';
-            cropperInstance.destroy(); cropperInstance = null;
-        }
-
-        function cancelCrop() {
-            document.getElementById('crop-zone').style.display = 'none';
-            document.getElementById('photo').value = '';
-            if(cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
-        }
-
-        // --- RENDER TABLEAU ET VALIDE LIGNE ---
-        function formatRemarqueHTML(text) {
-            if (!text) return "";
-            let lines = text.split(/[\n-]+/);
-            let formattedLines = lines.map(line => {
-                line = line.trim();
-                if (!line) return "";
-                const criticalWords = ["tête", "tete", "changer", "hs", "remplacer", "manque", "platen", "roller", "cutter"];
-                if (criticalWords.some(w => line.toLowerCase().includes(w))) {
-                    return `- <strong style="color: #d92727;">${line}</strong>`;
-                }
-                return `- ${line}`;
-            }).filter(l => l !== "");
-            return formattedLines.join('<br style="mso-data-placement:same-cell;">');
-        }
-
-        function renderTable() {
-            const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = ''; 
-            document.getElementById('count').innerText = reportData.length;
-            
-            const zones = [];
-            reportData.forEach(item => { if (!zones.includes(item.zone)) zones.push(item.zone); });
-
-            zones.forEach(z => {
-                if (z !== "") {
-                    tbody.innerHTML += `<tr><td class="zone-header-row">${z.toUpperCase()}</td></tr>`;
-                }
-                reportData.filter(item => item.zone === z).forEach(d => {
-                    tbody.innerHTML += `<tr>
-                        <td><span class="green-arrow">➜</span> S/N : <b>${d.serial}</b> ${d.lieuId ? `<span style="color:#666; font-size:0.85rem; font-style:italic; margin-left:10px;">(${d.lieuId})</span>` : ''}</td>
-                    </tr>`;
-                });
-            });
-        }
-
-        document.getElementById('addBtn').addEventListener('click', function(e) {
-            e.preventDefault();
-            const model = document.getElementById('printerType').value.trim();
-            const id = document.getElementById('printerId').value.trim();
-            if(!model && !id) return alert("Renseignez le modèle ou l'ID de la machine avant d'ajouter.");
-
-            reportData.push({
-                zone: document.getElementById('printerZone').value.trim(),
-                modele: model || "Modèle inconnu",
-                lieuId: id || "",
-                serial: document.getElementById('serial').value.trim() || "N/A",
-                ip: document.getElementById('ipAddress').value.trim() || "",
-                cellules: document.getElementById('cellules').value,
-                etatDot: document.getElementById('etatDot').value,
-                roller: document.getElementById('roller').value,
-                impression: document.getElementById('impression').value,
-                general: document.getElementById('etatGeneral').value,
-                remarque: document.getElementById('remarque').value.trim(),
-                photos: [...currentPhotos]
-            });
-            
-            renderTable(); saveAppStateToLocalStorage();
-            
-            // Réinitialisation des zones après envoi
-            document.getElementById('printerType').value = ''; document.getElementById('printerId').value = '';
-            document.getElementById('serial').value = ''; document.getElementById('ipAddress').value = '';
-            document.getElementById('remarque').value = ''; document.getElementById('photo').value = '';
-            previewContainer.innerHTML = ''; currentPhotos = [];
-        });
-
-        // --- ENVOI WORD DOC (.DOC) ---
-        document.getElementById('exportBtn').addEventListener('click', function(e) {
-            e.preventDefault();
-            if(reportData.length === 0) return alert('Aucune donnée à exporter.');
-            
-            const site = document.getElementById('headerSite').value || 'N/A';
-            const tech = document.getElementById('headerIntervenant').value;
-            const brandSelection = document.getElementById('headerBrand').value;
-            const dateV = document.getElementById('headerDate').value ? new Date(document.getElementById('headerDate').value).toLocaleDateString('fr-FR') : 'N/A';
-
-            let boundary = "NEXT_PART_BOUNDARY_MARKER";
-            let mhtml = `MIME-Version: 1.0\nContent-Type: multipart/related; boundary="${boundary}"\n\n`;
-            
-            mhtml += `--${boundary}\n`;
-            mhtml += `Content-Type: text/html; charset="utf-8"\n\n`;
-
-            let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-            <head>
-            <meta charset="utf-8">
-            <style>
-                @page Section1 {
-                    size: 11.0in 8.5in;
-                    margin: 0.4in 0.4in 0.4in 0.4in;
-                    mso-page-orientation: landscape;
-                }
-                div.Section1 { page: Section1; }
-                
-                body, p, table, td, th, span { 
-                    font-family: 'Arial', sans-serif; 
-                    color: #0a2540;
-                    line-height: 1.2 !important;
-                    margin-top: 0in !important;
-                    margin-bottom: 0in !important;
-                }
-                
-                .title-doc { font-size: 18pt; font-weight: bold; color: #0a2540; }
-                .subtitle-doc { font-size: 12pt; font-weight: bold; color: #20639b; margin-bottom: 10pt !important; }
-                
-                .meta-table { width: 100%; margin-bottom: 10pt !important; border: 2px solid #0a2540; padding: 10px; background: #ffffff; }
-                .meta-box { font-size: 10pt; color: #0a2540; vertical-align: middle; }
-                .meta-box td { padding: 3px 0px; }
-                .logo-header-zone { text-align: right; vertical-align: middle; padding-right: 5px; }
-                
-                .main-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-                .main-table th { 
-                    background: #0a2540; 
-                    color: #ffffff;
-                    border: 1px solid #0a2540; 
-                    padding: 6px 3px !important; 
-                    font-size: 9pt; 
-                    font-weight: bold; 
-                    text-align: center;
-                }
-                .main-table td { 
-                    border: 1px solid #ced4da; 
-                    padding: 5px 6px !important; 
-                    font-size: 8.5pt; 
-                    vertical-align: middle;
-                    word-wrap: break-word;
-                }
-                
-                .col-printer { width: 15%; }  
-                .col-sn { width: 15%; }       
-                .col-cell { width: 8%; }
-                .col-dot { width: 11%; }
-                .col-roll { width: 11%; }
-                .col-print-st { width: 8%; }
-                .col-gen { width: 7%; }
-                .col-rem { width: 25%; }      
-
-                .row-zone { background-color: #e6f0fa; font-weight: bold; font-size: 9pt; color: #0a2540; text-align: center; padding: 4px !important; border: 1px solid #ced4da; }
-                .center { text-align: center; }
-
-                .annexe-title { font-size: 13pt; font-weight: bold; color: #0a2540; margin-top: 20pt !important; margin-bottom: 8pt !important; page-break-before: always; }
-                .annexe-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-                .annexe-table td { border: 1px solid #ced4da; padding: 8px; vertical-align: top; background: #f8f9fa; }
-
-                .word-footer {
-                    margin-top: 40px !important;
-                    text-align: left;
-                    width: 100%;
-                }
-            </style>
-            </head>
-            <body>
-            <div class="Section1">
-                <p class="title-doc">RAPPORT DE MAINTENANCE PRÉVENTIVE</p>
-                <p class="subtitle-doc">Parc d'imprimantes ${brandSelection}</p>
-                
-                <table class="meta-table" cellspacing="0" cellpadding="0" border="0">
-                    <tr>
-                        <td class="meta-box" width="75%">
-                            <table cellspacing="0" cellpadding="0" border="0" width="100%">
-                                <tr><td width="25%"><b>Client / Site :</b></td><td>${site}</td></tr>
-                                <tr><td><b>Équipement du site :</b></td><td>${brandSelection}</td></tr>
-                                <tr><td><b>Intervenant(s) :</b></td><td>${tech}</td></tr>
-                                <tr><td><b>Date de visite :</b></td><td>${dateV}</td></tr>
-                            </table>
-                        </td>
-                        <td class="logo-header-zone" width="25%">
-                            <img width="113" height="76" src="cid:logo_officiel.png" style="width:3.0cm; height:2.0cm;">
-                        </td>
-                    </tr>
-                </table>
-
-                <p style="margin-top: 5pt !important;">&nbsp;</p>
-
-                <table class="main-table">
-                    <thead>
-                        <tr>
-                            <th class="col-printer">Imprimante / Lieu</th>
-                            <th class="col-sn">S/N<br>@ IP</th>
-                            <th class="col-cell">Cellules</th>
-                            <th class="col-dot">Etat dot</th>
-                            <th class="col-roll">Pressing Roller</th>
-                            <th class="col-print-st">Impression</th>
-                            <th class="col-gen">Etat Général</th>
-                            <th class="col-rem">Remarques / Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>`;
-
-            const zones = [];
-            reportData.forEach(item => { if (!zones.includes(item.zone)) zones.push(item.zone); });
-
-            let imageCounter = 0;
-            let attachedParts = "";
-            let photosToRender = [];
-
-            zones.forEach(z => {
-                if (z !== "") {
-                    wordHtml += `<tr><td colspan="8" class="row-zone">${z.toUpperCase()}</td></tr>`;
-                }
-
-                reportData.filter(item => item.zone === z).forEach(d => {
-                    let labelLieu = d.lieuId ? `<br><span style="color:#555555; font-size:7.5pt; font-style:italic;">${d.lieuId}</span>` : '';
-                    let ipDisplay = d.ip ? `<br><span style="color:#20639b; font-size:7.5pt;">${d.ip}</span>` : '';
-
-                    wordHtml += `<tr>
-                        <td><b>${d.modele}</b>${labelLieu}</td>
-                        <td class="center"><b>${d.serial}</b>${ipDisplay}</td>
-                        <td class="center">${d.cellules || ''}</td>
-                        <td class="center">${d.etatDot || ''}</td>
-                        <td class="center">${d.roller || ''}</td>
-                        <td class="center">${d.impression || ''}</td>
-                        <td class="center">${d.general || ''}</td>
-                        <td>${formatRemarqueHTML(d.remarque)}</td>
-                    </tr>`;
-
-                    if (d.photos && d.photos.length > 0) {
-                        imageCounter++;
-                        let base64Data = d.photos[0].split(',')[1];
-                        let imageLocation = `annexe_photo_${imageCounter}.jpg`;
-                        
-                        photosToRender.push({ cid: imageLocation, modele: d.modele, lieuId: d.lieuId, serial: d.serial });
-
-                        attachedParts += `--${boundary}\n`;
-                        attachedParts += `Content-ID: <${imageLocation}>\n`;
-                        attachedParts += `Content-Location: ${imageLocation}\n`;
-                        attachedParts += `Content-Transfer-Encoding: base64\n`;
-                        attachedParts += `Content-Type: image/jpeg\n\n${base64Data}\n\n`;
-                    }
-                });
-            });
-
-            wordHtml += `</tbody></table>`;
-
-            if (photosToRender.length > 0) {
-                wordHtml += `<p class="annexe-title">ANNEXE PHOTOGRAPHIQUE (CONSTATS TERRAIN)</p>`;
-                wordHtml += `<table class="annexe-table"><tbody>`;
-                for (let i = 0; i < photosToRender.length; i += 2) {
-                    wordHtml += `<tr>`;
-                    let p1 = photosToRender[i];
-                    wordHtml += `<td>
-                        <div style="font-size:8.5pt;"><b>Machine : ${p1.modele}</b><br>${p1.lieuId ? `Lieu : <i>${p1.lieuId}</i><br>` : ''}S/N : <b>${p1.serial}</b></div>
-                        <div style="text-align:center; margin-top:4px;"><img width="310" height="124" src="cid:${p1.cid}" style="width:310px; height:124px; border:1px solid #ced4da;"></div>
-                    </td>`;
-                    if (i + 1 < photosToRender.length) {
-                        let p2 = photosToRender[i + 1];
-                        wordHtml += `<td>
-                            <div style="font-size:8.5pt;"><b>Machine : ${p2.modele}</b><br>${p2.lieuId ? `Lieu : <i>${p2.lieuId}</i><br>` : ''}S/N : <b>${p2.serial}</b></div>
-                            <div style="text-align:center; margin-top:4px;"><img width="310" height="124" src="cid:${p2.cid}" style="width:310px; height:124px; border:1px solid #ced4da;"></div>
-                        </td>`;
-                    } else {
-                        wordHtml += `<td style="border:none; background:transparent;"></td>`;
-                    }
-                    wordHtml += `</tr>`;
-                }
-                wordHtml += `</tbody></table>`;
-            }
-
-            wordHtml += `<div class="word-footer">
-                <br><br>
-                <img width="113" height="76" src="cid:logo_officiel.png" style="width:3.0cm; height:2.0cm;">
-            </div>`;
-
-            wordHtml += `</div></body></html>\n\n`;
-            
-            attachedParts += `--${boundary}\n`;
-            attachedParts += `Content-ID: <logo_officiel.png>\n`;
-            attachedParts += `Content-Location: logo_officiel.png\n`;
-            attachedParts += `Content-Transfer-Encoding: base64\n`;
-            attachedParts += `Content-Type: image/png\n\n${LOGO_BASE64}\n\n`;
-
-            let finalDoc = mhtml + wordHtml + attachedParts + `--${boundary}--`;
-            let blob = new Blob([finalDoc], { type: 'application/vnd.ms-word;charset=utf-8' });
-            let url = URL.createObjectURL(blob);
-            
-            let filename = `Rapport_Maintenance_${site.replace(/[^a-zA-Z0-9]/g, "_")}_${dateV.replace(/\//g, "-")}.doc`;
-            let a = document.createElement('a');
-            a.href = url; a.download = filename; a.style.display = 'none';
-            document.body.appendChild(a); a.click();
-            setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 300);
-        });
-    </script>
-</body>
-</html>
