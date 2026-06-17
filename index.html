@@ -3,12 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Générateur de Rapport de Maintenance</title>
+    <title>Générateur de Rapport de Maintenance Professionnel</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
     <style>
         .status-ok { background-color: #def7ec; color: #03543f; font-weight: bold; }
         .status-nok { background-color: #fde8e8; color: #9b1c1c; font-weight: bold; }
-        .zone-header { background-color: #f3f4f6; font-weight: bold; }
+        .zone-header { background-color: #e6f0fa; font-weight: bold; color: #0a2540; }
+        /* Style nécessaire pour la boîte de recadrage */
+        .cropper-container { max-height: 400px; width: 100%; }
+        #image-to-crop { max-width: 100%; display: block; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen p-4 md:p-8">
@@ -27,10 +37,10 @@
             <div>
                 <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Marque du Parc</label>
                 <select id="headerBrand" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:outline-blue-500">
-                    <option value="Zebra">Zebra</option>
-                    <option value="Honeywell">Honeywell</option>
-                    <option value="Toshiba">Toshiba</option>
-                    <option value="Intermec">Intermec</option>
+                    <option value="ZEBRA">ZEBRA</option>
+                    <option value="HONEYWELL">HONEYWELL</option>
+                    <option value="TOSHIBA">TOSHIBA</option>
+                    <option value="INTERMEC">INTERMEC</option>
                 </select>
             </div>
             <div>
@@ -41,7 +51,7 @@
 
         <form id="machineForm" class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
             <div class="md:col-span-4">
-                <h3 class="text-sm font-bold text-blue-950 uppercase border-b pb-1 mb-2">Ajouter une machine au rapport</h3>
+                <h3 class="text-sm font-bold text-blue-950 uppercase border-b pb-1 mb-2">Ajouter un équipement au rapport</h3>
             </div>
             
             <div>
@@ -49,22 +59,28 @@
                 <input type="text" id="zone" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ex: Expédition" required>
             </div>
             <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Modèle</label>
-                <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ex: ZT411" required>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Modèle d'imprimante</label>
+                <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ex: ZT421 8 DOTS" required>
             </div>
             <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Numéro de Série</label>
-                <input type="text" id="serial" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="S/N" required>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Machine ID / Lieu précis</label>
+                <input type="text" id="lieuId" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="ID Interne / Emplacement">
             </div>
+            
             <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Machine ID / Nom</label>
-                <input type="text" id="lieuId" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="ID Interne">
+                <label class="block text-xs font-medium text-gray-700 mb-1">Numéro de Série (S/N)</label>
+                <div class="flex">
+                    <input type="text" id="serial" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm focus:outline-blue-500" placeholder="S/N" required>
+                    <button type="button" id="scanBarBtn" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-3 text-sm flex items-center justify-center cursor-pointer" title="Scanner le code-barres">
+                        📷 Scan
+                    </button>
+                </div>
             </div>
+
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Adresse IP</label>
                 <input type="text" id="ip" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="192.168.x.x">
             </div>
-
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Cellules / Capteurs</label>
                 <select id="cellules" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm">
@@ -80,15 +96,18 @@
                     <option value="1 Dot HS">1 Dot HS</option>
                     <option value="2 Dots HS">2 Dots HS</option>
                     <option value="Plusieurs Dots HS">Plusieurs Dots HS</option>
+                    <option value="Nombreuses dots HS">Nombreuses dots HS</option>
                     <option value="Tête HS">Tête HS</option>
                 </select>
             </div>
             <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Roller / Rouleau</label>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Pressing Roller</label>
                 <select id="roller" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm">
                     <option value="OK">OK</option>
                     <option value="Marqué">Marqué</option>
                     <option value="À remplacer">À remplacer</option>
+                    <option value="Cutter">Cutter</option>
+                    <option value="Manque matière">Manque matière</option>
                 </select>
             </div>
             <div>
@@ -104,6 +123,7 @@
                     <option value="OK">OK</option>
                     <option value="A surveiller">A surveiller</option>
                     <option value="Critique">Critique</option>
+                    <option value="Voir Rem">Voir Rem</option>
                 </select>
             </div>
 
@@ -112,16 +132,17 @@
                 <textarea id="remarque" rows="2" class="w-full bg-white border border-gray-300 rounded px-3 py-1 text-sm" placeholder="Nettoyage, changement de pièce..."></textarea>
             </div>
 
-            <div class="md:col-span-2">
-                <label class="block text-xs font-medium text-gray-700 mb-1">Photo (Optionnelle)</label>
-                <input type="file" id="photoInput" accept="image/*" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            <div class="md:col-span-4 bg-blue-50 p-3 rounded border border-blue-200">
+                <label class="block text-xs font-bold text-blue-900 mb-1">Prendre une Photo (S'ouvre dans l'éditeur de recadrage)</label>
+                <input type="file" id="photoInput" accept="image/*" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
                 <div id="photoPreviewContainer" class="mt-2 hidden">
-                    <img id="photoPreview" src="" class="h-20 w-auto rounded border shadow-sm">
+                    <p class="text-xs font-medium text-gray-500 mb-1">Aperçu de l'image recadrée :</p>
+                    <img id="photoPreview" src="" class="h-24 w-auto rounded border shadow-sm">
                 </div>
             </div>
 
             <div class="md:col-span-4 flex justify-end gap-2 mt-2">
-                <button type="submit" class="bg-blue-900 hover:bg-blue-950 text-white font-bold text-sm px-6 py-2 rounded shadow cursor-pointer">
+                <button type="submit" class="bg-blue-950 hover:bg-blue-900 text-white font-bold text-sm px-6 py-2 rounded shadow cursor-pointer">
                     Ajouter au tableau
                 </button>
             </div>
@@ -140,65 +161,168 @@
             <table class="min-w-full divide-y divide-gray-200 text-sm text-center">
                 <thead class="bg-blue-950 text-white text-xs uppercase font-bold">
                     <tr>
-                        <th class="px-3 py-3 text-left">Modèle</th>
-                        <th class="px-3 py-3">S/N</th>
-                        <th class="px-3 py-3">ID</th>
-                        <th class="px-3 py-3">IP</th>
+                        <th class="px-3 py-3 text-left">Imprimante / Lieu</th>
+                        <th class="px-3 py-3">S/N & IP</th>
                         <th class="px-3 py-3">Cellules</th>
-                        <th class="px-3 py-3">Tête</th>
-                        <th class="px-3 py-3">Roller</th>
+                        <th class="px-3 py-3">État Dot</th>
+                        <th class="px-3 py-3">Pressing Roller</th>
                         <th class="px-3 py-3">Impression</th>
-                        <th class="px-3 py-3">Général</th>
-                        <th class="px-3 py-3 text-left">Remarques</th>
+                        <th class="px-3 py-3">État Gén.</th>
+                        <th class="px-3 py-3 text-left">Remarques / Actions</th>
                         <th class="px-3 py-3">Photo</th>
                         <th class="px-3 py-3">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="reportTableBody" class="bg-white divide-y divide-gray-200">
-                    <tr><td colspan="12" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport pour le moment.</td></tr>
+                    <tr><td colspan="10" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport pour le moment.</td></tr>
                 </tbody>
             </table>
         </div>
+    </div>
 
+    <div id="scannerModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-4 max-w-md w-full shadow-2xl">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Scanner Caméra</h3>
+                <button type="button" id="closeScannerBtn" class="text-gray-500 hover:text-gray-800 text-2xl font-bold cursor-pointer">&times;</button>
+            </div>
+            <div id="scannerContainer" class="w-full bg-black rounded overflow-hidden shadow-inner" style="min-height: 250px;"></div>
+            <p class="text-[11px] text-gray-500 mt-2 text-center italic">Note : L'accès caméra requiert les autorisations de votre navigateur.</p>
+        </div>
+    </div>
+
+    <div id="cropperModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-4 max-w-lg w-full shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Recadrer la photo</h3>
+                <button type="button" id="closeCropperBtn" class="text-gray-500 hover:text-gray-800 text-2xl font-bold cursor-pointer">&times;</button>
+            </div>
+            <div class="overflow-hidden flex-1 bg-gray-100 flex items-center justify-center rounded border border-gray-200" style="max-height: 50vh;">
+                <img id="imageToCrop" src="">
+            </div>
+            <div class="flex justify-end gap-2 mt-4">
+                <button type="button" id="cancelCropBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold text-xs px-4 py-2 rounded cursor-pointer">Annuler</button>
+                <button type="button" id="saveCropBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded shadow cursor-pointer">Valider le recadrage</button>
+            </div>
+        </div>
     </div>
 
     <script>
         let reportData = [];
         let currentPhotoBase64 = null;
+        let html5QrCode = null;
+        let cropperInstance = null;
 
-        // Date du jour par défaut
+        // Configuration de la date automatique du jour
         document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
 
-        // Capture de l'image
-        document.getElementById('photoInput').addEventListener('change', function(e) {
+        /* ==========================================
+           GESTION DU SCANNER DE CODE-BARRES (Html5Qrcode)
+           ========================================== */
+        document.getElementById('scanBarBtn').addEventListener('click', function() {
+            document.getElementById('scannerModal').classList.remove('hidden');
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("scannerContainer");
+            }
+            
+            const config = { fps: 15, qrbox: { width: 260, height: 130 } };
+            
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                config, 
+                (decodedText) => {
+                    document.getElementById('serial').value = decodedText;
+                    stopBarcodeScanner();
+                },
+                (errorMessage) => { /* Silencieux pour éviter de saturer la console */ }
+            ).catch(err => {
+                alert("Erreur d'accès à la caméra. Vérifiez les autorisations.");
+                stopBarcodeScanner();
+            });
+        });
+
+        function stopBarcodeScanner() {
+            document.getElementById('scannerModal').classList.add('hidden');
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().catch(err => console.error(err));
+            }
+        }
+        document.getElementById('closeScannerBtn').addEventListener('click', stopBarcodeScanner);
+
+
+        /* ==========================================
+           GESTION DU RECADRAGE PHOTO (Cropper.js)
+           ========================================== */
+        const photoInput = document.getElementById('photoInput');
+        const imageToCrop = document.getElementById('imageToCrop');
+
+        photoInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(event) {
-                    currentPhotoBase64 = event.target.result;
-                    const preview = document.getElementById('photoPreview');
-                    preview.src = currentPhotoBase64;
-                    document.getElementById('photoPreviewContainer').classList.remove('hidden');
+                    imageToCrop.src = event.target.result;
+                    document.getElementById('cropperModal').classList.remove('hidden');
+                    
+                    if (cropperInstance) {
+                        cropperInstance.destroy();
+                    }
+                    
+                    // Initialisation de Cropper en mode libre (libre choix des proportions)
+                    cropperInstance = new Cropper(imageToCrop, {
+                        aspectRatio: NaN,
+                        viewMode: 1,
+                        autoCropArea: 0.85
+                    });
                 };
                 reader.readAsDataURL(file);
             }
         });
 
-        function formatRemarqueHTML(text) {
-            if (!text) return "";
-            return text.replace(/\n/g, "<br>");
-        }
+        document.getElementById('saveCropBtn').addEventListener('click', function() {
+            if (cropperInstance) {
+                const canvas = cropperInstance.getCroppedCanvas({
+                    maxWidth: 800,
+                    maxHeight: 600
+                });
+                
+                currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+                
+                // Met à jour la miniature visible dans le formulaire
+                const preview = document.getElementById('photoPreview');
+                preview.src = currentPhotoBase64;
+                document.getElementById('photoPreviewContainer').classList.remove('hidden');
+                
+                closeCropperModal();
+            }
+        });
 
-        // Soumission
+        function closeCropperModal() {
+            document.getElementById('cropperModal').classList.add('hidden');
+            if (cropperInstance) {
+                cropperInstance.destroy();
+                cropperInstance = null;
+            }
+        }
+        document.getElementById('closeCropperBtn').addEventListener('click', closeCropperModal);
+        document.getElementById('cancelCropBtn').addEventListener('click', () => {
+            closeCropperModal();
+            photoInput.value = '';
+        });
+
+
+        /* ==========================================
+           GESTION DU TABLEAU ET DES DONNÉES
+           ========================================== */
         document.getElementById('machineForm').addEventListener('submit', function(e) {
             e.preventDefault();
 
-            const machine = {
+            const item = {
                 idKey: Date.now(),
                 zone: document.getElementById('zone').value.trim(),
                 modele: document.getElementById('modele').value.trim(),
-                serial: document.getElementById('serial').value.trim(),
                 lieuId: document.getElementById('lieuId').value.trim(),
+                serial: document.getElementById('serial').value.trim(),
                 ip: document.getElementById('ip').value.trim(),
                 cellules: document.getElementById('cellules').value,
                 etatDot: document.getElementById('etatDot').value,
@@ -209,69 +333,72 @@
                 photos: currentPhotoBase64 ? [currentPhotoBase64] : []
             };
 
-            reportData.push(machine);
+            reportData.push(item);
             updateTable();
             
-            // Reset partiel
+            // Réinitialisation partielle des champs de saisie de la machine
             document.getElementById('modele').value = '';
-            document.getElementById('serial').value = '';
             document.getElementById('lieuId').value = '';
+            document.getElementById('serial').value = '';
             document.getElementById('ip').value = '';
             document.getElementById('remarque').value = '';
-            document.getElementById('photoInput').value = '';
+            photoInput.value = '';
             document.getElementById('photoPreviewContainer').classList.add('hidden');
             currentPhotoBase64 = null;
         });
 
-        // Rendu du tableau dynamique
         function updateTable() {
             const tbody = document.getElementById('reportTableBody');
             tbody.innerHTML = '';
             document.getElementById('machineCount').innerText = reportData.length;
 
             if (reportData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="12" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport pour le moment.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport pour le moment.</td></tr>`;
                 return;
             }
 
-            const zones = [...new Set(reportData.map(item => item.zone))];
+            const distinctZones = [...new Set(reportData.map(d => d.zone))];
 
-            zones.forEach(z => {
+            distinctZones.forEach(z => {
                 if (z !== "") {
-                    const zoneRow = document.createElement('tr');
-                    zoneRow.className = "zone-header";
-                    zoneRow.innerHTML = `<td colspan="12" class="px-3 py-2 text-left text-xs tracking-wider text-gray-700 uppercase bg-gray-100 font-bold">${z}</td>`;
-                    tbody.appendChild(zoneRow);
+                    const zRow = document.createElement('tr');
+                    zRow.className = "zone-header";
+                    zRow.innerHTML = `<td colspan="10" class="px-3 py-1.5 text-left text-xs uppercase tracking-wider bg-blue-50 border-y border-gray-200 pl-4 font-bold">${z}</td>`;
+                    tbody.appendChild(zRow);
                 }
 
-                const zoneData = reportData.filter(item => item.zone === z);
-                zoneData.forEach(d => {
+                const zoneItems = reportData.filter(d => d.zone === z);
+                zoneItems.forEach(d => {
                     const row = document.createElement('tr');
-                    row.className = "hover:bg-gray-50 text-xs";
+                    row.className = "hover:bg-gray-50 text-xs text-gray-700";
 
-                    const cellClass = d.cellules === 'NOK' ? 'status-nok' : 'status-ok';
-                    const dotClass = d.etatDot !== 'OK' ? 'status-nok' : 'status-ok';
-                    const rollerClass = d.roller !== 'OK' ? 'status-nok' : 'status-ok';
-                    const impClass = d.impression === 'NOK' ? 'status-nok' : 'status-ok';
-                    const genClass = d.general !== 'OK' ? 'status-nok' : 'status-ok';
+                    const cellStyle = d.cellules === 'NOK' ? 'status-nok' : 'status-ok';
+                    const dotStyle = d.etatDot !== 'OK' ? 'status-nok' : 'status-ok';
+                    const rollerStyle = d.roller !== 'OK' ? 'status-nok' : 'status-ok';
+                    const impStyle = d.impression === 'NOK' ? 'status-nok' : 'status-ok';
+                    const genStyle = d.general !== 'OK' ? 'status-nok' : 'status-ok';
 
-                    let photoPreviewHtml = d.photos && d.photos.length > 0 ? 
-                        `<img src="${d.photos[0]}" class="h-10 w-12 object-cover rounded mx-auto border">` : '-';
+                    let photoHtml = d.photos && d.photos.length > 0 ? 
+                        `<img src="${d.photos[0]}" class="h-10 w-12 object-cover rounded mx-auto border shadow-sm">` : '-';
 
                     row.innerHTML = `
-                        <td class="px-3 py-2 text-left font-semibold text-gray-900">${d.modele}</td>
-                        <td class="px-3 py-2 text-gray-600">${d.serial}</td>
-                        <td class="px-3 py-2">${d.lieuId || '-'}</td>
-                        <td class="px-3 py-2 font-mono text-gray-500">${d.ip || '-'}</td>
-                        <td class="px-3 py-2 ${cellClass}">${d.cellules}</td>
-                        <td class="px-3 py-2 ${dotClass}">${d.etatDot}</td>
-                        <td class="px-3 py-2 ${rollerClass}">${d.roller}</td>
-                        <td class="px-3 py-2 ${impClass}">${d.impression}</td>
-                        <td class="px-3 py-2 ${genClass}">${d.general}</td>
-                        <td class="px-3 py-2 text-left max-w-xs truncate" title="${d.remarque}">${formatRemarqueHTML(d.remarque) || '-'}</td>
-                        <td class="px-3 py-2">${photoPreviewHtml}</td>
+                        <td class="px-3 py-2 text-left">
+                            <div class="font-bold text-gray-900">${d.modele}</div>
+                            <div class="text-gray-500 italic text-[11px]">${d.lieuId || '-'}</div>
+                        </td>
                         <td class="px-3 py-2">
-                            <button onclick="deleteMachine(${d.idKey})" class="text-red-600 hover:text-red-900 font-bold cursor-pointer">Supprimer</button>
+                            <div class="font-semibold text-gray-800">${d.serial}</div>
+                            <div class="text-blue-600 font-mono text-[11px]">${d.ip || '-'}</div>
+                        </td>
+                        <td class="px-3 py-2 ${cellStyle}">${d.cellules}</td>
+                        <td class="px-3 py-2 ${dotStyle}">${d.etatDot}</td>
+                        <td class="px-3 py-2 ${rollerStyle}">${d.roller}</td>
+                        <td class="px-3 py-2 ${impStyle}">${d.impression}</td>
+                        <td class="px-3 py-2 ${genStyle}">${d.general}</td>
+                        <td class="px-3 py-2 text-left max-w-xs truncate" title="${d.remarque}">${d.remarque.replace(/\n/g, '<br>') || '-'}</td>
+                        <td class="px-3 py-2">${photoHtml}</td>
+                        <td class="px-3 py-2">
+                            <button onclick="deleteRow(${d.idKey})" class="text-red-600 hover:text-red-900 font-bold cursor-pointer">Supprimer</button>
                         </td>
                     `;
                     tbody.appendChild(row);
@@ -279,74 +406,55 @@
             });
         }
 
-        window.deleteMachine = function(idKey) {
+        window.deleteRow = function(idKey) {
             reportData = reportData.filter(item => item.idKey !== idKey);
             updateTable();
         };
 
-        // Export MHTML / Word sécurisé
-        document.getElementById('exportBtn').addEventListener('click', function(e) {
-            e.preventDefault();
-            if(reportData.length === 0) return alert('Aucune donnée à exporter. Ajoutez des machines d\'abord.');
-            
+
+        /* ==========================================
+           EXPORTATION EXCEL / WORD PRO CONFORME (.doc)
+           ========================================== */
+        document.getElementById('exportBtn').addEventListener('click', function() {
+            if (reportData.length === 0) return alert('Le rapport est vide.');
+
             const site = document.getElementById('headerSite').value || 'N/A';
             const tech = document.getElementById('headerIntervenant').value || 'N/A';
-            const brandSelection = document.getElementById('headerBrand').value;
+            const brand = document.getElementById('headerBrand').value;
             const dateV = document.getElementById('headerDate').value ? new Date(document.getElementById('headerDate').value).toLocaleDateString('fr-FR') : 'N/A';
 
-            let dynamicSubtitle = "Parc d'imprimantes " + brandSelection;
-            let boundary = "NEXT_PART_BOUNDARY_MARKER";
-
-            const logoBase64 = "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";
-
+            const boundary = "NEXT_PART_BOUNDARY_MARKER";
             let mhtml = `MIME-Version: 1.0\nContent-Type: multipart/related; boundary="${boundary}"\n\n`;
             mhtml += `--${boundary}\nContent-Type: text/html; charset="utf-8"\n\n`;
 
-            let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+            let docHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
             <head>
             <meta charset="utf-8">
             <style>
-                @page Section1 {
-                    size: 11.0in 8.5in;
-                    margin: 0.4in 0.4in 0.4in 0.4in;
-                    mso-page-orientation: landscape;
-                }
+                @page Section1 { size: 11.0in 8.5in; margin: 0.4in; mso-page-orientation: landscape; }
                 div.Section1 { page: Section1; }
-                
-                body, p, table, td, th, span { 
-                    font-family: 'Arial', sans-serif; 
-                    color: #0a2540; 
-                    line-height: 1.2 !important;
-                    margin-top: 0in !important;
-                    margin-bottom: 0in !important;
-                    mso-line-height-rule: exactly;
-                }
-                
-                .title-doc { font-size: 18pt; font-weight: bold; color: #0a2540; margin-bottom: 2pt !important; }
-                .subtitle-doc { font-size: 12pt; font-weight: bold; color: #20639b; margin-bottom: 10pt !important; }
-                
-                table { border-collapse: collapse; width: 100%; margin-bottom: 10pt; }
-                th, td { border: 1pt solid #0a2540; padding: 5pt 4pt; font-size: 9pt; vertical-align: middle; text-align: center; }
-                th { background-color: #f0f4f8; font-weight: bold; }
-                .td-left { text-align: left; }
-                .zone-row { background-color: #dfd5c2; font-weight: bold; text-align: left; font-size: 10pt; padding: 4pt 8pt; }
+                body, p, table, td, th { font-family: 'Arial', sans-serif; color: #0a2540; line-height: 1.2; margin: 0; }
+                .title-doc { font-size: 18pt; font-weight: bold; color: #0a2540; text-align: center; }
+                .subtitle-doc { font-size: 12pt; font-weight: bold; color: #20639b; text-align: center; margin-bottom: 10pt; }
+                table { border-collapse: collapse; width: 100%; margin-bottom: 12pt; }
+                th, td { border: 1pt solid #ced4da; padding: 5pt 4pt; font-size: 9pt; vertical-align: middle; text-align: center; }
+                th { background-color: #0a2540; color: #ffffff; font-weight: bold; }
+                .row-zone { background-color: #e6f0fa; font-weight: bold; text-align: left; font-size: 9.5pt; color: #0a2540; padding: 4pt; }
                 .status-nok { color: #b30000; font-weight: bold; background-color: #fde8e8; }
-                .status-ok { color: #28a745; font-weight: bold; }
-                .photo-img { width: 120px; height: auto; max-height: 90px; }
+                .td-left { text-align: left; }
+                .photo-frame { width: 110px; height: auto; max-height: 85px; border: 1px solid #ddd; }
             </style>
             </head>
             <body>
             <div class="Section1">
-                <table style="border:none; margin-bottom:15pt; width:100%;">
+                
+                <table style="border:none; width:100%; margin-bottom:15pt;">
                     <tr>
-                        <td style="border:none; text-align:left; width:25%; vertical-align:middle;">
-                            <img src="cid:logo_img" width="135" alt="Logo">
+                        <td style="border:none; text-align:left; width:65%;">
+                            <div class="title-doc" style="text-align:left;">RAPPORT DE MAINTENANCE PREVENTIVE</div>
+                            <div class="subtitle-doc" style="text-align:left;">Parc d'imprimantes ${brand}</div>
                         </td>
-                        <td style="border:none; text-align:center; width:50%; vertical-align:middle;">
-                            <div class="title-doc">RAPPORT DE MAINTENANCE PREVENTIVE</div>
-                            <div class="subtitle-doc">${dynamicSubtitle}</div>
-                        </td>
-                        <td style="border:none; text-align:right; width:25%; font-size:9.5pt; color:#333; line-height:1.4 !important; vertical-align:middle;">
+                        <td style="border:none; text-align:right; font-size:9.5pt; line-height:1.4;">
                             <strong>Date :</strong> ${dateV}<br>
                             <strong>Site :</strong> ${site}<br>
                             <strong>Technicien :</strong> ${tech}
@@ -357,77 +465,60 @@
                 <table>
                     <thead>
                         <tr>
-                            <th style="width:12%">Modèle</th>
-                            <th style="width:11%">N° de Série</th>
-                            <th style="width:7%">Machine ID</th>
-                            <th style="width:9%">@ IP</th>
+                            <th style="width:16%">Imprimante / Lieu</th>
+                            <th style="width:16%">S/N <br> @ IP</th>
                             <th style="width:7%">Cellules</th>
-                            <th style="width:7%">État Tête</th>
-                            <th style="width:7%">Roller</th>
+                            <th style="width:11%">Etat dot</th>
+                            <th style="width:11%">Pressing Roller</th>
                             <th style="width:7%">Impression</th>
-                            <th style="width:7%">État Gén.</th>
-                            <th style="width:16%">Remarques / Actions</th>
+                            <th style="width:7%">Etat Général</th>
+                            <th style="width:17%">Remarques / Actions</th>
                             <th style="width:10%">Photo</th>
                         </tr>
                     </thead>
                     <tbody>`;
 
             const zones = [...new Set(reportData.map(item => item.zone))];
-            let imageAttachments = "";
+            let attachments = "";
 
             zones.forEach(z => {
-                const zoneData = reportData.filter(item => item.zone === z);
                 if (z !== "") {
-                    wordHtml += `<tr><td colspan="11" class="zone-row">${z.toUpperCase()}</td></tr>`;
+                    docHtml += `<tr><td colspan="9" class="row-zone">${z.toUpperCase()}</td></tr>`;
                 }
 
-                zoneData.forEach((d, index) => {
-                    let cleanRemarque = formatRemarqueHTML(d.remarque) || "Aucune";
-                    let photoHtml = "-";
-
+                const zoneData = reportData.filter(item => item.zone === z);
+                zoneData.forEach((d, i) => {
+                    let photoString = "-";
                     if (d.photos && d.photos.length > 0) {
-                        const photoCid = `photo_${z.replace(/[^a-zA-Z0-9]/g, '')}_${index}_${Date.now()}`;
-                        photoHtml = `<img src="cid:${photoCid}" class="photo-img">`;
-                        
-                        const base64Data = d.photos[0].split(',')[1];
-                        imageAttachments += `\n--${boundary}\nContent-Location: cid:${photoCid}\nContent-Transfer-Encoding: base64\n\n${base64Data}\n`;
+                        const cid = `img_${Date.now()}_${i}`;
+                        photoString = `<img src="cid:${cid}" class="photo-frame">`;
+                        const rawBase64 = d.photos[0].split(',')[1];
+                        attachments += `\n--${boundary}\nContent-Location: cid:${cid}\nContent-Transfer-Encoding: base64\n\n${rawBase64}\n`;
                     }
 
-                    wordHtml += `<tr>
-                        <td class="td-left"><b>${d.modele}</b></td>
-                        <td>${d.serial}</td>
-                        <td>${d.lieuId || "-"}</td>
-                        <td style="font-family:'Courier New'; font-size:8.5pt;">${d.ip || "-"}</td>
-                        <td class="${d.cellules === 'NOK' ? 'status-nok' : ''}">${d.cellules || "-"}</td>
-                        <td class="${d.etatDot !== 'OK' ? 'status-nok' : ''}">${d.etatDot || "-"}</td>
-                        <td class="${d.roller !== 'OK' ? 'status-nok' : ''}">${d.roller || "-"}</td>
-                        <td class="${d.impression === 'NOK' ? 'status-nok' : ''}">${d.impression || "-"}</td>
-                        <td class="${d.general !== 'OK' ? 'status-nok' : ''}">${d.general || "-"}</td>
-                        <td class="td-left" style="font-size:8.5pt;">${cleanRemarque}</td>
-                        <td>${photoHtml}</td>
+                    docHtml += `<tr>
+                        <td class="td-left"><b>${d.modele}</b><br><span style="color:#555; font-size:8pt; font-style:italic;">${d.lieuId || '-'}</span></td>
+                        <td><b>${d.serial}</b><br><span style="color:#20639b; font-size:8pt;">${d.ip || '-'}</span></td>
+                        <td class="${d.cellules === 'NOK' ? 'status-nok' : ''}">${d.cellules}</td>
+                        <td class="${d.etatDot !== 'OK' ? 'status-nok' : ''}">${d.etatDot}</td>
+                        <td class="${d.roller !== 'OK' ? 'status-nok' : ''}">${d.roller}</td>
+                        <td class="${d.impression === 'NOK' ? 'status-nok' : ''}">${d.impression}</td>
+                        <td class="${d.general !== 'OK' ? 'status-nok' : ''}">${d.general}</td>
+                        <td class="td-left" style="font-size:8.5pt;">${d.remarque.replace(/\n/g, '<br>') || 'Aucune'}</td>
+                        <td>${photoString}</td>
                     </tr>`;
                 });
             });
 
-            wordHtml += `</tbody></table></div></body></html>\n`;
-            mhtml += wordHtml;
-
-            mhtml += `\n--${boundary}\nContent-Location: cid:logo_img\nContent-Transfer-Encoding: base64\n\n${logoBase64}\n`;
-            
-            if(imageAttachments !== "") {
-                mhtml += imageAttachments;
-            }
-            
+            docHtml += `</tbody></table></div></body></html>\n`;
+            mhtml += docHtml;
+            mhtml += attachments ? attachments : '';
             mhtml += `\n--${boundary}--\n`;
 
             const blob = new Blob([mhtml], { type: 'application/msword;charset=utf-8' });
             const link = document.createElement('a');
-            const safeSite = site.replace(/[^a-zA-Z0-9_-]/g, '_') || "Rapport";
             link.href = URL.createObjectURL(blob);
-            
-            const today = new Date().toISOString().split('T')[0];
-            link.download = `Rapport_Maintenance_${safeSite}_${today}.doc`;
-            
+            link.download = `Rapport_Maintenance_${site.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.doc`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
