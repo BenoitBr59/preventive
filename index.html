@@ -67,10 +67,7 @@
             
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Modèle d'imprimante (P/N)</label>
-                <div class="flex">
-                    <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm" placeholder="Ex: ZT421 8 DOTS" required>
-                    <button type="button" onclick="openScanner('modele')" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-3 text-xs font-bold cursor-pointer" title="Scanner le modèle">📷</button>
-                </div>
+                <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm bg-yellow-50 font-medium" placeholder="Auto-rempli via le S/N ou saisie manuelle" required>
             </div>
             
             <div>
@@ -81,8 +78,10 @@
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Numéro de Série (S/N)</label>
                 <div class="flex">
-                    <input type="text" id="serial" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm focus:outline-blue-500" placeholder="S/N" required>
-                    <button type="button" onclick="openScanner('serial')" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-3 text-xs font-bold cursor-pointer" title="Scanner le S/N">📷 Scan</button>
+                    <input type="text" id="serial" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm focus:outline-blue-500 font-bold" placeholder="Scanner le S/N ici" required>
+                    <button type="button" onclick="openScanner()" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-4 text-xs font-bold cursor-pointer flex items-center gap-1" title="Scanner le S/N">
+                        📷 Scan S/N
+                    </button>
                 </div>
             </div>
 
@@ -196,15 +195,15 @@
     <div id="scannerModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-lg p-4 max-w-md w-full shadow-2xl">
             <div class="flex justify-between items-center mb-3">
-                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Scanner de Code-barres</h3>
+                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Scanner le code S/N uniquement</h3>
                 <button type="button" id="closeScannerBtn" class="text-gray-500 hover:text-gray-800 text-2xl font-bold cursor-pointer">&times;</button>
             </div>
             <div id="scannerContainer" class="w-full bg-black rounded overflow-hidden shadow-inner relative" style="min-height: 280px;">
-                <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[100px] border-2 border-red-500 bg-red-500/10 z-10 pointer-events-none rounded shadow-[0_0_10px_rgba(239,68,68,0.4)]">
-                    <div class="w-full h-[2px] bg-red-600 absolute top-1/2 -translate-y-1/2 shadow-[0_0_6px_rgba(239,68,68,1)]"></div>
+                <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[110px] border-2 border-blue-500 bg-blue-500/5 z-10 pointer-events-none rounded">
+                    <div class="w-full h-[1px] bg-red-500 absolute top-1/2 -translate-y-1/2"></div>
                 </div>
             </div>
-            <p class="text-[11px] text-gray-500 mt-2 text-center italic">Centrez le code-barres visé dans le rectangle rouge. L'autofocus gère la netteté.</p>
+            <p class="text-[11px] text-gray-500 mt-2 text-center italic">Restez à 10-15 cm pour garder l'image bien nette. Le modèle sera déduit automatiquement.</p>
         </div>
     </div>
 
@@ -229,58 +228,105 @@
         let currentPhotoBase64 = null;
         let html5QrCode = null;
         let cropperInstance = null;
-        let activeScanField = 'serial';
 
         document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
 
         /* ==========================================================
-           FONCTIONNEMENT DU SCANNER AUTOFOCUS ET ENCADRÉ (300x100)
+           DICTIONNAIRE DE CORRESPONDANCE : PREFIXE S/N -> MODELE
            ========================================================== */
-        window.openScanner = function(targetFieldId) {
-            activeScanField = targetFieldId;
+        function detecterModeleDepuisSerial(serial) {
+            const cleanSerial = serial.trim().toUpperCase();
+
+            // SÉCURITÉ : Détecte si l'appareil a attrapé par erreur un P/N Zebra (ex: ZT41142-T0E0000Z)
+            if (cleanSerial.includes('-') && (cleanSerial.startsWith('ZT') || cleanSerial.startsWith('ZD') || cleanSerial.startsWith('ZM'))) {
+                alert("⚠️ Attention : Vous semblez avoir scanné le code 'Modèle / Part Number' au lieu du Numéro de Série (S/N). Essayez de viser l'autre code-barres en restant bien à 12cm.");
+                return "";
+            }
+
+            // AJOUTEZ / MODIFIEZ VOS RÈGLES ICI SELON LES PREMIERS CARACTÈRES DE VOS S/N REELS
+            const reglesFlotte = [
+                { prefixe: "42J", modele: "ZEBRA ZT421 (203 dpi)" },
+                { prefixe: "41J", modele: "ZEBRA ZT411 (203 dpi)" },
+                { prefixe: "12C", modele: "ZEBRA ZM400" },
+                { prefixe: "33J", modele: "ZEBRA ZD421" },
+                { prefixe: "TOS", modele: "TOSHIBA B-EX4T1" },
+                { prefixe: "PM4", modele: "HONEYWELL PM43" }
+            ];
+
+            // Recherche du modèle correspondant au début du S/N
+            for (let regle of reglesFlotte) {
+                if (cleanSerial.startsWith(regle.prefixe)) {
+                    return regle.modele;
+                }
+            }
+
+            return ""; // Retourne vide si non listé pour permettre la saisie manuelle libre
+        }
+
+        /* Écouteur manuel : si l'utilisateur saisit le S/N au clavier, l'auto-remplissage fonctionne aussi */
+        document.getElementById('serial').addEventListener('input', function(e) {
+            const modeleTrouve = detecterModeleDepuisSerial(e.target.value);
+            if (modeleTrouve) {
+                document.getElementById('modele').value = modeleTrouve;
+            }
+        });
+
+
+        /* ==========================================================
+           FONCTIONNEMENT DU SCANNER S/N UNIQUE (DISTANCE OPTIMALE)
+           ========================================================== */
+        window.openScanner = function() {
             document.getElementById('scannerModal').classList.remove('hidden');
             
             if (!html5QrCode) {
                 const formats = [
                     Html5QrcodeSupportedFormats.CODE_128,
                     Html5QrcodeSupportedFormats.CODE_39,
-                    Html5QrcodeSupportedFormats.EAN_13,
-                    Html5QrcodeSupportedFormats.QR_CODE
+                    Html5QrcodeSupportedFormats.EAN_13
                 ];
                 html5QrCode = new Html5Qrcode("scannerContainer", { formatsToSupport: formats });
             }
             
-            // Configuration stable : zone délimitée pour forcer le ciblage mais assez haute pour décoder
             const config = { 
-                fps: 22, 
-                qrbox: { width: 300, height: 100 }
+                fps: 25, 
+                qrbox: { width: 280, height: 110 }
             };
             
-            // On appelle directement facingMode environment : le navigateur choisit le capteur principal avec autofocus complet
             html5QrCode.start(
                 { facingMode: "environment" }, 
                 config, 
                 onScanSuccess,
                 () => {}
             ).catch(err => {
-                // Secours par liste au cas où le protocole standard bloque
                 Html5Qrcode.getCameras().then(cameras => {
                     if (cameras && cameras.length > 0) {
                         let backCamera = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('arrière'));
                         let cameraId = backCamera ? backCamera.id : cameras[cameras.length - 1].id;
                         html5QrCode.start(cameraId, config, onScanSuccess, () => {});
                     } else {
-                        alert("Erreur de caméra : Vérifiez les accès.");
+                        alert("Erreur d'accès à la caméra.");
                     }
                 }).catch(() => {
-                    alert("Impossible d'accéder à la caméra.");
+                    alert("Impossible de charger la caméra.");
                     stopBarcodeScanner();
                 });
             });
         };
 
         function onScanSuccess(decodedText) {
-            document.getElementById(activeScanField).value = decodedText;
+            const cleanText = decodedText.trim().toUpperCase();
+            document.getElementById('serial').value = cleanText;
+            
+            // Traitement automatique du modèle d'après le S/N trouvé
+            const modeleDeduit = detecterModeleDepuisSerial(cleanText);
+            if (modeleDeduit) {
+                document.getElementById('modele').value = modeleDeduit;
+            } else {
+                document.getElementById('modele').value = "";
+                document.getElementById('modele').placeholder = "S/N inconnu, tapez le modèle ici";
+                document.getElementById('modele').focus();
+            }
+            
             stopBarcodeScanner();
         }
 
@@ -347,7 +393,7 @@
 
 
         /* ==========================================================
-           TRAITEMENT DES ENREGISTREMENTS ET MISE A JOUR DU TABLEAU ULTRA-ALLÉGÉ
+           TRAITEMENT DES ENREGISTREMENTS ET TABLEAU CLASSIQUE S/N + ACTION
            ========================================================= */
         document.getElementById('machineForm').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -372,6 +418,7 @@
             updateTable();
             
             document.getElementById('modele').value = '';
+            document.getElementById('modele').placeholder = "Auto-rempli via le S/N ou saisie manuelle";
             document.getElementById('lieuId').value = '';
             document.getElementById('serial').value = '';
             document.getElementById('ip').value = '';
@@ -405,7 +452,7 @@
                     const row = document.createElement('tr');
                     row.className = "hover:bg-gray-50 text-xs text-gray-700";
 
-                    // Affichage UI ultra-épuré demandé : Uniquement le S/N et l'action de suppression
+                    // Vue écran filtrée uniquement sur S/N et Action pour simplifier le comptage visuel
                     row.innerHTML = `
                         <td class="px-3 py-3 font-bold text-gray-800 text-sm tracking-wider">${d.serial}</td>
                         <td class="px-3 py-3">
@@ -424,7 +471,7 @@
 
 
         /* ==========================================================
-           EXPORTATION GENERALE COMPLETE WORD (RESTE TOTALEMENT COMPLETE)
+           EXPORTATION GENERALE COMPLETE WORD (RESTE PARFAITEMENT COMPLÈTE)
            ========================================================= */
         document.getElementById('exportBtn').addEventListener('click', function() {
             if (reportData.length === 0) return alert('Le rapport ne contient aucune donnée.');
