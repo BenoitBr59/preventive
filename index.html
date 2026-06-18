@@ -195,7 +195,7 @@
     <div id="scannerModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-lg p-4 max-w-md w-full shadow-2xl">
             <div class="flex justify-between items-center mb-3">
-                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Scanner une ligne de code-barres</h3>
+                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Scanner le code-barres (S/N)</h3>
                 <button type="button" id="closeScannerBtn" class="text-gray-500 hover:text-gray-800 text-2xl font-bold cursor-pointer">&times;</button>
             </div>
             <div id="scannerContainer" class="w-full bg-black rounded overflow-hidden shadow-inner relative" style="min-height: 260px;">
@@ -203,7 +203,7 @@
                     <div class="w-full h-[2px] bg-red-500 absolute top-1/2 -translate-y-1/2 shadow"></div>
                 </div>
             </div>
-            <p class="text-[11px] text-gray-500 mt-2 text-center italic">Le Datamatrix carré est volontairement ignoré. Alignez le trait rouge sur le code-barres à 12-15 cm.</p>
+            <p class="text-[11px] text-gray-500 mt-2 text-center italic">Le carré noir (Datamatrix) est automatiquement bloqué. Alignez la ligne rouge sur le code à barres classique.</p>
         </div>
     </div>
 
@@ -232,7 +232,7 @@
         document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
 
         /* ==========================================================
-           BASE DE CONNAISSANCES : IDENTIFICATION PAR PREFIXES RETENUS
+           BASE DE CONNAISSANCES : RECONNAISSANCE TRADITIONNELLE PREVUE
            ========================================================== */
         function obtenirNomModeleDepuisPrefixe(chaine) {
             let txt = chaine.toUpperCase();
@@ -246,7 +246,7 @@
         }
 
         /* ==========================================================
-           MOTEUR DE RECONNAISSANCE SELECTIF (S/N vs P/N)
+           TRAITEMENT ET ROUTAGE DE LA SAISIE (AVEC NETTOYAGE 'S' / 'P')
            ========================================================== */
         function traiterLectureCode128(decodedText) {
             let textUpper = decodedText.trim().toUpperCase();
@@ -254,5 +254,350 @@
             let serialField = document.getElementById('serial');
             let modeleField = document.getElementById('modele');
 
-            // Signatures cibles sur les 3 premiers caractères significatifs
-            let prefixesSN =
+            let prefixesSN = ["41J", "42J", "33J", "12C", "41A", "42A"];
+            let prefixesPN = ["ZT4", "ZD4", "ZM4"];
+
+            // Nettoyage de la lettre d'identification usine
+            let texteNettoye = textUpper;
+            if (textUpper.startsWith('S') || textUpper.startsWith('P')) {
+                texteNettoye = textUpper.substring(1);
+            }
+
+            // Détection Numéro de Série (S/N)
+            for (let sig of prefixesSN) {
+                if (texteNettoye.startsWith(sig)) {
+                    serialField.value = texteNettoye;
+                    modeleField.value = obtenirNomModeleDepuisPrefixe(texteNettoye);
+                    return;
+                }
+            }
+
+            // Cas d'erreur : Si l'utilisateur a ciblé le code-barres Modèle (P/N)
+            for (let pref of prefixesPN) {
+                if (texteNettoye.startsWith(pref)) {
+                    modeleField.value = obtenirNomModeleDepuisPrefixe(texteNettoye) || texteNettoye;
+                    serialField.value = "";
+                    alert("📷 Code Modèle intercepté (" + texteNettoye + ") ! Visez plutôt l'autre ligne de code-barres pour le Numéro de Série (S/N).");
+                    return;
+                }
+            }
+
+            // Injection par défaut si format inconnu
+            serialField.value = texteNettoye;
+            let modeleDevine = obtenirNomModeleDepuisPrefixe(texteNettoye);
+            if (modeleDevine) modeleField.value = modeleDevine;
+        }
+
+        /* Prise en compte immédiate si saisie manuelle */
+        document.getElementById('serial').addEventListener('input', function(e) {
+            if (e.target.value.length >= 3) {
+                traiterLectureCode128(e.target.value);
+            }
+        });
+
+
+        /* ==========================================================
+           OUVERTURE DU SCANNER AVEC FILTRAGE DU FORMAT EN DIRECT
+           ========================================================== */
+        window.openCode128Scanner = function() {
+            document.getElementById('scannerModal').classList.remove('hidden');
+            
+            if (!html5QrCode) {
+                // On laisse la caméra s'ouvrir normalement sans restriction initiale (anti-crash)
+                html5QrCode = new Html5Qrcode("scannerContainer");
+            }
+            
+            const config = { 
+                fps: 25, 
+                qrbox: { width: 290, height: 80 }
+            };
+            
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                config, 
+                (decodedText, decodedResult) => {
+                    // --- LE FILTRE ANTI-DATAMATRIX INFAILLIBLE ---
+                    const formatNom = decodedResult?.result?.format?.formatName || "";
+                    
+                    // Si la caméra capte un Datamatrix ou un QR Code, on l'annule silencieusement !
+                    if (formatNom.includes("DATA_MATRIX") || formatNom.includes("QR_CODE") || decodedText.includes("[)>")) {
+                        return; // Le scanner ignore cette lecture et continue sa recherche
+                    }
+                    
+                    // C'est un code à barres standard (Code 128 / Code 39), on applique l'algorithme
+                    traiterLectureCode128(decodedText);
+                    stopBarcodeScanner();
+                },
+                () => {} // Callback d'erreur de frame (on ne fait rien, on attend la frame suivante)
+            ).catch(() => {
+                // Secours en cas de caméras multiples mal gérées
+                Html5Qrcode.getCameras().then(cameras => {
+                    if (cameras && cameras.length > 0) {
+                        let backCamera = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('arrière'));
+                        let cameraId = backCamera ? backCamera.id : cameras[cameras.length - 1].id;
+                        html5QrCode.start(cameraId, config, (txt, res) => {
+                            const fmt = res?.result?.format?.formatName || "";
+                            if (fmt.includes("DATA_MATRIX") || txt.includes("[)>")) return;
+                            traiterLectureCode128(txt); 
+                            stopBarcodeScanner();
+                        }, () => {});
+                    } else {
+                        alert("Aucune caméra détectée.");
+                    }
+                }).catch(() => {
+                    alert("Erreur de droits ou d'accès à l'appareil photo.");
+                    stopBarcodeScanner();
+                });
+            });
+        };
+
+        function stopBarcodeScanner() {
+            document.getElementById('scannerModal').classList.add('hidden');
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().catch(err => console.error(err));
+            }
+        }
+        document.getElementById('closeScannerBtn').addEventListener('click', stopBarcodeScanner);
+
+
+        /* ==========================================================
+           APPAREIL PHOTO COMPAGNON & FORMAT DE COUPE (INCHANGÉ)
+           ========================================================== */
+        const cameraInput = document.getElementById('cameraInput');
+        const imageToCrop = document.getElementById('imageToCrop');
+
+        document.getElementById('capturePhotoBtn').addEventListener('click', () => cameraInput.click());
+
+        cameraInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    imageToCrop.src = event.target.result;
+                    document.getElementById('cropperModal').classList.remove('hidden');
+                    
+                    if (cropperInstance) cropperInstance.destroy();
+                    
+                    cropperInstance = new Cropper(imageToCrop, {
+                        aspectRatio: 10 / 4, 
+                        viewMode: 1,
+                        autoCropArea: 0.95
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('saveCropBtn').addEventListener('click', function() {
+            if (cropperInstance) {
+                const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 1000, maxHeight: 400 });
+                currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+                
+                const preview = document.getElementById('photoPreview');
+                preview.src = currentPhotoBase64;
+                document.getElementById('photoPreviewContainer').classList.remove('hidden');
+                
+                closeCropperModal();
+            }
+        });
+
+        function closeCropperModal() {
+            document.getElementById('cropperModal').classList.add('hidden');
+            if (cropperInstance) {
+                cropperInstance.destroy();
+                cropperInstance = null;
+            }
+            cameraInput.value = '';
+        }
+        document.getElementById('closeCropperBtn').addEventListener('click', closeCropperModal);
+        document.getElementById('cancelCropBtn').addEventListener('click', closeCropperModal);
+
+
+        /* ==========================================================
+           COMPORTEMENT DU TABLEAU DES ENTITÉS ENREGISTRÉES
+           ========================================================== */
+        document.getElementById('machineForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const item = {
+                idKey: Date.now(),
+                zone: document.getElementById('zone').value.trim(),
+                modele: document.getElementById('modele').value.trim(),
+                lieuId: document.getElementById('lieuId').value.trim(),
+                serial: document.getElementById('serial').value.trim(),
+                ip: document.getElementById('ip').value.trim(),
+                cellules: document.getElementById('cellules').value,
+                etatDot: document.getElementById('etatDot').value,
+                roller: document.getElementById('roller').value,
+                impression: document.getElementById('impression').value,
+                general: document.getElementById('general').value,
+                remarque: document.getElementById('remarque').value.trim(),
+                photos: currentPhotoBase64 ? [currentPhotoBase64] : []
+            };
+
+            reportData.push(item);
+            updateTable();
+            
+            document.getElementById('modele').value = '';
+            document.getElementById('lieuId').value = '';
+            document.getElementById('serial').value = '';
+            document.getElementById('ip').value = '';
+            document.getElementById('remarque').value = '';
+            document.getElementById('photoPreviewContainer').classList.add('hidden');
+            currentPhotoBase64 = null;
+        });
+
+        function updateTable() {
+            const tbody = document.getElementById('reportTableBody');
+            tbody.innerHTML = '';
+            document.getElementById('machineCount').innerText = reportData.length;
+
+            if (reportData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="2" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport pour le moment.</td></tr>`;
+                return;
+            }
+
+            const distinctZones = [...new Set(reportData.map(d => d.zone))];
+
+            distinctZones.forEach(z => {
+                const displayZoneName = z === "" ? "SANS ENSEIGNE / ZONE" : z;
+                
+                const zRow = document.createElement('tr');
+                zRow.className = "zone-header";
+                zRow.innerHTML = `<td colspan="2" class="px-3 py-2 text-left text-xs uppercase bg-blue-50 border-y border-gray-200 pl-4 font-bold">${displayZoneName}</td>`;
+                tbody.appendChild(zRow);
+
+                const zoneItems = reportData.filter(d => d.zone === z);
+                zoneItems.forEach(d => {
+                    const row = document.createElement('tr');
+                    row.className = "hover:bg-gray-50 text-xs text-gray-700";
+                    row.innerHTML = `
+                        <td class="px-3 py-3 font-bold text-gray-800 text-sm tracking-wider">${d.serial}</td>
+                        <td class="px-3 py-3">
+                            <button onclick="deleteRow(${d.idKey})" class="text-red-600 hover:text-red-900 font-bold cursor-pointer">Supprimer</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            });
+        }
+
+        window.deleteRow = function(idKey) {
+            reportData = reportData.filter(item => item.idKey !== idKey);
+            updateTable();
+        };
+
+
+        /* ==========================================================
+           MOTEUR D'EXPORTATION UNIFIÉ FORMAT WORD MHTML
+           ========================================================== */
+        document.getElementById('exportBtn').addEventListener('click', function() {
+            if (reportData.length === 0) return alert('Le rapport ne contient aucune donnée.');
+
+            const site = document.getElementById('headerSite').value || 'N/A';
+            const tech = document.getElementById('headerIntervenant').value || 'N/A';
+            const brand = document.getElementById('headerBrand').value;
+            const dateV = document.getElementById('headerDate').value ? new Date(document.getElementById('headerDate').value).toLocaleDateString('fr-FR') : 'N/A';
+
+            const boundary = "NEXT_PART_BOUNDARY_MARKER";
+            let mhtml = `MIME-Version: 1.0\nContent-Type: multipart/related; boundary="${boundary}"\n\n`;
+            mhtml += `--${boundary}\nContent-Type: text/html; charset="utf-8"\n\n`;
+
+            let docHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+            <meta charset="utf-8">
+            <style>
+                @page Section1 { size: 11.0in 8.5in; margin: 0.4in; mso-page-orientation: landscape; }
+                div.Section1 { page: Section1; }
+                body, p, table, td, th { font-family: 'Arial', sans-serif; color: #0a2540; line-height: 1.2; margin: 0; }
+                .title-doc { font-size: 18pt; font-weight: bold; color: #0a2540; text-transform: uppercase; }
+                .subtitle-doc { font-size: 11pt; font-weight: bold; color: #20639b; margin-bottom: 10pt; }
+                table { border-collapse: collapse; width: 100%; margin-bottom: 12pt; }
+                th, td { border: 1pt solid #ced4da; padding: 5pt 4pt; font-size: 9pt; vertical-align: middle; text-align: center; }
+                th { background-color: #0a2540; color: #ffffff; font-weight: bold; }
+                .row-zone { background-color: #e6f0fa; font-weight: bold; text-align: left; font-size: 9.5pt; color: #0a2540; padding: 4pt; }
+                .status-nok { color: #b30000; font-weight: bold; background-color: #fde8e8; }
+                .td-left { text-align: left; }
+                .photo-frame { width: 10cm; height: 4cm; border: 1px solid #cccccc; object-fit: cover; }
+            </style>
+            </head>
+            <body>
+            <div class="Section1">
+                
+                <table style="border:none; width:100%; margin-bottom:15pt;">
+                    <tr>
+                        <td style="border:none; text-align:left; width:65%;">
+                            <div class="title-doc">RAPPORT DE MAINTENANCE PREVENTIVE</div>
+                            <div class="subtitle-doc">Parc d'imprimantes : ${brand}</div>
+                        </td>
+                        <td style="border:none; text-align:right; font-size:9.5pt; line-height:1.4;">
+                            <strong>Date de l'audit :</strong> ${dateV}<br>
+                            <strong>Site Client :</strong> ${site}<br>
+                            <strong>Intervenant(s) :</strong> ${tech}
+                        </td>
+                    </tr>
+                </table>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:13%">Modèle (P/N)</th>
+                            <th style="width:13%">S/N & @ IP</th>
+                            <th style="width:6%">Cellules</th>
+                            <th style="width:10%">Etat dot</th>
+                            <th style="width:10%">Pressing Roller</th>
+                            <th style="width:6%">Impression</th>
+                            <th style="width:7%">Etat Général</th>
+                            <th style="width:17%">Remarques / Actions</th>
+                            <th style="width:18%">Illustration (10cm x 4cm)</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+            const zones = [...new Set(reportData.map(item => item.zone))];
+            let attachments = "";
+
+            zones.forEach(z => {
+                const displayZoneName = z === "" ? "SANS ENSEIGNE / ZONE SPECIFIQUE" : z.toUpperCase();
+                docHtml += `<tr><td colspan="9" class="row-zone">${displayZoneName}</td></tr>`;
+
+                const zoneData = reportData.filter(item => item.zone === z);
+                zoneData.forEach((d, i) => {
+                    let photoString = "-";
+                    if (d.photos && d.photos.length > 0) {
+                        const cid = `img_${Date.now()}_${i}`;
+                        photoString = `<img src="cid:${cid}" class="photo-frame">`;
+                        const rawBase64 = d.photos[0].split(',')[1];
+                        attachments += `\n--${boundary}\nContent-Location: cid:${cid}\nContent-Transfer-Encoding: base64\n\n${rawBase64}\n`;
+                    }
+
+                    docHtml += `<tr>
+                        <td class="td-left"><b>${d.modele}</b><br><span style="color:#555; font-size:8pt; font-style:italic;">${d.lieuId || '-'}</span></td>
+                        <td><b>${d.serial}</b><br><span style="color:#20639b; font-size:8pt;">${d.ip || '-'}</span></td>
+                        <td class="${d.cellules === 'NOK' ? 'status-nok' : ''}">${d.cellules}</td>
+                        <td class="${d.etatDot !== 'OK' ? 'status-nok' : ''}">${d.etatDot}</td>
+                        <td class="${d.roller !== 'OK' ? 'status-nok' : ''}">${d.roller}</td>
+                        <td class="${d.impression === 'NOK' ? 'status-nok' : ''}">${d.impression}</td>
+                        <td class="${d.general !== 'OK' ? 'status-nok' : ''}">${d.general}</td>
+                        <td class="td-left" style="font-size:8.5pt;">${d.remarque.replace(/\n/g, '<br>') || 'Aucune'}</td>
+                        <td>${photoString}</td>
+                    </tr>`;
+                });
+            });
+
+            docHtml += `</tbody></table></div></body></html>\n`;
+            mhtml += docHtml;
+            mhtml += attachments;
+            mhtml += `\n--${boundary}--\n`;
+
+            const blob = new Blob([mhtml], { type: 'application/msword;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `Rapport_Maintenance_${site.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.doc`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    </script>
+</body>
+</html>
