@@ -26,7 +26,7 @@
         
         <div class="flex items-center justify-between border-b pb-3 mb-4">
             <h1 class="text-2xl font-bold text-blue-950 tracking-wide">ScanPrint Audit 🛠️</h1>
-            <span class="text-xs bg-blue-100 text-blue-800 font-semibold px-2.5 py-0.5 rounded">Version Tech Terrain</span>
+            <span class="text-xs bg-blue-100 text-blue-800 font-semibold px-2.5 py-0.5 rounded">Version Haute Résolution</span>
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -37,11 +37,10 @@
             <div>
                 <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Intervenant / Technicien</label>
                 <select id="headerIntervenant" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:outline-blue-500">
-                    <option value="">-- Choisir un technicien --</option>
-                    <option value="Technicien 1">Technicien 1</option>
-                    <option value="Technicien 2">Technicien 2</option>
-                    <option value="Technicien 3">Technicien 3</option>
-                    <option value="Technicien 4">Technicien 4</option>
+                    <option value="">-- Choisir l'intervenant --</option>
+                    <option value="Pascal CARTON">Pascal CARTON</option>
+                    <option value="Benoît BRACKMAN">Benoît BRACKMAN</option>
+                    <option value="Pascal CARTON / Benoît BRACKMAN">Pascal CARTON / Benoît BRACKMAN</option>
                 </select>
             </div>
             <div>
@@ -70,7 +69,7 @@
             </div>
             
             <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Modèle d'imprimante</label>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Modèle d'imprimante (P/N)</label>
                 <div class="flex">
                     <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm" placeholder="Ex: ZT421 8 DOTS" required>
                     <button type="button" onclick="openScanner('modele')" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-3 text-xs font-bold cursor-pointer" title="Scanner le modèle">📷</button>
@@ -151,19 +150,19 @@
 
             <div class="md:col-span-4 bg-blue-50 p-4 rounded border border-blue-200 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div>
-                    <label class="block text-xs font-bold text-blue-900 mb-1">Cliché photo terrain</label>
-                    <p class="text-[11px] text-blue-700/80">Déclenche instantanément l'appareil photo pour illustrer une anomalie ou l'état de la machine.</p>
+                    <label class="block text-xs font-bold text-blue-900 mb-1">Prendre un cliché terrain <span class="text-gray-500 font-normal">(Format cible : 10cm x 4cm)</span></label>
+                    <p class="text-[11px] text-blue-700/80">Ouvre directement la caméra de votre équipement pour illustrer le rapport.</p>
                 </div>
                 <div>
                     <button type="button" id="capturePhotoBtn" class="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs px-5 py-3 rounded-lg shadow flex items-center gap-2 cursor-pointer transition-all">
-                        📷 Prendre une Photo (Appareil photo)
+                        📷 Déclencher l'appareil photo
                     </button>
                     <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
                 </div>
                 
                 <div id="photoPreviewContainer" class="hidden border-l pl-4 border-blue-200">
-                    <p class="text-[10px] font-bold text-gray-500 mb-1 uppercase">Rendu retenu :</p>
-                    <img id="photoPreview" src="" class="h-16 w-auto rounded border shadow-sm bg-white">
+                    <p class="text-[10px] font-bold text-gray-500 mb-1 uppercase">Aperçu (Ratio 10x4) :</p>
+                    <img id="photoPreview" src="" class="h-12 w-auto rounded border shadow-sm bg-white" style="aspect-ratio: 10 / 4; object-fit: cover;">
                 </div>
             </div>
 
@@ -195,7 +194,7 @@
                         <th class="px-3 py-3">Impression</th>
                         <th class="px-3 py-3">État Gén.</th>
                         <th class="px-3 py-3 text-left">Remarques / Actions</th>
-                        <th class="px-3 py-3">Photo</th>
+                        <th class="px-3 py-3">Photo (10x4)</th>
                         <th class="px-3 py-3">Actions</th>
                     </tr>
                 </thead>
@@ -209,20 +208,20 @@
     <div id="scannerModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-lg p-4 max-w-md w-full shadow-2xl">
             <div class="flex justify-between items-center mb-3">
-                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Scanner de Code-barres</h3>
+                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Scanner Industriel Code 128 / 39</h3>
                 <button type="button" id="closeScannerBtn" class="text-gray-500 hover:text-gray-800 text-2xl font-bold cursor-pointer">&times;</button>
             </div>
             <div id="scannerContainer" class="w-full bg-black rounded overflow-hidden shadow-inner relative" style="min-height: 260px;">
-                <div class="absolute inset-x-0 top-1/2 h-[2px] bg-red-500 z-10 pointer-events-none opacity-80 shadow-[0_0_4px_rgba(239,68,68,0.9)]"></div>
+                <div class="absolute inset-x-0 top-1/2 h-[2px] bg-red-500 z-10 pointer-events-none opacity-90 shadow-[0_0_5px_rgba(239,68,68,1)]"></div>
             </div>
-            <p class="text-[11px] text-gray-500 mt-2 text-center italic">Positionnez la ligne rouge au centre de votre code-barres (Code 128, 39, QR).</p>
+            <p class="text-[11px] text-gray-500 mt-2 text-center italic">Alignez la ligne laser rouge bien parallèlement au centre de votre code-barres.</p>
         </div>
     </div>
 
     <div id="cropperModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-lg p-4 max-w-lg w-full shadow-2xl flex flex-col max-h-[90vh]">
             <div class="flex justify-between items-center mb-3">
-                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Recadrer le cliché</h3>
+                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Ajuster au format 10cm x 4cm</h3>
                 <button type="button" id="closeCropperBtn" class="text-gray-500 hover:text-gray-800 text-2xl font-bold cursor-pointer">&times;</button>
             </div>
             <div class="overflow-hidden flex-1 bg-gray-100 flex items-center justify-center rounded border border-gray-200" style="max-height: 55vh;">
@@ -230,7 +229,7 @@
             </div>
             <div class="flex justify-end gap-2 mt-4">
                 <button type="button" id="cancelCropBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold text-xs px-4 py-2 rounded cursor-pointer">Annuler</button>
-                <button type="button" id="saveCropBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded shadow cursor-pointer">Enregistrer le recadrage</button>
+                <button type="button" id="saveCropBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded shadow cursor-pointer">Appliquer les dimensions</button>
             </div>
         </div>
     </div>
@@ -244,9 +243,9 @@
 
         document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
 
-        /* ==========================================
-           FONCTIONNEMENT DU SCANNER (OPTIMISÉ CODE 128)
-           ========================================== */
+        /* ==========================================================
+           FONCTIONNEMENT DU SCANNER PRÉCIS ET FORCE EN HIGH-RESOLUTION
+           ========================================================== */
         window.openScanner = function(targetFieldId) {
             activeScanField = targetFieldId;
             document.getElementById('scannerModal').classList.remove('hidden');
@@ -261,13 +260,26 @@
                 html5QrCode = new Html5Qrcode("scannerContainer", { formatsToSupport: formats });
             }
             
+            // Configuration d'une fente horizontale longue et étroite spécialisée étiquette S/N
             const config = { 
-                fps: 20, 
-                qrbox: { width: 320, height: 100 }
+                fps: 25, 
+                qrbox: function(viewfinderWidth, viewfinderHeight) {
+                    return {
+                        width: Math.floor(viewfinderWidth * 0.90),
+                        height: Math.floor(viewfinderHeight * 0.35)
+                    };
+                }
+            };
+            
+            // CONTRAINTES DE FLUX : On force une définition Full HD (1920x1080) pour discerner les lignes denses du Code 128
+            const videoConstraints = {
+                facingMode: "environment",
+                width: { ideal: 1920 },
+                height: { ideal: 1080 }
             };
             
             html5QrCode.start(
-                { facingMode: "environment" }, 
+                videoConstraints, 
                 config, 
                 (decodedText) => {
                     document.getElementById(activeScanField).value = decodedText;
@@ -275,7 +287,7 @@
                 },
                 (errorMessage) => { }
             ).catch(err => {
-                alert("Impossible de démarrer la caméra. Vérifiez les autorisations système.");
+                alert("Erreur d'accès caméra. Vérifiez qu'aucune autre application n'utilise l'appareil.");
                 stopBarcodeScanner();
             });
         };
@@ -289,9 +301,9 @@
         document.getElementById('closeScannerBtn').addEventListener('click', stopBarcodeScanner);
 
 
-        /* ==========================================
-           FONCTIONNEMENT DE LA CAPTURE ET DU CROP (PHOTO APPAREIL CORRIGÉ)
-           ========================================== */
+        /* ==========================================================
+           GESTION DE L'APPAREIL PHOTO DIRECT & ENCADREMENT RATIO 2.5
+           ========================================================== */
         const cameraInput = document.getElementById('cameraInput');
         const imageToCrop = document.getElementById('imageToCrop');
 
@@ -307,10 +319,11 @@
                     
                     if (cropperInstance) cropperInstance.destroy();
                     
+                    // On impose le ratio 10/4 soit 2.5 pour assurer le rendu physique final
                     cropperInstance = new Cropper(imageToCrop, {
-                        aspectRatio: NaN,
+                        aspectRatio: 10 / 4, 
                         viewMode: 1,
-                        autoCropArea: 0.9
+                        autoCropArea: 0.95
                     });
                 };
                 reader.readAsDataURL(file);
@@ -319,7 +332,8 @@
 
         document.getElementById('saveCropBtn').addEventListener('click', function() {
             if (cropperInstance) {
-                const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 800, maxHeight: 600 });
+                // Création d'un canvas propre préservant la netteté
+                const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 1000, maxHeight: 400 });
                 currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
                 
                 const preview = document.getElementById('photoPreview');
@@ -342,9 +356,9 @@
         document.getElementById('cancelCropBtn').addEventListener('click', closeCropperModal);
 
 
-        /* ==========================================
-           GESTION INTERACTIVE DES APPORTS ET DU TABLEAU
-           ========================================== */
+        /* ==========================================================
+           TRAITEMENT DES ENREGISTREMENTS ET MISE A JOUR DU TABLEAU
+           ========================================================== */
         document.getElementById('machineForm').addEventListener('submit', function(e) {
             e.preventDefault();
 
@@ -367,7 +381,7 @@
             reportData.push(item);
             updateTable();
             
-            // Remise à zéro sélective pour enchaîner les saisies de la zone
+            // Remise à blanc uniquement des éléments liés à la machine spécifique
             document.getElementById('modele').value = '';
             document.getElementById('lieuId').value = '';
             document.getElementById('serial').value = '';
@@ -390,7 +404,7 @@
             const distinctZones = [...new Set(reportData.map(d => d.zone))];
 
             distinctZones.forEach(z => {
-                const displayZoneName = z === "" ? "SANS ZONE CONFIGURÉE" : z;
+                const displayZoneName = z === "" ? "SANS ENSEIGNE / ZONE" : z;
                 
                 const zRow = document.createElement('tr');
                 zRow.className = "zone-header";
@@ -409,7 +423,7 @@
                     const genStyle = d.general !== 'OK' ? 'status-nok' : 'status-ok';
 
                     let photoHtml = d.photos && d.photos.length > 0 ? 
-                        `<img src="${d.photos[0]}" class="h-10 w-12 object-cover rounded mx-auto border shadow-sm bg-white">` : '-';
+                        `<img src="${d.photos[0]}" class="rounded mx-auto border shadow-sm bg-white" style="width: 75px; height: 30px; object-fit: cover;">` : '-';
 
                     row.innerHTML = `
                         <td class="px-3 py-2 text-left">
@@ -442,9 +456,9 @@
         };
 
 
-        /* ==========================================
-           EXPORTATION GENERATRICE DU COMPATIBLE WORD
-           ========================================== */
+        /* ==========================================================
+           EXPORTATION FINALE RECONSTITUANT LES CLICHES EN 10CM X 4CM
+           ========================================================== */
         document.getElementById('exportBtn').addEventListener('click', function() {
             if (reportData.length === 0) return alert('Le rapport ne contient aucune donnée.');
 
@@ -472,7 +486,8 @@
                 .row-zone { background-color: #e6f0fa; font-weight: bold; text-align: left; font-size: 9.5pt; color: #0a2540; padding: 4pt; }
                 .status-nok { color: #b30000; font-weight: bold; background-color: #fde8e8; }
                 .td-left { text-align: left; }
-                .photo-frame { width: 110px; height: auto; max-height: 85px; border: 1px solid #ddd; }
+                /* Dimensions physiques strictes demandées pour MS Word */
+                .photo-frame { width: 10cm; height: 4cm; border: 1px solid #cccccc; object-fit: cover; }
             </style>
             </head>
             <body>
@@ -481,13 +496,13 @@
                 <table style="border:none; width:100%; margin-bottom:15pt;">
                     <tr>
                         <td style="border:none; text-align:left; width:65%;">
-                            <div class="title-doc">RAPPORT DE MAINTENANCE PREVENTIVE</div>
-                            <div class="subtitle-doc">Parc d'imprimantes ${brand}</div>
+                            <div class="title-doc">RAPPORT DE MAINTENANCE PREVENTIVE IMPRIMANTES</div>
+                            <div class="subtitle-doc">Parc de terminaux et équipements ${brand}</div>
                         </td>
                         <td style="border:none; text-align:right; font-size:9.5pt; line-height:1.4;">
-                            <strong>Date :</strong> ${dateV}<br>
-                            <strong>Site :</strong> ${site}<br>
-                            <strong>Technicien :</strong> ${tech}
+                            <strong>Date de l'audit :</strong> ${dateV}<br>
+                            <strong>Site Client :</strong> ${site}<br>
+                            <strong>Intervenant désigné :</strong> ${tech}
                         </td>
                     </tr>
                 </table>
@@ -495,15 +510,15 @@
                 <table>
                     <thead>
                         <tr>
-                            <th style="width:16%">Imprimante / Lieu</th>
-                            <th style="width:16%">S/N <br> @ IP</th>
-                            <th style="width:7%">Cellules</th>
-                            <th style="width:11%">Etat dot</th>
-                            <th style="width:11%">Pressing Roller</th>
-                            <th style="width:7%">Impression</th>
+                            <th style="width:14%">Modèle (P/N)</th>
+                            <th style="width:14%">S/N & IP</th>
+                            <th style="width:6%">Cellules</th>
+                            <th style="width:10%">Etat dot</th>
+                            <th style="width:10%">Pressing Roller</th>
+                            <th style="width:6%">Impression</th>
                             <th style="width:7%">Etat Général</th>
-                            <th style="width:17%">Remarques / Actions</th>
-                            <th style="width:10%">Photo</th>
+                            <th style="width:15%">Remarques / Actions</th>
+                            <th style="width:18%">Illustration (10cm x 4cm)</th>
                         </tr>
                     </thead>
                     <tbody>`;
@@ -512,7 +527,7 @@
             let attachments = "";
 
             zones.forEach(z => {
-                const displayZoneName = z === "" ? "SANS ZONE CONFIGURÉE" : z.toUpperCase();
+                const displayZoneName = z === "" ? "SANS ENSEIGNE / ZONE SPECIFIQUE" : z.toUpperCase();
                 docHtml += `<tr><td colspan="9" class="row-zone">${displayZoneName}</td></tr>`;
 
                 const zoneData = reportData.filter(item => item.zone === z);
