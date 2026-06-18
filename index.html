@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ScanPrint Audit - Rapport de Maintenance</title>
+    <title>RAPPORT DE MAINTENANCE PREVENTIVE</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -25,8 +25,8 @@
     <div class="max-w-7xl mx-auto bg-white rounded-xl shadow-md p-6">
         
         <div class="flex items-center justify-between border-b pb-3 mb-4">
-            <h1 class="text-2xl font-bold text-blue-950 tracking-wide">ScanPrint Audit 🛠️</h1>
-            <span class="text-xs bg-blue-100 text-blue-800 font-semibold px-2.5 py-0.5 rounded">Version Haute Résolution</span>
+            <h1 class="text-2xl font-bold text-blue-950 tracking-wide">RAPPORT DE MAINTENANCE PREVENTIVE 📋</h1>
+            <span class="text-xs bg-blue-100 text-blue-800 font-semibold px-2.5 py-0.5 rounded">Application Terrain</span>
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -44,7 +44,7 @@
                 </select>
             </div>
             <div>
-                <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Marque du Parc</label>
+                <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Parc d'imprimante</label>
                 <select id="headerBrand" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:outline-blue-500">
                     <option value="ZEBRA">ZEBRA</option>
                     <option value="HONEYWELL">HONEYWELL</option>
@@ -187,7 +187,7 @@
                 <thead class="bg-blue-950 text-white text-xs uppercase font-bold">
                     <tr>
                         <th class="px-3 py-3 text-left">Imprimante / Lieu</th>
-                        <th class="px-3 py-3">S/N & IP</th>
+                        <th class="px-3 py-3">S/N</th>
                         <th class="px-3 py-3">Cellules</th>
                         <th class="px-3 py-3">État Dot</th>
                         <th class="px-3 py-3">Pressing Roller</th>
@@ -244,7 +244,7 @@
         document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
 
         /* ==========================================================
-           FONCTIONNEMENT DU SCANNER PRÉCIS ET FORCE EN HIGH-RESOLUTION
+           FONCTIONNEMENT DU SCANNER AVEC PARADE ANTI OVERCONSTRAINED
            ========================================================== */
         window.openScanner = function(targetFieldId) {
             activeScanField = targetFieldId;
@@ -260,7 +260,6 @@
                 html5QrCode = new Html5Qrcode("scannerContainer", { formatsToSupport: formats });
             }
             
-            // Configuration d'une fente horizontale longue et étroite spécialisée étiquette S/N
             const config = { 
                 fps: 25, 
                 qrbox: function(viewfinderWidth, viewfinderHeight) {
@@ -271,26 +270,31 @@
                 }
             };
             
-            // CONTRAINTES DE FLUX : On force une définition Full HD (1920x1080) pour discerner les lignes denses du Code 128
-            const videoConstraints = {
-                facingMode: "environment",
-                width: { ideal: 1920 },
-                height: { ideal: 1080 }
-            };
-            
+            // Étape 1 : Essai de démarrage en Haute Définition pour discerner les barres fines
             html5QrCode.start(
-                videoConstraints, 
+                { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }, 
                 config, 
-                (decodedText) => {
-                    document.getElementById(activeScanField).value = decodedText;
-                    stopBarcodeScanner();
-                },
-                (errorMessage) => { }
+                onScanSuccess,
+                () => {}
             ).catch(err => {
-                alert("Erreur d'accès caméra. Vérifiez qu'aucune autre application n'utilise l'appareil.");
-                stopBarcodeScanner();
+                // Étape 2 : Secours automatique en mode standard sans générer d'erreur si le HD échoue
+                console.warn("Résolution HD refusée par l'appareil, repli sur le flux standard.", err);
+                html5QrCode.start(
+                    { facingMode: "environment" }, 
+                    config, 
+                    onScanSuccess,
+                    () => {}
+                ).catch(finalErr => {
+                    alert("Erreur d'accès à la caméra. Veuillez vérifier les autorisations système.");
+                    stopBarcodeScanner();
+                });
             });
         };
+
+        function onScanSuccess(decodedText) {
+            document.getElementById(activeScanField).value = decodedText;
+            stopBarcodeScanner();
+        }
 
         function stopBarcodeScanner() {
             document.getElementById('scannerModal').classList.add('hidden');
@@ -319,7 +323,6 @@
                     
                     if (cropperInstance) cropperInstance.destroy();
                     
-                    // On impose le ratio 10/4 soit 2.5 pour assurer le rendu physique final
                     cropperInstance = new Cropper(imageToCrop, {
                         aspectRatio: 10 / 4, 
                         viewMode: 1,
@@ -332,7 +335,6 @@
 
         document.getElementById('saveCropBtn').addEventListener('click', function() {
             if (cropperInstance) {
-                // Création d'un canvas propre préservant la netteté
                 const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 1000, maxHeight: 400 });
                 currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
                 
@@ -358,7 +360,7 @@
 
         /* ==========================================================
            TRAITEMENT DES ENREGISTREMENTS ET MISE A JOUR DU TABLEAU
-           ========================================================== */
+           ========================================================= */
         document.getElementById('machineForm').addEventListener('submit', function(e) {
             e.preventDefault();
 
@@ -381,7 +383,6 @@
             reportData.push(item);
             updateTable();
             
-            // Remise à blanc uniquement des éléments liés à la machine spécifique
             document.getElementById('modele').value = '';
             document.getElementById('lieuId').value = '';
             document.getElementById('serial').value = '';
@@ -425,15 +426,13 @@
                     let photoHtml = d.photos && d.photos.length > 0 ? 
                         `<img src="${d.photos[0]}" class="rounded mx-auto border shadow-sm bg-white" style="width: 75px; height: 30px; object-fit: cover;">` : '-';
 
+                    // Modifié : La deuxième cellule affiche maintenant strictement le S/N (Allégé)
                     row.innerHTML = `
                         <td class="px-3 py-2 text-left">
                             <div class="font-bold text-gray-900">${d.modele}</div>
                             <div class="text-gray-500 italic text-[11px]">${d.lieuId || '-'}</div>
                         </td>
-                        <td class="px-3 py-2">
-                            <div class="font-semibold text-gray-800">${d.serial}</div>
-                            <div class="text-blue-600 font-mono text-[11px]">${d.ip || '-'}</div>
-                        </td>
+                        <td class="px-3 py-2 font-semibold text-gray-800">${d.serial}</td>
                         <td class="px-3 py-2 ${cellStyle}">${d.cellules}</td>
                         <td class="px-3 py-2 ${dotStyle}">${d.etatDot}</td>
                         <td class="px-3 py-2 ${rollerStyle}">${d.roller}</td>
@@ -458,7 +457,7 @@
 
         /* ==========================================================
            EXPORTATION FINALE RECONSTITUANT LES CLICHES EN 10CM X 4CM
-           ========================================================== */
+           ========================================================= */
         document.getElementById('exportBtn').addEventListener('click', function() {
             if (reportData.length === 0) return alert('Le rapport ne contient aucune donnée.');
 
@@ -478,15 +477,15 @@
                 @page Section1 { size: 11.0in 8.5in; margin: 0.4in; mso-page-orientation: landscape; }
                 div.Section1 { page: Section1; }
                 body, p, table, td, th { font-family: 'Arial', sans-serif; color: #0a2540; line-height: 1.2; margin: 0; }
-                .title-doc { font-size: 18pt; font-weight: bold; color: #0a2540; }
-                .subtitle-doc { font-size: 12pt; font-weight: bold; color: #20639b; margin-bottom: 10pt; }
+                .title-doc { font-size: 18pt; font-weight: bold; color: #0a2540; text-transform: uppercase; }
+                .subtitle-doc { font-size: 11pt; font-weight: bold; color: #20639b; margin-bottom: 10pt; }
                 table { border-collapse: collapse; width: 100%; margin-bottom: 12pt; }
                 th, td { border: 1pt solid #ced4da; padding: 5pt 4pt; font-size: 9pt; vertical-align: middle; text-align: center; }
                 th { background-color: #0a2540; color: #ffffff; font-weight: bold; }
                 .row-zone { background-color: #e6f0fa; font-weight: bold; text-align: left; font-size: 9.5pt; color: #0a2540; padding: 4pt; }
                 .status-nok { color: #b30000; font-weight: bold; background-color: #fde8e8; }
                 .td-left { text-align: left; }
-                /* Dimensions physiques strictes demandées pour MS Word */
+                /* Dimensions Word configurées en 10cm x 4cm */
                 .photo-frame { width: 10cm; height: 4cm; border: 1px solid #cccccc; object-fit: cover; }
             </style>
             </head>
@@ -496,13 +495,13 @@
                 <table style="border:none; width:100%; margin-bottom:15pt;">
                     <tr>
                         <td style="border:none; text-align:left; width:65%;">
-                            <div class="title-doc">RAPPORT DE MAINTENANCE PREVENTIVE IMPRIMANTES</div>
-                            <div class="subtitle-doc">Parc de terminaux et équipements ${brand}</div>
+                            <div class="title-doc">RAPPORT DE MAINTENANCE PREVENTIVE</div>
+                            <div class="subtitle-doc">Parc d'imprimantes : ${brand}</div>
                         </td>
                         <td style="border:none; text-align:right; font-size:9.5pt; line-height:1.4;">
                             <strong>Date de l'audit :</strong> ${dateV}<br>
                             <strong>Site Client :</strong> ${site}<br>
-                            <strong>Intervenant désigné :</strong> ${tech}
+                            <strong>Intervenant(s) :</strong> ${tech}
                         </td>
                     </tr>
                 </table>
@@ -510,14 +509,14 @@
                 <table>
                     <thead>
                         <tr>
-                            <th style="width:14%">Modèle (P/N)</th>
-                            <th style="width:14%">S/N & IP</th>
+                            <th style="width:13%">Modèle (P/N)</th>
+                            <th style="width:13%">S/N & @ IP</th>
                             <th style="width:6%">Cellules</th>
                             <th style="width:10%">Etat dot</th>
                             <th style="width:10%">Pressing Roller</th>
                             <th style="width:6%">Impression</th>
                             <th style="width:7%">Etat Général</th>
-                            <th style="width:15%">Remarques / Actions</th>
+                            <th style="width:17%">Remarques / Actions</th>
                             <th style="width:18%">Illustration (10cm x 4cm)</th>
                         </tr>
                     </thead>
