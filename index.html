@@ -67,7 +67,10 @@
             
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Modèle d'imprimante (P/N)</label>
-                <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm bg-yellow-50 font-semibold" placeholder="Auto-rempli ou saisie manuelle" required>
+                <div class="flex">
+                    <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm" placeholder="Ex: ZT421 8 DOTS" required>
+                    <button type="button" onclick="openScanner('modele')" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-3 text-xs font-bold cursor-pointer" title="Scanner le modèle">📷</button>
+                </div>
             </div>
             
             <div>
@@ -78,9 +81,9 @@
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Numéro de Série (S/N)</label>
                 <div class="flex">
-                    <input type="text" id="serial" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm focus:outline-blue-500 font-bold" placeholder="S/N de la machine" required>
-                    <button type="button" onclick="openCode128Scanner()" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-3 text-xs font-bold cursor-pointer flex items-center gap-1 shadow-sm" title="Lancer le Scan 1D">
-                        📷 Scan Code-Barres
+                    <input type="text" id="serial" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm focus:outline-blue-500" placeholder="S/N" required>
+                    <button type="button" onclick="openScanner('serial')" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-3 text-xs font-bold cursor-pointer flex items-center gap-1 shadow" title="Scanner le S/N">
+                        📷 Scan S/N
                     </button>
                 </div>
             </div>
@@ -181,12 +184,14 @@
             <table class="min-w-full divide-y divide-gray-200 text-sm text-center">
                 <thead class="bg-blue-950 text-white text-xs uppercase font-bold">
                     <tr>
-                        <th class="px-3 py-3">Numéro de Série (S/N)</th>
+                        <th class="px-3 py-3 text-left">Imprimante / Lieu ID</th>
+                        <th class="px-3 py-3">S/N</th>
+                        <th class="px-3 py-3">Photo (10x4)</th>
                         <th class="px-3 py-3">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="reportTableBody" class="bg-white divide-y divide-gray-200">
-                    <tr><td colspan="2" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport pour le moment.</td></tr>
+                    <tr><td colspan="4" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport pour le moment.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -195,25 +200,15 @@
     <div id="scannerModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-lg p-4 max-w-md w-full shadow-2xl">
             <div class="flex justify-between items-center mb-3">
-                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Scanner le code-barres (S/N)</h3>
+                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Scanner le Code 128 (S/N)</h3>
                 <button type="button" id="closeScannerBtn" class="text-gray-500 hover:text-gray-800 text-2xl font-bold cursor-pointer">&times;</button>
             </div>
-            
-            <div class="relative w-full bg-black rounded overflow-hidden shadow-inner" style="min-height: 260px;">
-                
-                <div id="scannerContainer" class="w-full h-full"></div>
-                
-                <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] h-[100px] z-20 pointer-events-none">
-                    <div class="w-full h-[2px] bg-red-600 absolute top-1/2 -translate-y-1/2 shadow-[0_0_10px_rgba(239,68,68,0.9)]"></div>
-                    
-                    <div class="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-white rounded-tl-sm"></div>
-                    <div class="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-white rounded-tr-sm"></div>
-                    <div class="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-white rounded-bl-sm"></div>
-                    <div class="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-white rounded-br-sm"></div>
+            <div id="scannerContainer" class="w-full bg-black rounded overflow-hidden shadow-inner relative" style="min-height: 260px;">
+                <div class="absolute inset-x-2 top-1/2 -translate-y-1/2 h-[70px] border-2 border-red-500 bg-red-500/10 z-10 pointer-events-none rounded opacity-90">
+                    <div class="w-full h-1 bg-red-600 absolute top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(239,68,68,1)]"></div>
                 </div>
             </div>
-            
-            <p class="text-[11px] text-gray-500 mt-2 text-center italic">Le Datamatrix carré est filtré et bloqué. Alignez simplement la ligne rouge sur le code-barres.</p>
+            <p class="text-[11px] text-gray-500 mt-2 text-center italic">Alignez la ligne rouge centrale parfaitement sur les barres verticales du code S/N. Ignorez le carré Datamatrix.</p>
         </div>
     </div>
 
@@ -238,122 +233,85 @@
         let currentPhotoBase64 = null;
         let html5QrCode = null;
         let cropperInstance = null;
+        let activeScanField = 'serial';
 
         document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
 
         /* ==========================================================
-           BASE DE CONNAISSANCES : RECONNAISSANCE TRADITIONNELLE PREVUE
+           FONCTIONNEMENT DU SCANNER SÉCURISÉ CONTRE L'ÉCRAN NOIR
+           ET BRIDÉ CONTRE LE DATAMATRIX (Cible uniquement Code 128)
            ========================================================== */
-        function obtenirNomModeleDepuisPrefixe(chaine) {
-            let txt = chaine.toUpperCase();
-            if (txt.includes("42J") || txt.includes("ZT421")) return "ZEBRA ZT421 (203 dpi)";
-            if (txt.includes("41J") || txt.includes("ZT411")) return "ZEBRA ZT411 (203 dpi)";
-            if (txt.includes("33J") || txt.includes("ZD421")) return "ZEBRA ZD421";
-            if (txt.includes("12C") || txt.includes("ZM400")) return "ZEBRA ZM400";
-            if (txt.includes("41A") || txt.includes("ZT410")) return "ZEBRA ZT410";
-            if (txt.includes("42A") || txt.includes("ZT420")) return "ZEBRA ZT420";
-            return "";
-        }
-
-        /* ==========================================================
-           TRAITEMENT ET ROUTAGE DE LA SAISIE (AVEC NETTOYAGE 'S' / 'P')
-           ========================================================== */
-        function traiterLectureCode128(decodedText) {
-            let textUpper = decodedText.trim().toUpperCase();
-            
-            let serialField = document.getElementById('serial');
-            let modeleField = document.getElementById('modele');
-
-            let prefixesSN = ["41J", "42J", "33J", "12C", "41A", "42A"];
-            let prefixesPN = ["ZT4", "ZD4", "ZM4"];
-
-            // Nettoyage de la lettre d'identification usine
-            let texteNettoye = textUpper;
-            if (textUpper.startsWith('S') || textUpper.startsWith('P')) {
-                texteNettoye = textUpper.substring(1);
-            }
-
-            // Détection Numéro de Série (S/N)
-            for (let sig of prefixesSN) {
-                if (texteNettoye.startsWith(sig)) {
-                    serialField.value = texteNettoye;
-                    modeleField.value = obtenirNomModeleDepuisPrefixe(texteNettoye);
-                    return;
-                }
-            }
-
-            // Cas d'erreur : Si l'utilisateur a ciblé le code-barres Modèle (P/N)
-            for (let pref of prefixesPN) {
-                if (texteNettoye.startsWith(pref)) {
-                    modeleField.value = obtenirNomModeleDepuisPrefixe(texteNettoye) || texteNettoye;
-                    serialField.value = "";
-                    alert("📷 Code Modèle intercepté (" + texteNettoye + ") ! Visez plutôt l'autre ligne de code-barres pour le Numéro de Série (S/N).");
-                    return;
-                }
-            }
-
-            // Injection par défaut si format inconnu
-            serialField.value = texteNettoye;
-            let modeleDevine = obtenirNomModeleDepuisPrefixe(texteNettoye);
-            if (modeleDevine) modeleField.value = modeleDevine;
-        }
-
-        /* Prise en compte immédiate si saisie manuelle */
-        document.getElementById('serial').addEventListener('input', function(e) {
-            if (e.target.value.length >= 3) {
-                traiterLectureCode128(e.target.value);
-            }
-        });
-
-
-        /* ==========================================================
-           OUVERTURE DU SCANNER UNIVERSEL AMÉLIORÉ (S/N EXCLUSIF)
-           ========================================================== */
-        window.openCode128Scanner = function() {
+        window.openScanner = function(targetFieldId) {
+            activeScanField = targetFieldId;
             document.getElementById('scannerModal').classList.remove('hidden');
             
             if (!html5QrCode) {
-                html5QrCode = new Html5Qrcode("scannerContainer");
+                // CORRECTION : On force uniquement les formats linéaires Code 128 et Code 39.
+                // On supprime QR_CODE, DATA_MATRIX, AZTEC qui perturbent la lecture.
+                const formats = [
+                    Html5QrcodeSupportedFormats.CODE_128,
+                    Html5QrcodeSupportedFormats.CODE_39
+                ];
+                html5QrCode = new Html5Qrcode("scannerContainer", { formatsToSupport: formats });
             }
             
-            // CONFIGURATION CIBLÉE : On restreint la zone de capture au format exact de notre viseur CSS
+            // Configuration optimisée pour cible horizontale étroite
             const config = { 
-                fps: 25,
-                qrbox: { width: 340, height: 100 }, // Cadre matériel aligné sur les angles blancs
-                formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_128 ], // RECHERCHE UNIQUEMENT LE CODE 128 (Instantané)
-                experimentalFeatures: {
-                    useBarCodeDetectorIfSupported: true // Utilisation du décodeur matériel natif si dispo
+                fps: 30, 
+                qrbox: function(viewfinderWidth, viewfinderHeight) {
+                    return {
+                        width: Math.floor(viewfinderWidth * 0.95),
+                        height: 70 // Fente étroite pour isoler une seule ligne de code
+                    };
                 }
             };
             
+            // Tentative de détection du capteur arrière principal
+            Html5Qrcode.getCameras().then(cameras => {
+                if (cameras && cameras.length > 0) {
+                    let backCamera = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('arrière'));
+                    let cameraId = backCamera ? backCamera.id : cameras[cameras.length - 1].id;
+                    
+                    html5QrCode.start(
+                        cameraId, 
+                        config, 
+                        onScanSuccess,
+                        () => {} // Ignorer les erreurs de frame
+                    ).catch(err => {
+                        fallbackFacingMode(config);
+                    });
+                } else {
+                    fallbackFacingMode(config);
+                }
+            }).catch(err => {
+                fallbackFacingMode(config);
+            });
+        };
+
+        function fallbackFacingMode(config) {
             html5QrCode.start(
                 { facingMode: "environment" }, 
                 config, 
-                (decodedText, decodedResult) => {
-                    // Uniquement exécuté si un CODE 128 valide passe sur la ligne rouge
-                    traiterLectureCode128(decodedText);
-                    stopBarcodeScanner();
-                },
-                () => {} // Recherche silencieuse frame par frame
-            ).catch((err) => {
-                console.warn("Échec facingMode direct, bascule sur recherche d'index :", err);
-                Html5Qrcode.getCameras().then(cameras => {
-                    if (cameras && cameras.length > 0) {
-                        let backCamera = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('arrière'));
-                        let cameraId = backCamera ? backCamera.id : cameras[cameras.length - 1].id;
-                        html5QrCode.start(cameraId, config, (txt) => {
-                            traiterLectureCode128(txt); 
-                            stopBarcodeScanner();
-                        }, () => {});
-                    } else {
-                        alert("Aucune caméra détectée.");
-                    }
-                }).catch(() => {
-                    alert("Erreur d'accès à la caméra. Vérifiez les autorisations du navigateur.");
-                    stopBarcodeScanner();
-                });
+                onScanSuccess,
+                () => {}
+            ).catch(finalErr => {
+                alert("Erreur : Impossible de démarrer la caméra. Vérifiez les autorisations.");
+                stopBarcodeScanner();
             });
-        };
+        }
+
+        function onScanSuccess(decodedText) {
+            // CORRECTION SUPPLÉMENTAIRE : Heuristique de filtrage
+            // Les Datamatrix industriels commencent souvent par des en-têtes complexes (ex: [)> )
+            // Si le texte lu ressemble à du Datamatrix, on l'ignore et on continue.
+            if (decodedText.startsWith("[)>") || decodedText.includes("06")) {
+                console.warn("Datamatrix détecté par erreur, ignoré.");
+                return; // Le scanner continue
+            }
+
+            document.getElementById(activeScanField).value = decodedText;
+            stopBarcodeScanner();
+        }
 
         function stopBarcodeScanner() {
             document.getElementById('scannerModal').classList.add('hidden');
@@ -365,7 +323,7 @@
 
 
         /* ==========================================================
-           APPAREIL PHOTO COMPAGNON & FORMAT DE COUPE
+           GESTION DE L'APPAREIL PHOTO DIRECT & ENCADREMENT RATIO 2.5
            ========================================================== */
         const cameraInput = document.getElementById('cameraInput');
         const imageToCrop = document.getElementById('imageToCrop');
@@ -418,8 +376,8 @@
 
 
         /* ==========================================================
-           COMPORTEMENT DU TABLEAU DES ENTITÉS ENREGISTRÉES
-           ========================================================== */
+           TRAITEMENT DES ENREGISTREMENTS ET MISE A JOUR DU TABLEAU ALLÉGÉ
+           ========================================================= */
         document.getElementById('machineForm').addEventListener('submit', function(e) {
             e.preventDefault();
 
@@ -457,7 +415,7 @@
             document.getElementById('machineCount').innerText = reportData.length;
 
             if (reportData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="2" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport pour le moment.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport pour le moment.</td></tr>`;
                 return;
             }
 
@@ -468,15 +426,25 @@
                 
                 const zRow = document.createElement('tr');
                 zRow.className = "zone-header";
-                zRow.innerHTML = `<td colspan="2" class="px-3 py-2 text-left text-xs uppercase bg-blue-50 border-y border-gray-200 pl-4 font-bold">${displayZoneName}</td>`;
+                zRow.innerHTML = `<td colspan="4" class="px-3 py-2 text-left text-xs uppercase bg-blue-50 border-y border-gray-200 pl-4 font-bold">${displayZoneName}</td>`;
                 tbody.appendChild(zRow);
 
                 const zoneItems = reportData.filter(d => d.zone === z);
                 zoneItems.forEach(d => {
                     const row = document.createElement('tr');
                     row.className = "hover:bg-gray-50 text-xs text-gray-700";
+
+                    let photoHtml = d.photos && d.photos.length > 0 ? 
+                        `<img src="${d.photos[0]}" class="rounded mx-auto border shadow-sm bg-white" style="width: 75px; height: 30px; object-fit: cover;">` : '-';
+
+                    // UI Allégée : Imprimante, S/N, Photo, Supprimer
                     row.innerHTML = `
-                        <td class="px-3 py-3 font-bold text-gray-800 text-sm tracking-wider">${d.serial}</td>
+                        <td class="px-3 py-3 text-left">
+                            <div class="font-bold text-gray-900">${d.modele}</div>
+                            <div class="text-gray-500 italic text-[11px]">${d.lieuId || '-'}</div>
+                        </td>
+                        <td class="px-3 py-3 font-semibold text-gray-800 text-sm tracking-wider">${d.serial}</td>
+                        <td class="px-3 py-3">${photoHtml}</td>
                         <td class="px-3 py-3">
                             <button onclick="deleteRow(${d.idKey})" class="text-red-600 hover:text-red-900 font-bold cursor-pointer">Supprimer</button>
                         </td>
@@ -493,8 +461,8 @@
 
 
         /* ==========================================================
-           MOTEUR D'EXPORTATION UNIFIÉ FORMAT WORD MHTML
-           ========================================================== */
+           EXPORTATION GENERALE COMPLETE WORD
+           ========================================================= */
         document.getElementById('exportBtn').addEventListener('click', function() {
             if (reportData.length === 0) return alert('Le rapport ne contient aucune donnée.');
 
