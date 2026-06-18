@@ -182,14 +182,12 @@
             <table class="min-w-full divide-y divide-gray-200 text-sm text-center">
                 <thead class="bg-blue-950 text-white text-xs uppercase font-bold">
                     <tr>
-                        <th class="px-3 py-3 text-left">Imprimante / Lieu</th>
-                        <th class="px-3 py-3">S/N</th>
-                        <th class="px-3 py-3">Photo (10x4)</th>
+                        <th class="px-3 py-3">Numéro de Série (S/N)</th>
                         <th class="px-3 py-3">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="reportTableBody" class="bg-white divide-y divide-gray-200">
-                    <tr><td colspan="4" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport pour le moment.</td></tr>
+                    <tr><td colspan="2" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport pour le moment.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -202,9 +200,11 @@
                 <button type="button" id="closeScannerBtn" class="text-gray-500 hover:text-gray-800 text-2xl font-bold cursor-pointer">&times;</button>
             </div>
             <div id="scannerContainer" class="w-full bg-black rounded overflow-hidden shadow-inner relative" style="min-height: 260px;">
-                <div class="absolute inset-x-0 top-1/2 h-[2px] bg-red-500 z-10 pointer-events-none opacity-90 shadow-[0_0_5px_rgba(239,68,68,1)]"></div>
+                <div class="absolute inset-x-4 top-1/2 -translate-y-1/2 h-[46px] border border-red-500 bg-red-500/10 z-10 pointer-events-none opacity-95 rounded shadow-[0_0_8px_rgba(239,68,68,0.5)]">
+                    <div class="w-full h-[2px] bg-red-600 absolute top-1/2 -translate-y-1/2 shadow-[0_0_4px_rgba(239,68,68,1)]"></div>
+                </div>
             </div>
-            <p class="text-[11px] text-gray-500 mt-2 text-center italic">Alignez la ligne laser rouge bien parallèlement au centre de votre code-barres.</p>
+            <p class="text-[11px] text-gray-500 mt-2 text-center italic">Isolez le code souhaité au centre du rectangle rouge pour éviter de lire les codes voisins.</p>
         </div>
     </div>
 
@@ -234,7 +234,7 @@
         document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
 
         /* ==========================================================
-           FONCTIONNEMENT DU SCANNER SÉCURISÉ CONTRE L'ÉCRAN NOIR
+           FONCTIONNEMENT DU SCANNER SÉCURISÉ ET RECENTRÉ (FENTE COMPACTE)
            ========================================================== */
         window.openScanner = function(targetFieldId) {
             activeScanField = targetFieldId;
@@ -250,22 +250,20 @@
                 html5QrCode = new Html5Qrcode("scannerContainer", { formatsToSupport: formats });
             }
             
+            // Configuration affinée : zone très étroite pour cibler une ligne précise de code-barres
             const config = { 
-                fps: 25, 
+                fps: 30, 
                 qrbox: function(viewfinderWidth, viewfinderHeight) {
                     return {
-                        width: Math.floor(viewfinderWidth * 0.90),
-                        height: Math.floor(viewfinderHeight * 0.35)
+                        width: Math.floor(viewfinderWidth * 0.85),
+                        height: 50 // Fente étroite de 50 pixels pour bloquer les interférences des codes proches
                     };
                 }
             };
             
-            // Correction Écran Noir : Lister explicitement les caméras de l'appareil
             Html5Qrcode.getCameras().then(cameras => {
                 if (cameras && cameras.length > 0) {
-                    // Recherche du capteur grand-angle arrière principal (Back / Arrière)
                     let backCamera = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('arrière'));
-                    // Sélection de la caméra arrière trouvée, sinon sélection du dernier capteur de la liste
                     let cameraId = backCamera ? backCamera.id : cameras[cameras.length - 1].id;
                     
                     html5QrCode.start(
@@ -274,7 +272,6 @@
                         onScanSuccess,
                         () => {}
                     ).catch(err => {
-                        // Secours si l'identifiant ID plante
                         fallbackFacingMode(config);
                     });
                 } else {
@@ -365,7 +362,7 @@
 
 
         /* ==========================================================
-           TRAITEMENT DES ENREGISTREMENTS ET MISE A JOUR DU TABLEAU ALLÉGÉ
+           TRAITEMENT DES ENREGISTREMENTS ET TABLEAU ULTRA-ALLÉGÉ
            ========================================================= */
         document.getElementById('machineForm').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -404,7 +401,7 @@
             document.getElementById('machineCount').innerText = reportData.length;
 
             if (reportData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport pour le moment.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="2" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport pour le moment.</td></tr>`;
                 return;
             }
 
@@ -415,7 +412,7 @@
                 
                 const zRow = document.createElement('tr');
                 zRow.className = "zone-header";
-                zRow.innerHTML = `<td colspan="4" class="px-3 py-2 text-left text-xs uppercase bg-blue-50 border-y border-gray-200 pl-4 font-bold">${displayZoneName}</td>`;
+                zRow.innerHTML = `<td colspan="2" class="px-3 py-2 text-left text-xs uppercase bg-blue-50 border-y border-gray-200 pl-4 font-bold">${displayZoneName}</td>`;
                 tbody.appendChild(zRow);
 
                 const zoneItems = reportData.filter(d => d.zone === z);
@@ -423,17 +420,9 @@
                     const row = document.createElement('tr');
                     row.className = "hover:bg-gray-50 text-xs text-gray-700";
 
-                    let photoHtml = d.photos && d.photos.length > 0 ? 
-                        `<img src="${d.photos[0]}" class="rounded mx-auto border shadow-sm bg-white" style="width: 75px; height: 30px; object-fit: cover;">` : '-';
-
-                    // Rendu UI allégé sur 4 colonnes max à l'écran
+                    // Affichage UI minimaliste à l'écran : S/N et Action uniquement
                     row.innerHTML = `
-                        <td class="px-3 py-3 text-left">
-                            <div class="font-bold text-gray-900">${d.modele}</div>
-                            <div class="text-gray-500 italic text-[11px]">${d.lieuId || '-'}</div>
-                        </td>
-                        <td class="px-3 py-3 font-semibold text-gray-800 text-sm">${d.serial}</td>
-                        <td class="px-3 py-3">${photoHtml}</td>
+                        <td class="px-3 py-3 font-bold text-gray-800 text-sm tracking-wider">${d.serial}</td>
                         <td class="px-3 py-3">
                             <button onclick="deleteRow(${d.idKey})" class="text-red-600 hover:text-red-900 font-bold cursor-pointer">Supprimer</button>
                         </td>
@@ -450,7 +439,7 @@
 
 
         /* ==========================================================
-           EXPORTATION GENERALE COMPLETE WORD (RESTE TOTALEMENT COMPLETE)
+           EXPORTATION GENERALE COMPLETE WORD (RESTE TOTALEMENT INDÉPENDANTE DE L'AFFICHAGE ÉCRAN)
            ========================================================= */
         document.getElementById('exportBtn').addEventListener('click', function() {
             if (reportData.length === 0) return alert('Le rapport ne contient aucune donnée.');
@@ -533,32 +522,4 @@
                     }
 
                     docHtml += `<tr>
-                        <td class="td-left"><b>${d.modele}</b><br><span style="color:#555; font-size:8pt; font-style:italic;">${d.lieuId || '-'}</span></td>
-                        <td><b>${d.serial}</b><br><span style="color:#20639b; font-size:8pt;">${d.ip || '-'}</span></td>
-                        <td class="${d.cellules === 'NOK' ? 'status-nok' : ''}">${d.cellules}</td>
-                        <td class="${d.etatDot !== 'OK' ? 'status-nok' : ''}">${d.etatDot}</td>
-                        <td class="${d.roller !== 'OK' ? 'status-nok' : ''}">${d.roller}</td>
-                        <td class="${d.impression === 'NOK' ? 'status-nok' : ''}">${d.impression}</td>
-                        <td class="${d.general !== 'OK' ? 'status-nok' : ''}">${d.general}</td>
-                        <td class="td-left" style="font-size:8.5pt;">${d.remarque.replace(/\n/g, '<br>') || 'Aucune'}</td>
-                        <td>${photoString}</td>
-                    </tr>`;
-                });
-            });
-
-            docHtml += `</tbody></table></div></body></html>\n`;
-            mhtml += docHtml;
-            mhtml += attachments;
-            mhtml += `\n--${boundary}--\n`;
-
-            const blob = new Blob([mhtml], { type: 'application/msword;charset=utf-8' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `Rapport_Maintenance_${site.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.doc`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        });
-    </script>
-</body>
-</html>
+                        <td class="td-left"><b>${d.modele}
