@@ -203,7 +203,7 @@
                     <div class="w-full h-[2px] bg-red-500 absolute top-1/2 -translate-y-1/2 shadow"></div>
                 </div>
             </div>
-            <p class="text-[11px] text-gray-500 mt-2 text-center italic">Le carré noir (Datamatrix) est automatiquement bloqué. Alignez la ligne rouge sur le code à barres classique.</p>
+            <p class="text-[11px] text-gray-500 mt-2 text-center italic">Le Datamatrix carré est filtré et bloqué. Alignez simplement la ligne rouge sur le code-barres.</p>
         </div>
     </div>
 
@@ -297,40 +297,41 @@
 
 
         /* ==========================================================
-           OUVERTURE DU SCANNER AVEC FILTRAGE DU FORMAT EN DIRECT
+           OUVERTURE DU SCANNER HAUTE RÉSOLUTION AVEC FILTRAGE LOGIQUE
            ========================================================== */
         window.openCode128Scanner = function() {
             document.getElementById('scannerModal').classList.remove('hidden');
             
             if (!html5QrCode) {
-                // On laisse la caméra s'ouvrir normalement sans restriction initiale (anti-crash)
                 html5QrCode = new Html5Qrcode("scannerContainer");
             }
             
+            // CONFIGURATION NETTE : Pas de qrbox pour garder 100% des pixels du flux vidéo
             const config = { 
-                fps: 25, 
-                qrbox: { width: 290, height: 80 }
+                fps: 20,
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true // Décodeur matériel natif ultra-rapide
+                }
             };
             
             html5QrCode.start(
                 { facingMode: "environment" }, 
                 config, 
                 (decodedText, decodedResult) => {
-                    // --- LE FILTRE ANTI-DATAMATRIX INFAILLIBLE ---
+                    // Extraction du type de code détecté
                     const formatNom = decodedResult?.result?.format?.formatName || "";
                     
-                    // Si la caméra capte un Datamatrix ou un QR Code, on l'annule silencieusement !
+                    // COUPE-CIRCUIT : On jette le Datamatrix et le QR Code à la poubelle
                     if (formatNom.includes("DATA_MATRIX") || formatNom.includes("QR_CODE") || decodedText.includes("[)>")) {
-                        return; // Le scanner ignore cette lecture et continue sa recherche
+                        return; // Ignore et continue d'analyser l'image
                     }
                     
-                    // C'est un code à barres standard (Code 128 / Code 39), on applique l'algorithme
+                    // C'est un code 1D standard, on valide !
                     traiterLectureCode128(decodedText);
                     stopBarcodeScanner();
                 },
-                () => {} // Callback d'erreur de frame (on ne fait rien, on attend la frame suivante)
+                () => {} // Attente silencieuse de la frame nette suivante
             ).catch(() => {
-                // Secours en cas de caméras multiples mal gérées
                 Html5Qrcode.getCameras().then(cameras => {
                     if (cameras && cameras.length > 0) {
                         let backCamera = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('arrière'));
@@ -345,7 +346,7 @@
                         alert("Aucune caméra détectée.");
                     }
                 }).catch(() => {
-                    alert("Erreur de droits ou d'accès à l'appareil photo.");
+                    alert("Erreur d'accès à l'appareil photo.");
                     stopBarcodeScanner();
                 });
             });
@@ -361,7 +362,7 @@
 
 
         /* ==========================================================
-           APPAREIL PHOTO COMPAGNON & FORMAT DE COUPE (INCHANGÉ)
+           APPAREIL PHOTO COMPAGNON & FORMAT DE COUPE
            ========================================================== */
         const cameraInput = document.getElementById('cameraInput');
         const imageToCrop = document.getElementById('imageToCrop');
