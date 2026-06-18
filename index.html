@@ -198,11 +198,21 @@
                 <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Scanner le code-barres (S/N)</h3>
                 <button type="button" id="closeScannerBtn" class="text-gray-500 hover:text-gray-800 text-2xl font-bold cursor-pointer">&times;</button>
             </div>
-            <div id="scannerContainer" class="w-full bg-black rounded overflow-hidden shadow-inner relative" style="min-height: 260px;">
-                <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[290px] h-[80px] border-2 border-solid border-emerald-500 bg-emerald-500/5 z-10 pointer-events-none rounded">
-                    <div class="w-full h-[2px] bg-red-500 absolute top-1/2 -translate-y-1/2 shadow"></div>
+            
+            <div class="relative w-full bg-black rounded overflow-hidden shadow-inner" style="min-height: 260px;">
+                
+                <div id="scannerContainer" class="w-full h-full"></div>
+                
+                <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] h-[100px] z-20 pointer-events-none">
+                    <div class="w-full h-[2px] bg-red-600 absolute top-1/2 -translate-y-1/2 shadow-[0_0_10px_rgba(239,68,68,0.9)]"></div>
+                    
+                    <div class="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-white rounded-tl-sm"></div>
+                    <div class="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-white rounded-tr-sm"></div>
+                    <div class="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-white rounded-bl-sm"></div>
+                    <div class="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-white rounded-br-sm"></div>
                 </div>
             </div>
+            
             <p class="text-[11px] text-gray-500 mt-2 text-center italic">Le Datamatrix carré est filtré et bloqué. Alignez simplement la ligne rouge sur le code-barres.</p>
         </div>
     </div>
@@ -297,7 +307,7 @@
 
 
         /* ==========================================================
-           OUVERTURE DU SCANNER HAUTE RÉSOLUTION AVEC FILTRAGE LOGIQUE
+           OUVERTURE DU SCANNER UNIVERSEL AMÉLIORÉ (S/N EXCLUSIF)
            ========================================================== */
         window.openCode128Scanner = function() {
             document.getElementById('scannerModal').classList.remove('hidden');
@@ -306,11 +316,13 @@
                 html5QrCode = new Html5Qrcode("scannerContainer");
             }
             
-            // CONFIGURATION NETTE : Pas de qrbox pour garder 100% des pixels du flux vidéo
+            // CONFIGURATION CIBLÉE : On restreint la zone de capture au format exact de notre viseur CSS
             const config = { 
-                fps: 20,
+                fps: 25,
+                qrbox: { width: 340, height: 100 }, // Cadre matériel aligné sur les angles blancs
+                formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_128 ], // RECHERCHE UNIQUEMENT LE CODE 128 (Instantané)
                 experimentalFeatures: {
-                    useBarCodeDetectorIfSupported: true // Décodeur matériel natif ultra-rapide
+                    useBarCodeDetectorIfSupported: true // Utilisation du décodeur matériel natif si dispo
                 }
             };
             
@@ -318,27 +330,18 @@
                 { facingMode: "environment" }, 
                 config, 
                 (decodedText, decodedResult) => {
-                    // Extraction du type de code détecté
-                    const formatNom = decodedResult?.result?.format?.formatName || "";
-                    
-                    // COUPE-CIRCUIT : On jette le Datamatrix et le QR Code à la poubelle
-                    if (formatNom.includes("DATA_MATRIX") || formatNom.includes("QR_CODE") || decodedText.includes("[)>")) {
-                        return; // Ignore et continue d'analyser l'image
-                    }
-                    
-                    // C'est un code 1D standard, on valide !
+                    // Uniquement exécuté si un CODE 128 valide passe sur la ligne rouge
                     traiterLectureCode128(decodedText);
                     stopBarcodeScanner();
                 },
-                () => {} // Attente silencieuse de la frame nette suivante
-            ).catch(() => {
+                () => {} // Recherche silencieuse frame par frame
+            ).catch((err) => {
+                console.warn("Échec facingMode direct, bascule sur recherche d'index :", err);
                 Html5Qrcode.getCameras().then(cameras => {
                     if (cameras && cameras.length > 0) {
                         let backCamera = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('arrière'));
                         let cameraId = backCamera ? backCamera.id : cameras[cameras.length - 1].id;
-                        html5QrCode.start(cameraId, config, (txt, res) => {
-                            const fmt = res?.result?.format?.formatName || "";
-                            if (fmt.includes("DATA_MATRIX") || txt.includes("[)>")) return;
+                        html5QrCode.start(cameraId, config, (txt) => {
                             traiterLectureCode128(txt); 
                             stopBarcodeScanner();
                         }, () => {});
@@ -346,7 +349,7 @@
                         alert("Aucune caméra détectée.");
                     }
                 }).catch(() => {
-                    alert("Erreur d'accès à l'appareil photo.");
+                    alert("Erreur d'accès à la caméra. Vérifiez les autorisations du navigateur.");
                     stopBarcodeScanner();
                 });
             });
