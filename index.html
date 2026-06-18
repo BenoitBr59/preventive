@@ -196,15 +196,15 @@
     <div id="scannerModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-lg p-4 max-w-md w-full shadow-2xl">
             <div class="flex justify-between items-center mb-3">
-                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Scanner Industriel Code 128 / 39</h3>
+                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Scanner de Code-barres</h3>
                 <button type="button" id="closeScannerBtn" class="text-gray-500 hover:text-gray-800 text-2xl font-bold cursor-pointer">&times;</button>
             </div>
-            <div id="scannerContainer" class="w-full bg-black rounded overflow-hidden shadow-inner relative" style="min-height: 260px;">
-                <div class="absolute inset-x-4 top-1/2 -translate-y-1/2 h-[46px] border border-red-500 bg-red-500/10 z-10 pointer-events-none opacity-95 rounded shadow-[0_0_8px_rgba(239,68,68,0.5)]">
-                    <div class="w-full h-[2px] bg-red-600 absolute top-1/2 -translate-y-1/2 shadow-[0_0_4px_rgba(239,68,68,1)]"></div>
+            <div id="scannerContainer" class="w-full bg-black rounded overflow-hidden shadow-inner relative" style="min-height: 280px;">
+                <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[100px] border-2 border-red-500 bg-red-500/10 z-10 pointer-events-none rounded shadow-[0_0_10px_rgba(239,68,68,0.4)]">
+                    <div class="w-full h-[2px] bg-red-600 absolute top-1/2 -translate-y-1/2 shadow-[0_0_6px_rgba(239,68,68,1)]"></div>
                 </div>
             </div>
-            <p class="text-[11px] text-gray-500 mt-2 text-center italic">Isolez le code souhaité au centre du rectangle rouge pour éviter de lire les codes voisins.</p>
+            <p class="text-[11px] text-gray-500 mt-2 text-center italic">Centrez le code-barres visé dans le rectangle rouge. L'autofocus gère la netteté.</p>
         </div>
     </div>
 
@@ -234,7 +234,7 @@
         document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
 
         /* ==========================================================
-           FONCTIONNEMENT DU SCANNER SÉCURISÉ ET RECENTRÉ (FENTE COMPACTE)
+           FONCTIONNEMENT DU SCANNER AUTOFOCUS ET ENCADRÉ (300x100)
            ========================================================== */
         window.openScanner = function(targetFieldId) {
             activeScanField = targetFieldId;
@@ -250,49 +250,34 @@
                 html5QrCode = new Html5Qrcode("scannerContainer", { formatsToSupport: formats });
             }
             
-            // Configuration affinée : zone très étroite pour cibler une ligne précise de code-barres
+            // Configuration stable : zone délimitée pour forcer le ciblage mais assez haute pour décoder
             const config = { 
-                fps: 30, 
-                qrbox: function(viewfinderWidth, viewfinderHeight) {
-                    return {
-                        width: Math.floor(viewfinderWidth * 0.85),
-                        height: 50 // Fente étroite de 50 pixels pour bloquer les interférences des codes proches
-                    };
-                }
+                fps: 22, 
+                qrbox: { width: 300, height: 100 }
             };
             
-            Html5Qrcode.getCameras().then(cameras => {
-                if (cameras && cameras.length > 0) {
-                    let backCamera = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('arrière'));
-                    let cameraId = backCamera ? backCamera.id : cameras[cameras.length - 1].id;
-                    
-                    html5QrCode.start(
-                        cameraId, 
-                        config, 
-                        onScanSuccess,
-                        () => {}
-                    ).catch(err => {
-                        fallbackFacingMode(config);
-                    });
-                } else {
-                    fallbackFacingMode(config);
-                }
-            }).catch(err => {
-                fallbackFacingMode(config);
-            });
-        };
-
-        function fallbackFacingMode(config) {
+            // On appelle directement facingMode environment : le navigateur choisit le capteur principal avec autofocus complet
             html5QrCode.start(
                 { facingMode: "environment" }, 
                 config, 
                 onScanSuccess,
                 () => {}
-            ).catch(finalErr => {
-                alert("Erreur : Impossible de démarrer la caméra. Vérifiez les autorisations de votre navigateur.");
-                stopBarcodeScanner();
+            ).catch(err => {
+                // Secours par liste au cas où le protocole standard bloque
+                Html5Qrcode.getCameras().then(cameras => {
+                    if (cameras && cameras.length > 0) {
+                        let backCamera = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('arrière'));
+                        let cameraId = backCamera ? backCamera.id : cameras[cameras.length - 1].id;
+                        html5QrCode.start(cameraId, config, onScanSuccess, () => {});
+                    } else {
+                        alert("Erreur de caméra : Vérifiez les accès.");
+                    }
+                }).catch(() => {
+                    alert("Impossible d'accéder à la caméra.");
+                    stopBarcodeScanner();
+                });
             });
-        }
+        };
 
         function onScanSuccess(decodedText) {
             document.getElementById(activeScanField).value = decodedText;
@@ -362,7 +347,7 @@
 
 
         /* ==========================================================
-           TRAITEMENT DES ENREGISTREMENTS ET TABLEAU ULTRA-ALLÉGÉ
+           TRAITEMENT DES ENREGISTREMENTS ET MISE A JOUR DU TABLEAU ULTRA-ALLÉGÉ
            ========================================================= */
         document.getElementById('machineForm').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -420,7 +405,7 @@
                     const row = document.createElement('tr');
                     row.className = "hover:bg-gray-50 text-xs text-gray-700";
 
-                    // Affichage UI minimaliste à l'écran : S/N et Action uniquement
+                    // Affichage UI ultra-épuré demandé : Uniquement le S/N et l'action de suppression
                     row.innerHTML = `
                         <td class="px-3 py-3 font-bold text-gray-800 text-sm tracking-wider">${d.serial}</td>
                         <td class="px-3 py-3">
@@ -439,7 +424,7 @@
 
 
         /* ==========================================================
-           EXPORTATION GENERALE COMPLETE WORD (RESTE TOTALEMENT INDÉPENDANTE DE L'AFFICHAGE ÉCRAN)
+           EXPORTATION GENERALE COMPLETE WORD (RESTE TOTALEMENT COMPLETE)
            ========================================================= */
         document.getElementById('exportBtn').addEventListener('click', function() {
             if (reportData.length === 0) return alert('Le rapport ne contient aucune donnée.');
@@ -522,4 +507,32 @@
                     }
 
                     docHtml += `<tr>
-                        <td class="td-left"><b>${d.modele}
+                        <td class="td-left"><b>${d.modele}</b><br><span style="color:#555; font-size:8pt; font-style:italic;">${d.lieuId || '-'}</span></td>
+                        <td><b>${d.serial}</b><br><span style="color:#20639b; font-size:8pt;">${d.ip || '-'}</span></td>
+                        <td class="${d.cellules === 'NOK' ? 'status-nok' : ''}">${d.cellules}</td>
+                        <td class="${d.etatDot !== 'OK' ? 'status-nok' : ''}">${d.etatDot}</td>
+                        <td class="${d.roller !== 'OK' ? 'status-nok' : ''}">${d.roller}</td>
+                        <td class="${d.impression === 'NOK' ? 'status-nok' : ''}">${d.impression}</td>
+                        <td class="${d.general !== 'OK' ? 'status-nok' : ''}">${d.general}</td>
+                        <td class="td-left" style="font-size:8.5pt;">${d.remarque.replace(/\n/g, '<br>') || 'Aucune'}</td>
+                        <td>${photoString}</td>
+                    </tr>`;
+                });
+            });
+
+            docHtml += `</tbody></table></div></body></html>\n`;
+            mhtml += docHtml;
+            mhtml += attachments;
+            mhtml += `\n--${boundary}--\n`;
+
+            const blob = new Blob([mhtml], { type: 'application/msword;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `Rapport_Maintenance_${site.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.doc`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    </script>
+</body>
+</html>
