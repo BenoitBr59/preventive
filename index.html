@@ -5,14 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RAPPORT DE MAINTENANCE PREVENTIVE</title>
     
-    <!-- Liens CDN stables -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Librairie de recadrage d'image (Cropper.js) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     
-    <!-- Librairie de lecture de codes-barres (Html5-Qrcode) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 
     <style>
@@ -25,12 +22,10 @@
 
     <div class="max-w-7xl mx-auto bg-white rounded-xl shadow-md p-6">
         
-        <!-- --- TITRE DE L'APPLICATION --- -->
         <div class="flex items-center justify-between border-b pb-3 mb-4">
             <h1 class="text-2xl font-bold text-blue-950 tracking-wide">RAPPORT DE MAINTENANCE PREVENTIVE</h1>
         </div>
         
-        <!-- --- EN-TÊTE DU RAPPORT --- -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
             <div>
                 <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Client / Site</label>
@@ -60,7 +55,6 @@
             </div>
         </div>
 
-        <!-- --- FORMULAIRE D'AJOUT --- -->
         <form id="machineForm" class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
             <div class="md:col-span-4">
                 <h3 class="text-sm font-bold text-blue-950 uppercase border-b pb-1 mb-2">Ajouter un équipement au rapport</h3>
@@ -91,7 +85,6 @@
                 </div>
             </div>
 
-            <!-- REGROUPEMENT : STATUTS TECHNIQUES -->
             <div class="md:col-span-2 grid grid-cols-2 gap-4 bg-white p-3 rounded border border-gray-200">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Cellules / Capteurs</label>
@@ -147,7 +140,6 @@
                 </div>
             </div>
 
-            <!-- SECTION PHOTO -->
             <div class="md:col-span-4 bg-blue-50 p-4 rounded border border-blue-200 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <span class="text-sm font-bold text-blue-900">Pièce-jointe</span>
                 <button type="button" id="capturePhotoBtn" class="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs px-5 py-3 rounded-lg shadow">
@@ -166,7 +158,6 @@
             </div>
         </form>
 
-        <!-- --- TABLEAU --- -->
         <div class="overflow-x-auto border border-gray-200 rounded-lg">
             <table class="min-w-full divide-y divide-gray-200 text-sm text-center">
                 <thead class="bg-blue-950 text-white text-xs uppercase font-bold">
@@ -183,18 +174,16 @@
         </div>
     </div>
 
-    <!-- --- FENÊTRE MODALE : SCANNER CODE 128 PLEIN CADRE --- -->
     <div id="scannerModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-lg p-4 max-w-md w-full shadow-2xl">
             <div class="flex justify-between items-center mb-2">
-                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Lecteur Exclusif Code 128</h3>
+                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Lecteur Haute Résolution (1D)</h3>
                 <button type="button" id="closeScannerBtn" class="text-gray-500 text-2xl font-bold cursor-pointer">&times;</button>
             </div>
             
             <div class="relative w-full bg-black rounded overflow-hidden" style="min-height: 280px;">
                 <div id="scannerContainer" class="w-full h-full"></div>
                 
-                <!-- VISEUR VISUEL LARGE -->
                 <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] h-[120px] z-20 pointer-events-none">
                     <div class="w-full h-[2px] bg-red-600 absolute top-1/2 -translate-y-1/2 shadow-[0_0_10px_red]"></div>
                     <div class="absolute top-0 left-0 w-5 h-5 border-t-4 border-l-4 border-white"></div>
@@ -204,14 +193,12 @@
                 </div>
             </div>
             
-            <!-- Zone d'état dynamique -->
             <div id="scannerStatusFeedback" class="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-center text-xs font-semibold text-blue-900">
                 Prêt pour le scan...
             </div>
         </div>
     </div>
 
-    <!-- --- MODALE : RECADRAGE PHOTO --- -->
     <div id="cropperModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-lg p-4 max-w-lg w-full flex flex-col max-h-[90vh]">
             <div class="overflow-hidden flex-1 bg-gray-100 flex items-center justify-center rounded">
@@ -224,7 +211,6 @@
         </div>
     </div>
 
-    <!-- --- LOGIQUE APPLICATIVE CORRIGÉE --- -->
     <script>
         let reportData = [];
         let currentPhotoBase64 = null;
@@ -244,9 +230,6 @@
             return "";
         }
 
-        /* ==========================================================
-           LOGIQUE DE TRI DU CODE 128 AVEC BLOCAGE DU DATAMATRIX
-           ========================================================== */
         function trierEtValiderCode128(decodedText) {
             let brute = decodedText.trim();
             let upper = brute.toUpperCase();
@@ -255,11 +238,11 @@
             let fieldModele = document.getElementById('modele');
             let feedback = document.getElementById('scannerStatusFeedback');
 
-            // 🛑 SÉCURITÉ CRITIQUE : Si le capteur attrape le Datamatrix (commence par [)> ), on l'ignore silencieusement
-            if (brute.startsWith("[)>") || brute.startsWith(">") || (brute.includes("1P") && brute.includes("S") && brute.length > 30)) {
-                feedback.innerText = "⏳ Datamatrix détecté mais ignoré. Visez les lignes du Code 128...";
-                feedback.className = "mt-2 p-2 bg-yellow-100 border border-yellow-300 rounded text-center text-xs text-yellow-900";
-                return; // On stoppe immédiatement, le scanner continue sa recherche en tâche de fond
+            // 🛑 BLOCAGE LOGICIEL ABSOLU DU DATAMATRIX INDUSTRIAL
+            if (brute.startsWith("[)>") || brute.startsWith(">") || brute.length > 35) {
+                feedback.innerText = "⏳ Datamatrix ignoré. Visez bien les lignes du Code 128 standard...";
+                feedback.className = "mt-2 p-2 bg-yellow-50 border border-yellow-300 rounded text-center text-xs text-yellow-800";
+                return; 
             }
 
             let troisDigits = upper.substring(0, 3);
@@ -274,8 +257,7 @@
             } 
             // CAS 2 : C'est le Code 128 du NUMÉRO DE SÉRIE (S/N)
             else {
-                // Élimination des faux positifs ou chaînes trop courtes
-                if (brute.length < 5) return;
+                if (brute.length < 5) return; // ignore les résidus de scan trop courts
 
                 let propre = (upper.startsWith('S') && !isNaN(upper.charAt(1))) ? brute.substring(1) : brute;
                 fieldSerial.value = propre;
@@ -292,12 +274,12 @@
         }
 
         /* ==========================================================
-           INITIALISATION ET OUVERTURE DU SCANNER VIDEO
+           OUVERTURE HD AVEC FOCALISATION ET ZONE DE CALCUL BRIDÉE
            ========================================================== */
         window.openSmart128Scanner = async function() {
             document.getElementById('scannerModal').classList.remove('hidden');
             let feedback = document.getElementById('scannerStatusFeedback');
-            feedback.innerText = "Initialisation de la caméra...";
+            feedback.innerText = "Recherche du flux Ultra-Net HD...";
 
             try {
                 if (html5QrCode) {
@@ -308,23 +290,37 @@
                     html5QrCode = new Html5Qrcode("scannerContainer");
                 }
 
+                // 1. Contraintes de caméra HD flexible (Évite les crashs et force la netteté)
+                const cameraConstraints = {
+                    facingMode: "environment",
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                };
+
+                // 2. Configuration du moteur de rendu : on force le traitement des pixels sur le rectangle
                 const config = { 
-                    fps: 25,
-                    formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_128 ]
+                    fps: 30,
+                    qrbox: function(viewfinderWidth, viewfinderHeight) {
+                        // Limite l'analyse mathématique des pixels au rectangle de visée (85% de large, 120px de haut)
+                        return { 
+                            width: Math.floor(viewfinderWidth * 0.85), 
+                            height: 120 
+                        };
+                    }
                 };
 
                 await html5QrCode.start(
-                    { facingMode: "environment" }, 
+                    cameraConstraints, 
                     config, 
                     (text) => trierEtValiderCode128(text),
                     () => {} 
                 );
 
-                feedback.innerText = "Alignez la ligne rouge sur un des codes-barres (1D)...";
+                feedback.innerText = "Placez la ligne rouge bien au milieu du Code 128...";
                 feedback.className = "mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-center text-xs font-semibold text-blue-900";
 
             } catch (err) {
-                console.warn("Bascule sur listing matériel...", err);
+                console.warn("Échec du flux HD, repli standard...", err);
                 try {
                     const cameras = await Html5Qrcode.getCameras();
                     if (cameras && cameras.length > 0) {
@@ -333,17 +329,17 @@
                         
                         await html5QrCode.start(
                             idSelectionne, 
-                            { fps: 25, formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_128 ] }, 
+                            { fps: 30, qrbox: { width: 280, height: 110 } }, 
                             (text) => trierEtValiderCode128(text), 
                             () => {}
                         );
-                        feedback.innerText = "Alignez la ligne rouge sur un des codes-barres (1D)...";
+                        feedback.innerText = "Visez le code-barres standard...";
                     } else {
-                        alert("Aucune caméra détectée.");
+                        alert("Aucun capteur photo disponible.");
                         stopBarcodeScanner();
                     }
                 } catch (fallbackErr) {
-                    alert("Erreur d'accès à la caméra. Vérifiez les autorisations de votre navigateur.");
+                    alert("Erreur fatale d'autorisation caméra.");
                     stopBarcodeScanner();
                 }
             }
@@ -358,7 +354,7 @@
         document.getElementById('closeScannerBtn').addEventListener('click', stopBarcodeScanner);
 
         /* ==========================================================
-           LOGIQUE PIÈCES-JOINTES (PHOTOS) & TABLEAU DE BORD
+           LOGIQUE COMPAGNON (PHOTOS & TABLEAU)
            ========================================================== */
         const cameraInput = document.getElementById('cameraInput');
         const imageToCrop = document.getElementById('imageToCrop');
