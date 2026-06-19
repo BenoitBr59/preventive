@@ -185,8 +185,9 @@
         <div class="w-full max-w-md bg-black rounded-lg overflow-hidden relative border-2 border-blue-500 my-auto">
             <div id="liveReader" class="w-full bg-black"></div>
             
+            <!-- FIX 2 : hauteur de la zone de visée augmentée à 40% pour mieux couvrir les étiquettes Zebra larges -->
             <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                <div class="w-[85%] h-[30%] border-2 border-dashed border-amber-400 rounded bg-transparent flex items-center justify-center">
+                <div class="w-[85%] h-[40%] border-2 border-dashed border-amber-400 rounded bg-transparent flex items-center justify-center">
                     <div class="w-full h-0.5 bg-red-500/90 animate-pulse"></div>
                 </div>
             </div>
@@ -241,6 +242,11 @@
         let liveSerialDetected = null;
         let liveModeleDetected = null;
 
+        // FIX 3 : debounce — évite de retraiter le même code 30 fois par seconde
+        let lastRawScanned = null;
+        let lastScanTime = 0;
+        const SCAN_COOLDOWN_MS = 1000;
+
         function devinerNomModele(texte) {
             let t = texte.toUpperCase().trim();
             if (t.includes("-") || t.startsWith("ZT") || t.startsWith("ZD") || t.startsWith("ZM")) {
@@ -273,7 +279,7 @@
             if (t.startsWith("41A")) return "ZT410 - 8dots";
             if (t.startsWith("42A")) return "ZT420 - 8dots";
             if (t.startsWith("12C")) return "ZM400 - 8dots";
-            return ""; 
+            return "";
         }
 
         window.addEventListener('load', function() {
@@ -358,10 +364,12 @@
             document.getElementById('cameraInput').value = '';
         }
 
-        // --- SCANNER COMPATIBLE ET ACCÉLÉRÉ GOOGLE ---
+        // ─── SCANNER CODE 128 ZEBRA — CORRIGÉ ───────────────────────────────────────
         window.ouvrirScannerLive = function() {
             liveSerialDetected = null;
             liveModeleDetected = null;
+            lastRawScanned = null;
+            lastScanTime = 0;
             torcheActive = false;
             
             document.getElementById("liveStatusRaw").innerHTML = "🔍 Alignez le Code 128 horizontalement...";
@@ -375,40 +383,38 @@
             document.getElementById('liveScannerModal').classList.remove('hidden');
 
             try {
-                if(!html5QrCodeLive) {
+                if (!html5QrCodeLive) {
                     html5QrCodeLive = new Html5Qrcode("liveReader");
                 }
 
-                // Configuration équilibrée pour éviter tout crash matériel
+                // FIX 1 : FPS à 15 (plus stable sur mobile, évite la surchauffe)
+                // FIX 6 : experimentalFeatures bien structuré, useBarCodeDetectorIfSupported au bon niveau
                 const configScanner = {
-                    fps: 25,
+                    fps: 15,
                     qrbox: function(viewfinderWidth, viewfinderHeight) {
+                        // FIX 2 : hauteur à 40% pour mieux englober les codes barres Zebra larges
                         return {
-                            width: Math.floor(viewfinderWidth * 0.85),
-                            height: Math.floor(viewfinderHeight * 0.30)
+                            width: Math.floor(viewfinderWidth * 0.90),
+                            height: Math.floor(viewfinderHeight * 0.40)
                         };
                     },
-                    experimentalFeatures: { 
-                        useBarCodeDetectorIfSupported: true // Déclenche le moteur natif Google si présent dans Chrome
-                    }
+                    experimentalFeatures: {
+                        useBarCodeDetectorIfSupported: true
+                    },
+                    // FIX 6 : forcer CODE_128 via formatsToSupport (chemin corrigé)
+                    formatsToSupport: window.Html5QrcodeSupportedFormats
+                        ? [ Html5QrcodeSupportedFormats.CODE_128 ]
+                        : undefined
                 };
 
-                // Forçage exclusif Code 128 pour l'interpréteur JS secondaire
-                if (window.Html5QrcodeSupportedFormats) {
-                    configScanner.formatsToSupport = [
-                        Html5QrcodeSupportedFormats.CODE_128
-                    ];
-                }
-
-                // Lancement standard sécurisé (Caméra arrière native)
                 html5QrCodeLive.start(
                     { facingMode: "environment" },
                     configScanner,
                     (decodedText) => { analyserTexteEnDirect(decodedText); },
-                    (error) => {} 
+                    () => {}
                 )
-                .then(() => { 
-                    setTimeout(() => { activerTorcheAutomatique(); }, 500); 
+                .then(() => {
+                    setTimeout(() => { activerTorcheAutomatique(); }, 500);
                 })
                 .catch(err => {
                     console.error("Erreur critique d'ouverture :", err);
@@ -439,34 +445,68 @@
 
         function analyserTexteEnDirect(rawText) {
             let brute = rawText.trim();
-            if(!brute) return;
+            if (!brute) return;
+
+            // FIX 3 : debounce — ignore les répétitions dans la fenêtre de cooldown
+            const now = Date.now();
+            if (brute === lastRawScanned && (now - lastScanTime) < SCAN_COOLDOWN_MS) return;
+            lastRawScanned = brute;
+            lastScanTime = now;
 
             document.getElementById("liveStatusRaw").innerHTML = `🟢 Reçu : "${brute}"`;
             document.getElementById("liveStatusRaw").className = "text-xs text-green-400 font-mono font-bold break-all";
 
-            let upper = brute.toUpperCase();
+            // FIX 5 : nettoyage explicite des caractères de contrôle GS1-128
+            // \x1D = GS (Group Separator), \x1E = RS, \x04 = EOT, \x02 = STX, \x03 = ETX
+            let texteNettoye = brute.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '|');
+            let upper = texteNettoye.toUpperCase();
 
-            if (upper.includes("[)>") || upper.includes(">") || brute.length > 35) {
-                let texteNettoye = upper.replace(/[\x00-\x1F\x7F-\x9F]/g, ' ');
-                let segments = texteNettoye.split(/[\s,]+/);
-                
+            // Détection multi-segments (GS1-128 / Code 128 concaténé)
+            if (upper.includes("[)>") || upper.includes("|") || upper.includes(">") || brute.length > 25) {
+                let segments = texteNettoye.split(/[|,\s]+/);
+
                 segments.forEach(segment => {
                     segment = segment.trim();
-                    if (segment.startsWith('S') && segment.length >= 6) {
+                    let segUp = segment.toUpperCase();
+
+                    // Champ S/N : préfixe "S" suivi de contenu alphanumérique Zebra
+                    if (segUp.startsWith('S') && segment.length >= 7 && segment.length <= 20) {
                         let tentativeS = segment.substring(1);
-                        if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C|\d)/.test(tentativeS)) { liveSerialDetected = tentativeS; }
+                        // FIX 4 : patterns étendus — S/N Zebra peuvent commencer par 41J/42J/... ou S4/S4A/numérique
+                        if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C|S4|[0-9])/.test(tentativeS.toUpperCase()) || /^[A-Z0-9]{6,15}$/i.test(tentativeS)) {
+                            liveSerialDetected = tentativeS;
+                        }
                     }
-                    if (segment.startsWith('1P') && segment.length >= 7) { liveModeleDetected = devinerNomModele(segment.substring(2)); }
-                    else if (segment.startsWith('P') && (segment.startsWith('PZT') || segment.startsWith('PZD') || segment.startsWith('PZM') || segment.includes('-'))) { liveModeleDetected = devinerNomModele(segment.substring(1)); }
+                    // Champ Modèle : préfixe "1P" (standard Zebra) ou "P" suivi du P/N
+                    if (segUp.startsWith('1P') && segment.length >= 7) {
+                        liveModeleDetected = devinerNomModele(segment.substring(2));
+                    } else if (segUp.startsWith('P') && (segUp.startsWith('PZT') || segUp.startsWith('PZD') || segUp.startsWith('PZM') || segment.includes('-'))) {
+                        liveModeleDetected = devinerNomModele(segment.substring(1));
+                    }
                 });
-            } 
-            else {
-                if (upper.startsWith("1P")) { liveModeleDetected = devinerNomModele(brute.substring(2)); }
-                else if (upper.startsWith("P") && (upper.startsWith("PZT") || upper.startsWith("PZD") || upper.startsWith("PZM") || brute.includes("-"))) { liveModeleDetected = devinerNomModele(brute.substring(1)); }
-                else if (upper.startsWith("S") && !isNaN(upper.charAt(1))) { liveSerialDetected = brute.substring(1); }
-                else if (brute.includes("-") || upper.startsWith("ZT") || upper.startsWith("ZD") || upper.startsWith("ZM")) { liveModeleDetected = devinerNomModele(brute); }
-                else if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/.test(upper)) { liveSerialDetected = brute; }
-                else if (!liveSerialDetected && brute.length >= 8 && brute.length <= 20) { liveSerialDetected = brute; }
+            }
+
+            // Lecture de codes barres simples (1 seul champ par scan)
+            if (!liveSerialDetected && !liveModeleDetected) {
+                let raw = brute;
+                let rawUp = upper;
+
+                if (rawUp.startsWith("1P")) {
+                    liveModeleDetected = devinerNomModele(raw.substring(2));
+                } else if (rawUp.startsWith("P") && (rawUp.startsWith("PZT") || rawUp.startsWith("PZD") || rawUp.startsWith("PZM") || raw.includes("-"))) {
+                    liveModeleDetected = devinerNomModele(raw.substring(1));
+                } else if (rawUp.startsWith("S") && raw.length >= 7 && raw.length <= 20) {
+                    // FIX 4 : tout préfixe S + alphanumérique valide = S/N candidat
+                    liveSerialDetected = raw.substring(1);
+                } else if (raw.includes("-") || rawUp.startsWith("ZT") || rawUp.startsWith("ZD") || rawUp.startsWith("ZM")) {
+                    liveModeleDetected = devinerNomModele(raw);
+                } else if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/i.test(rawUp)) {
+                    // FIX 4 : S/N Zebra sans préfixe S (ex: "41J123456789")
+                    liveSerialDetected = raw;
+                } else if (!liveSerialDetected && raw.length >= 8 && raw.length <= 20 && /^[A-Z0-9]+$/i.test(raw)) {
+                    // Fallback : code alphanumérique pur de longueur raisonnable → S/N
+                    liveSerialDetected = raw;
+                }
             }
 
             if (liveSerialDetected) {
@@ -482,6 +522,7 @@
                 document.getElementById("btnAppliquerLive").disabled = false;
             }
 
+            // Auto-validation si les deux champs sont capturés
             if (liveSerialDetected && liveModeleDetected) {
                 setTimeout(() => { appliquerResultatsLive(); }, 400);
             }
