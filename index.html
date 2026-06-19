@@ -179,7 +179,7 @@
 
     <div id="liveScannerModal" class="hidden fixed inset-0 bg-black/90 flex flex-col items-center justify-between p-4 z-50">
         <div class="w-full flex justify-between items-center text-white max-w-md border-b border-gray-800 pb-2">
-            <span class="text-sm font-bold tracking-wide">Visez l'étiquette (Flash Auto ⚡)</span>
+            <span class="text-sm font-bold tracking-wide text-amber-400 flex items-center gap-1">⚡ SCANNER LIVE (FLASH FORCÉ)</span>
             <button type="button" onclick="fermerScannerLive()" class="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold">Fermer</button>
         </div>
         
@@ -189,6 +189,11 @@
         </div>
 
         <div class="w-full max-w-md bg-gray-900 text-white p-4 rounded-lg flex flex-col gap-2">
+            
+            <button type="button" onclick="toggleTorcheLive()" class="w-full bg-amber-500 hover:bg-amber-600 text-gray-900 font-extrabold py-2.5 rounded text-xs flex items-center justify-center gap-2 mb-1 shadow tracking-wider uppercase">
+                ⚡ ALLUMER / FORCER LE FLASH
+            </button>
+            
             <div class="flex justify-between items-center text-xs border-b border-gray-800 pb-1.5">
                 <span>S/N :</span>
                 <span id="liveStatusSerial" class="font-bold text-red-500">❌ En attente</span>
@@ -220,8 +225,8 @@
         let currentPhotoBase64 = null;
         let cropperInstance = null;
         let html5QrCodeLive = null;
+        let torcheActive = false;
 
-        // Variables temporaires de stockage du scanneur en direct
         let liveSerialDetected = null;
         let liveModeleDetected = null;
 
@@ -262,10 +267,11 @@
             return ""; 
         }
 
-        // ─── GESTION DU SCANNER LIVE VIDEO AVEC FLASH FORCE ───
+        // ─── ACTIONS SCANNER LIVE AVEC EMISSION DE LA LED INDUSTRUELLE ───
         window.ouvrirScannerLive = function() {
             liveSerialDetected = null;
             liveModeleDetected = null;
+            torcheActive = false;
             document.getElementById("liveStatusSerial").innerHTML = "❌ En attente";
             document.getElementById("liveStatusSerial").className = "font-bold text-red-500";
             document.getElementById("liveStatusModele").innerHTML = "❌ En attente";
@@ -280,34 +286,63 @@
 
             html5QrCodeLive.start(
                 { facingMode: "environment" },
-                { fps: 20, qrbox: false }, // qrbox false = scanne tout l'écran vidéo pour attraper les 2 codes
+                { fps: 20, qrbox: false },
                 (decodedText) => {
                     analyserTexteEnDirect(decodedText);
                 },
-                (error) => { /* Ignore les logs d'échec de lecture continus */ }
+                (error) => { }
             )
             .then(() => {
-                // Force l'allumage de la LED Flash uniquement dans ce flux WebRTC après ouverture
+                // Forçage de l'activation matérielle après chargement du canal vidéo stable
                 setTimeout(() => {
-                    try {
-                        const track = html5QrCodeLive.getRunningTrack();
-                        if (track && typeof track.getCapabilities === 'function' && track.getCapabilities().torch) {
-                            track.applyConstraints({ advanced: [{ torch: true }] });
-                        }
-                    } catch (e) { console.log("Le périphérique ne supporte pas l'activation forcée de la torche."); }
-                }, 800);
+                    activerTorcheAutomatique();
+                }, 600);
             })
             .catch(err => {
-                alert("Impossible d'accéder à la caméra pour le scan live.");
+                alert("Erreur d'accès matériel à la caméra arrière.");
                 fermerScannerLive();
             });
+        };
+
+        function activerTorcheAutomatique() {
+            try {
+                html5QrCodeLive.applyVideoConstraints({
+                    advanced: [{ torch: true }]
+                }).then(() => {
+                    torcheActive = true;
+                }).catch(() => {
+                    // Plan B : Forçage direct sur le canal de piste WebRTC si l'API supérieure bloque
+                    const track = html5QrCodeLive.getRunningTrack();
+                    if (track && typeof track.getCapabilities === 'function' && track.getCapabilities().torch) {
+                        track.applyConstraints({ advanced: [{ torch: true }] });
+                        torcheActive = true;
+                    }
+                });
+            } catch(e) { console.log("Échec de la pré-activation matérielle."); }
+        }
+
+        // Actionneur du bouton d'urgence (Permet à l'utilisateur de forcer via un clic direct)
+        window.toggleTorcheLive = function() {
+            if (!html5QrCodeLive) return;
+            torcheActive = !torcheActive;
+            try {
+                html5QrCodeLive.applyVideoConstraints({
+                    advanced: [{ torch: torcheActive }]
+                }).catch(() => {
+                    const track = html5QrCodeLive.getRunningTrack();
+                    if (track && typeof track.getCapabilities === 'function' && track.getCapabilities().torch) {
+                        track.applyConstraints({ advanced: [{ torch: torcheActive }] });
+                    }
+                });
+            } catch (e) {
+                alert("Le composant torche n'est pas accessible ou n'est pas reconnu par le navigateur.");
+            }
         };
 
         function analyserTexteEnDirect(rawText) {
             let brute = rawText.trim();
             let upper = brute.toUpperCase();
 
-            // 🌟 PARSING BLOC DATAMATRIX BLOC UNIQUE
             if (upper.includes("[)>") || upper.includes(">") || brute.length > 35) {
                 let texteNettoye = upper.replace(/[\x00-\x1F\x7F-\x9F]/g, ' ');
                 let segments = texteNettoye.split(/[\s,]+/);
@@ -322,7 +357,6 @@
                     else if (segment.startsWith('P') && (segment.startsWith('PZT') || segment.startsWith('PZD') || segment.startsWith('PZM') || segment.includes('-'))) { liveModeleDetected = devinerNomModele(segment.substring(1)); }
                 });
             } 
-            // 📝 PARSING CODES-BARRES TRADITIONNELS INDIVIDUELS (Passage successif sous la caméra)
             else {
                 if (upper.startsWith("1P")) { liveModeleDetected = devinerNomModele(brute.substring(2)); }
                 else if (upper.startsWith("P") && (upper.startsWith("PZT") || upper.startsWith("PZD") || upper.startsWith("PZM") || brute.includes("-"))) { liveModeleDetected = devinerNomModele(brute.substring(1)); }
@@ -332,7 +366,6 @@
                 else if (!liveSerialDetected && brute.length >= 8 && brute.length <= 15) { liveSerialDetected = brute; }
             }
 
-            // Mise à jour de l'interface en temps réel
             if (liveSerialDetected) {
                 document.getElementById("liveStatusSerial").innerHTML = `🟢 ${liveSerialDetected}`;
                 document.getElementById("liveStatusSerial").className = "font-bold text-green-400 text-sm";
@@ -346,7 +379,6 @@
                 document.getElementById("btnAppliquerLive").disabled = false;
             }
 
-            // Si les deux sont trouvés en même temps, fermeture et validation automatique après 500ms
             if (liveSerialDetected && liveModeleDetected) {
                 setTimeout(() => {
                     appliquerResultatsLive();
@@ -363,13 +395,11 @@
         window.fermerScannerLive = function() {
             document.getElementById('liveScannerModal').classList.add('hidden');
             if (html5QrCodeLive) {
-                html5QrCodeLive.stop().then(() => {
-                    console.log("Flux caméra stoppé et flash relâché.");
-                }).catch(err => console.log("Erreur d'arrêt du flux."));
+                html5QrCodeLive.stop().catch(err => console.log("Arrêt classique du flux."));
             }
         };
 
-        /* --- LOGIQUE STANDARD DE GESTION DU TABLEAU ET DES PIÈCES JOINTES --- */
+        /* --- TRADITIONNEL PHOTO ET RECADRAGE --- */
         const cameraInput = document.getElementById('cameraInput');
         const imageToCrop = document.getElementById('imageToCrop');
         document.getElementById('capturePhotoBtn').addEventListener('click', () => cameraInput.click());
