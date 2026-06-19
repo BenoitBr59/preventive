@@ -177,7 +177,7 @@
         let currentPhotoBase64 = null;
         let localHtml5QrCode = null;
 
-        // Base de décodage intelligente des formats Zebra
+        // Traducteur de P/N brut en modèle clair
         function devinerNomModele(texte) {
             let t = texte.toUpperCase().trim();
             if (t.includes("-") || t.startsWith("ZT") || t.startsWith("ZD") || t.startsWith("ZM")) {
@@ -210,7 +210,7 @@
             if (t.startsWith("41A")) return "ZT410 - 8dots";
             if (t.startsWith("42A")) return "ZT420 - 8dots";
             if (t.startsWith("12C")) return "ZM400 - 8dots";
-            return ""; 
+            return t; 
         }
 
         window.declencherAnalysePhoto = function() {
@@ -220,25 +220,23 @@
         window.addEventListener('load', function() {
             document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
 
-            // 1. Instanciation du moteur de scan en tâche de fond (sans interface vidéo)
+            // Configuration du décodeur d'image invisible
             localHtml5QrCode = new Html5Qrcode("scannerCameraInput"); 
 
-            // 2. Gestion de l'analyse immédiate après la prise de photo
             document.getElementById('scannerCameraInput').addEventListener('change', function(e) {
                 const file = e.target.files[0];
                 if (!file) return;
 
-                // On passe le fichier brut directement au moteur de scan de confiance
                 localHtml5QrCode.scanFile(file, true)
                 .then(decodedText => {
                     analyserCodeBarreExtrait(decodedText);
                 })
                 .catch(err => {
-                    alert("Impossible de lire le code-barres sur cette photo. Assurez-vous d'être bien en face, proche, et que le flash ne crée pas un gros reflet blanc sur les lignes.");
+                    alert("Impossible de lire l'étiquette. Prenez la photo bien en face avec le flash.");
                 });
             });
 
-            // 3. Gestion classique de la photo d'illustration
+            // Gestion de l'image d'illustration
             const captureIllustrationBtn = document.getElementById('captureIllustrationBtn');
             const illustrationInput = document.getElementById('illustrationInput');
             if (captureIllustrationBtn && illustrationInput) {
@@ -259,7 +257,7 @@
                 });
             }
 
-            // 4. Envoi du formulaire
+            // Soumission du formulaire
             document.getElementById('machineForm').addEventListener('submit', function(e) {
                 e.preventDefault();
                 const item = {
@@ -289,7 +287,7 @@
             });
         });
 
-        // Même filtre de tri intelligent que celui qui fonctionnait au début
+        // --- DECODEUR DATAMATRIX ET BLOC GLOBAL [)> ---
         function analyserCodeBarreExtrait(rawText) {
             let brute = rawText.trim();
             if(!brute) return;
@@ -298,36 +296,63 @@
             let serialTrouve = null;
             let modeleTrouve = null;
 
-            if (upper.includes("[)>") || upper.includes(">") || brute.length > 35) {
-                let texteNettoye = upper.replace(/[\x00-\x1F\x7F-\x9F]/g, ' ');
-                let segments = texteNettoye.split(/[\s,]+/);
+            // CAS 1 : C'est le bloc DataMatrix complet de l'imprimante Zebra
+            if (upper.includes("[)>") || upper.includes(">") || brute.length > 25) {
                 
-                segments.forEach(segment => {
-                    segment = segment.trim();
-                    if (segment.startsWith('S') && segment.length >= 6) {
-                        let tentativeS = segment.substring(1);
-                        if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C|\d)/.test(tentativeS)) { serialTrouve = tentativeS; }
+                // On remplace les caractères de contrôle non-imprimables (RS, GS, EOT) par des espaces clairs
+                let texteNettoye = brute.replace(/[\x00-\x1F\x7F-\x9F]/g, ' ');
+                
+                // On découpe la longue chaîne par blocs
+                let morceaux = texteNettoye.split(/\s+/);
+                
+                morceaux.forEach(bloc => {
+                    let b = bloc.trim().toUpperCase();
+                    
+                    // S... = Numéro de série (ex: S41J23...)
+                    if (b.startsWith('S') && b.length >= 6) {
+                        let valeurS = bloc.substring(1).trim();
+                        // Vérification de sécurité pour s'assurer que c'est le vrai S/N
+                        if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C|\d)/.test(valeurS.toUpperCase())) {
+                            serialTrouve = valeurS;
+                        }
                     }
-                    if (segment.startsWith('1P') && segment.length >= 7) { modeleTrouve = devinerNomModele(segment.substring(2)); }
-                    else if (segment.startsWith('P') && (segment.startsWith('PZT') || segment.startsWith('PZD') || segment.startsWith('PZM') || segment.includes('-'))) { modeleTrouve = devinerNomModele(segment.substring(1)); }
+                    // 1P... = Référence Modèle constructeur (ex: 1PZT231...)
+                    else if (b.startsWith('1P') && b.length >= 5) {
+                        modeleTrouve = devinerNomModele(bloc.substring(2).trim());
+                    }
+                    // P... = Référence Modèle alternative (ex: PZT411...)
+                    else if (b.startsWith('P') && b.length >= 5 && (b.includes('-') || b.startsWith('PZT') || b.startsWith('PZD') || b.startsWith('PZM'))) {
+                        modeleTrouve = devinerNomModele(bloc.substring(1).trim());
+                    }
                 });
             } 
-            else {
-                if (upper.startsWith("1P")) { modeleTrouve = devinerNomModele(brute.substring(2)); }
-                else if (upper.startsWith("P") && (upper.startsWith("PZT") || upper.startsWith("PZD") || upper.startsWith("PZM") || brute.includes("-"))) { modeleTrouve = devinerNomModele(brute.substring(1)); }
-                else if (upper.startsWith("S") && !isNaN(upper.charAt(1))) { serialTrouve = brute.substring(1); }
-                else if (brute.includes("-") || upper.startsWith("ZT") || upper.startsWith("ZD") || upper.startsWith("ZM")) { modeleTrouve = devinerNomModele(brute); }
-                else if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/.test(upper)) { serialTrouve = brute; }
-                else if (brute.length >= 8 && brute.length <= 20) { serialTrouve = brute; }
+            
+            // CAS 2 : C'est un code-barres 1D classique isolé (Code 128)
+            if (!serialTrouve && !modeleTrouve) {
+                if (upper.startsWith("1P")) { 
+                    modeleTrouve = devinerNomModele(brute.substring(2)); 
+                }
+                else if (upper.startsWith("P") && (upper.startsWith("PZT") || upper.startsWith("PZD") || upper.startsWith("PZM") || brute.includes("-"))) { 
+                    modeleTrouve = devinerNomModele(brute.substring(1)); 
+                }
+                else if (upper.startsWith("S") && !isNaN(upper.charAt(1))) { 
+                    serialTrouve = brute.substring(1); 
+                }
+                else if (brute.includes("-") || upper.startsWith("ZT") || upper.startsWith("ZD") || upper.startsWith("ZM")) { 
+                    modeleTrouve = devinerNomModele(brute); 
+                }
+                else if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/.test(upper)) { 
+                    serialTrouve = brute; 
+                }
+                else {
+                    // Secours ultime si aucune règle ne matche
+                    serialTrouve = brute;
+                }
             }
 
+            // Injection immédiate des données récoltées
             if (serialTrouve) document.getElementById('serial').value = serialTrouve;
             if (modeleTrouve) document.getElementById('modele').value = modeleTrouve;
-            
-            if(!serialTrouve && !modeleTrouve) {
-                // Secours si une chaîne brute générique est renvoyée
-                document.getElementById('serial').value = brute;
-            }
         }
 
         function updateTable() {
