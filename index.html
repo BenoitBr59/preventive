@@ -16,7 +16,6 @@
         .zone-header { background-color: #e6f0fa; font-weight: bold; color: #0a2540; }
         .cropper-container { max-height: 400px; width: 100%; }
         #image-to-crop { max-width: 100%; display: block; }
-        /* Suppression des distorsions forcées sur la vidéo pour préserver les pixels natifs */
         #liveReader video { width: 100% !important; height: 100% !important; object-fit: contain !important; }
     </style>
 </head>
@@ -360,7 +359,7 @@
             document.getElementById('cameraInput').value = '';
         }
 
-        // --- LANCEUR ADAPTATIF ET SANS APPLATISSEMENT ---
+        // --- SCANNER LIVE ADAPTATIF ET SÉCURISÉ ---
         window.ouvrirScannerLive = function() {
             liveSerialDetected = null;
             liveModeleDetected = null;
@@ -377,21 +376,14 @@
             document.getElementById('liveScannerModal').classList.remove('hidden');
 
             try {
+                // CORRECTION CRITIQUE : Le constructeur prend UNIQUEMENT l'identifiant du container DOM
                 if(!html5QrCodeLive) {
-                    html5QrCodeLive = new Html5Qrcode("liveReader", {
-                        formatsToSupport: [
-                            Html5QrcodeSupportedFormats.DATA_MATRIX,
-                            Html5QrcodeSupportedFormats.CODE_128,
-                            Html5QrcodeSupportedFormats.CODE_39,
-                            Html5QrcodeSupportedFormats.QR_CODE
-                        ]
-                    });
+                    html5QrCodeLive = new Html5Qrcode("liveReader");
                 }
 
-                // Configuration de scan ultra-précise
+                // Configuration générale du scanneur
                 const configScanner = {
                     fps: 30,
-                    // Restriction de la zone de scan (qrbox) pour forcer la haute densité de pixels sur l'étiquette
                     qrbox: function(viewfinderWidth, viewfinderHeight) {
                         return {
                             width: Math.floor(viewfinderWidth * 0.85),
@@ -403,6 +395,18 @@
                     }
                 };
 
+                // Injection correcte des formats pris en charge au moment du .start()
+                if (window.Html5QrcodeSupportedFormats) {
+                    configScanner.formatsToSupport = [
+                        Html5QrcodeSupportedFormats.DATA_MATRIX,
+                        Html5QrcodeSupportedFormats.CODE_128,
+                        Html5QrcodeSupportedFormats.CODE_39,
+                        Html5QrcodeSupportedFormats.EAN_13,
+                        Html5QrcodeSupportedFormats.QR_CODE
+                    ];
+                }
+
+                // Tentative de démarrage en haute définition
                 html5QrCodeLive.start(
                     { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
                     configScanner,
@@ -411,7 +415,8 @@
                 )
                 .then(() => { setTimeout(() => { activerTorcheAutomatique(); }, 500); })
                 .catch(err => {
-                    // Secours basse résolution si la caméra refuse le 1080p natif
+                    console.warn("Ajustement de résolution nécessaire...");
+                    // Repli basse résolution automatique en cas de refus matériel
                     html5QrCodeLive.start(
                         { facingMode: "environment" },
                         configScanner,
@@ -420,12 +425,12 @@
                     )
                     .then(() => { setTimeout(() => { activerTorcheAutomatique(); }, 500); })
                     .catch(errFinal => {
-                        alert("Accès caméra refusé.");
+                        alert("Accès caméra impossible ou indisponible.");
                         fermerScannerLive();
                     });
                 });
             } catch(e) {
-                alert("Erreur d'initialisation du module.");
+                alert("Erreur système d'initialisation : " + e.message);
                 fermerScannerLive();
             }
         };
@@ -450,7 +455,6 @@
             let brute = rawText.trim();
             if(!brute) return;
 
-            // Affichage instantané dès qu'un élément texte brut est intercepté
             document.getElementById("liveStatusRaw").innerHTML = `🟢 Reçu : "${brute}"`;
             document.getElementById("liveStatusRaw").className = "text-xs text-green-400 font-mono font-bold break-all";
 
