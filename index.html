@@ -179,13 +179,18 @@
 
     <div id="liveScannerModal" class="hidden fixed inset-0 bg-black/90 flex flex-col items-center justify-between p-4 z-50">
         <div class="w-full flex justify-between items-center text-white max-w-md border-b border-gray-800 pb-2">
-            <span class="text-sm font-bold tracking-wide text-amber-400 flex items-center gap-1">⚡ SCANNER LIVE (FLASH FORCÉ)</span>
+            <span class="text-sm font-bold tracking-wide text-amber-400 flex items-center gap-1">⚡ SCANNER LIVE (HD + FLASH)</span>
             <button type="button" onclick="fermerScannerLive()" class="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold">Fermer</button>
         </div>
         
         <div class="w-full max-w-md bg-gray-900 rounded-lg overflow-hidden relative border-2 border-blue-500 my-auto" style="aspect-ratio: 4/3;">
             <div id="liveReader" class="w-full h-full"></div>
-            <div class="absolute inset-x-0 h-0.5 bg-red-500 top-1/2 animate-bounce opacity-60 pointer-events-none"></div>
+            
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div class="w-[85%] h-[60%] border-2 border-dashed border-amber-400 rounded bg-black/20 flex items-center justify-center">
+                    <div class="w-full h-0.5 bg-red-500 animate-pulse"></div>
+                </div>
+            </div>
         </div>
 
         <div class="w-full max-w-md bg-gray-900 text-white p-4 rounded-lg flex flex-col gap-2">
@@ -267,7 +272,7 @@
             return ""; 
         }
 
-        // ─── ACTIONS SCANNER LIVE AVEC EMISSION DE LA LED INDUSTRUELLE ───
+        // ─── INITIALISATION DU SCANNER HAUTE PERFORMANCE ───
         window.ouvrirScannerLive = function() {
             liveSerialDetected = null;
             liveModeleDetected = null;
@@ -280,26 +285,53 @@
             
             document.getElementById('liveScannerModal').classList.remove('hidden');
 
+            // Force l'activation des décodeurs industriels 1D et 2D DataMatrix
             if(!html5QrCodeLive) {
-                html5QrCodeLive = new Html5Qrcode("liveReader");
+                html5QrCodeLive = new Html5Qrcode("liveReader", {
+                    formatsToSupport: [
+                        Html5QrcodeSupportedFormats.DATA_MATRIX,
+                        Html5QrcodeSupportedFormats.CODE_128,
+                        Html5QrcodeSupportedFormats.CODE_39,
+                        Html5QrcodeSupportedFormats.EAN_13,
+                        Html5QrcodeSupportedFormats.QR_CODE
+                    ]
+                });
             }
 
+            // Définition de la boîte d'analyse restrictive (85% de la largeur, 60% de la hauteur)
+            const zoneDeViseeCiblee = (viewfinderWidth, viewfinderHeight) => {
+                return {
+                    width: Math.floor(viewfinderWidth * 0.85),
+                    height: Math.floor(viewfinderHeight * 0.60)
+                };
+            };
+
             html5QrCodeLive.start(
-                { facingMode: "environment" },
-                { fps: 20, qrbox: false },
+                { 
+                    facingMode: "environment",
+                    // Forçage de la cible de résolution HD pour acquérir les petits détails
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                { 
+                    fps: 25, 
+                    qrbox: zoneDeViseeCiblee,
+                    experimentalFeatures: {
+                        useBarCodeDetectorIfSupported: true // Accélération processeur native si dispo (iOS/Android)
+                    }
+                },
                 (decodedText) => {
                     analyserTexteEnDirect(decodedText);
                 },
-                (error) => { }
+                (error) => { /* Silencieux pour éviter les saccades lors de la recherche */ }
             )
             .then(() => {
-                // Forçage de l'activation matérielle après chargement du canal vidéo stable
                 setTimeout(() => {
                     activerTorcheAutomatique();
                 }, 600);
             })
             .catch(err => {
-                alert("Erreur d'accès matériel à la caméra arrière.");
+                alert("Erreur d'accès à la caméra arrière en mode HD.");
                 fermerScannerLive();
             });
         };
@@ -311,17 +343,15 @@
                 }).then(() => {
                     torcheActive = true;
                 }).catch(() => {
-                    // Plan B : Forçage direct sur le canal de piste WebRTC si l'API supérieure bloque
                     const track = html5QrCodeLive.getRunningTrack();
                     if (track && typeof track.getCapabilities === 'function' && track.getCapabilities().torch) {
                         track.applyConstraints({ advanced: [{ torch: true }] });
                         torcheActive = true;
                     }
                 });
-            } catch(e) { console.log("Échec de la pré-activation matérielle."); }
+            } catch(e) { console.log("Composant Flash indisponible au démarrage automatique."); }
         }
 
-        // Actionneur du bouton d'urgence (Permet à l'utilisateur de forcer via un clic direct)
         window.toggleTorcheLive = function() {
             if (!html5QrCodeLive) return;
             torcheActive = !torcheActive;
@@ -334,9 +364,7 @@
                         track.applyConstraints({ advanced: [{ torch: torcheActive }] });
                     }
                 });
-            } catch (e) {
-                alert("Le composant torche n'est pas accessible ou n'est pas reconnu par le navigateur.");
-            }
+            } catch (e) { alert("Impossible de commuter le flash de l'appareil."); }
         };
 
         function analyserTexteEnDirect(rawText) {
@@ -367,130 +395,4 @@
             }
 
             if (liveSerialDetected) {
-                document.getElementById("liveStatusSerial").innerHTML = `🟢 ${liveSerialDetected}`;
-                document.getElementById("liveStatusSerial").className = "font-bold text-green-400 text-sm";
-            }
-            if (liveModeleDetected) {
-                document.getElementById("liveStatusModele").innerHTML = `🟢 ${liveModeleDetected}`;
-                document.getElementById("liveStatusModele").className = "font-bold text-green-400 text-sm";
-            }
-
-            if (liveSerialDetected || liveModeleDetected) {
-                document.getElementById("btnAppliquerLive").disabled = false;
-            }
-
-            if (liveSerialDetected && liveModeleDetected) {
-                setTimeout(() => {
-                    appliquerResultatsLive();
-                }, 500);
-            }
-        }
-
-        window.appliquerResultatsLive = function() {
-            if (liveSerialDetected) document.getElementById('serial').value = liveSerialDetected;
-            if (liveModeleDetected) document.getElementById('modele').value = liveModeleDetected;
-            fermerScannerLive();
-        };
-
-        window.fermerScannerLive = function() {
-            document.getElementById('liveScannerModal').classList.add('hidden');
-            if (html5QrCodeLive) {
-                html5QrCodeLive.stop().catch(err => console.log("Arrêt classique du flux."));
-            }
-        };
-
-        /* --- TRADITIONNEL PHOTO ET RECADRAGE --- */
-        const cameraInput = document.getElementById('cameraInput');
-        const imageToCrop = document.getElementById('imageToCrop');
-        document.getElementById('capturePhotoBtn').addEventListener('click', () => cameraInput.click());
-
-        cameraInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    imageToCrop.src = event.target.result;
-                    document.getElementById('cropperModal').classList.remove('hidden');
-                    if (cropperInstance) cropperInstance.destroy();
-                    cropperInstance = new Cropper(imageToCrop, { aspectRatio: 10 / 4, viewMode: 1 });
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        document.getElementById('saveCropBtn').addEventListener('click', function() {
-            if (cropperInstance) {
-                const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 800, maxHeight: 320 });
-                currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
-                document.getElementById('photoPreview').src = currentPhotoBase64;
-                document.getElementById('photoPreviewContainer').classList.remove('hidden');
-                closeCropperModal();
-            }
-        });
-
-        function closeCropperModal() {
-            document.getElementById('cropperModal').classList.add('hidden');
-            if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
-            cameraInput.value = '';
-        }
-        document.getElementById('cancelCropBtn').addEventListener('click', closeCropperModal);
-
-        document.getElementById('machineForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const item = {
-                idKey: Date.now(),
-                zone: document.getElementById('zone').value.trim(),
-                modele: document.getElementById('modele').value.trim(),
-                lieuId: document.getElementById('lieuId').value.trim(),
-                serial: document.getElementById('serial').value.trim(),
-                ip: document.getElementById('ip').value.trim(),
-                cellules: document.getElementById('cellules').value,
-                etatDot: document.getElementById('etatDot').value,
-                roller: document.getElementById('roller').value,
-                impression: document.getElementById('impression').value,
-                general: document.getElementById('general').value,
-                remarque: document.getElementById('remarque').value.trim(),
-                photos: currentPhotoBase64 ? [currentPhotoBase64] : []
-            };
-            reportData.push(item);
-            updateTable();
-            document.getElementById('modele').value = '';
-            document.getElementById('serial').value = '';
-            document.getElementById('lieuId').value = '';
-            document.getElementById('ip').value = '';
-            document.getElementById('remarque').value = '';
-            document.getElementById('photoPreviewContainer').classList.add('hidden');
-            currentPhotoBase64 = null;
-        });
-
-        function updateTable() {
-            const tbody = document.getElementById('reportTableBody');
-            tbody.innerHTML = '';
-            if (reportData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport.</td></tr>`;
-                return;
-            }
-            reportData.forEach(d => {
-                const row = document.createElement('tr');
-                row.className = "hover:bg-gray-50 text-xs text-gray-700";
-                row.innerHTML = `
-                    <td class="px-3 py-3 text-left">
-                        <div class="font-bold text-gray-900">${d.modele}</div>
-                        <div class="text-gray-500 italic text-[11px]">${d.lieuId || '-'}</div>
-                    </td>
-                    <td class="px-3 py-3 font-bold text-gray-800 text-sm tracking-wider">${d.serial}</td>
-                    <td class="px-3 py-3">
-                        <button onclick="deleteRow(${d.idKey})" class="text-red-600 font-bold cursor-pointer">Supprimer</button>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        window.deleteRow = function(id) {
-            reportData = reportData.filter(i => i.idKey !== id);
-            updateTable();
-        };
-    </script>
-</body>
-</html>
+                document.getElementById("liveStatus
