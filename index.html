@@ -200,42 +200,40 @@
         document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
 
         /* ==========================================================
-           FONCTION CRUCIALE : ANALYSE ET FORMATAGE DU MODELE & DOTS
+           FONCTION DE CORRESPONDANCE ET FORMATAGE PATTERN STRICT
            ========================================================== */
         function devinerNomModele(texte) {
             let t = texte.toUpperCase().trim();
             
-            // --- CAS A : ANALYSE DPUIS UN PART NUMBER (P/N) ---
+            // --- ANALYSE DEPUIS UN CODE MODÈLE COMPLET (P/N) ---
             if (t.includes("-") || t.startsWith("ZT") || t.startsWith("ZD") || t.startsWith("ZM")) {
-                let modele = "ZEBRA";
-                let dots = "8dots"; // Résolution standard (203 dpi) par défaut
+                let imprimante = "ZEBRA";
+                let dots = "8dots"; // Résolution standard par défaut (203 dpi)
                 
-                if (t.startsWith("ZT231")) { modele = "ZT231"; if (t.charAt(6) === '3') dots = "12dots"; }
-                else if (t.startsWith("ZT411")) { modele = "ZT411"; if (t.charAt(6) === '3') dots = "12dots"; if (t.charAt(6) === '6') dots = "24dots"; }
-                else if (t.startsWith("ZT421")) { modele = "ZT421"; if (t.charAt(6) === '3') dots = "12dots"; }
-                else if (t.startsWith("ZD421")) { modele = "ZD421"; if (t.charAt(6) === '3') dots = "12dots"; }
-                else if (t.startsWith("ZT410")) { modele = "ZT410"; if (t.charAt(6) === '3') dots = "12dots"; }
-                else if (t.startsWith("ZT420")) { modele = "ZT420"; if (t.charAt(6) === '3') dots = "12dots"; }
-                else if (t.startsWith("ZM400")) { modele = "ZM400"; }
+                if (t.startsWith("ZT231")) { imprimante = "ZT231"; if (t.charAt(6) === '3') dots = "12dots"; }
+                else if (t.startsWith("ZT411")) { imprimante = "ZT411"; if (t.charAt(6) === '3') dots = "12dots"; if (t.charAt(6) === '6') dots = "24dots"; }
+                else if (t.startsWith("ZT421")) { imprimante = "ZT421"; if (t.charAt(6) === '3') dots = "12dots"; }
+                else if (t.startsWith("ZD421")) { imprimante = "ZD421"; if (t.charAt(6) === '3') dots = "12dots"; }
+                else if (t.startsWith("ZT410")) { imprimante = "ZT410"; if (t.charAt(6) === '3') dots = "12dots"; }
+                else if (t.startsWith("ZT420")) { imprimante = "ZT420"; if (t.charAt(6) === '3') dots = "12dots"; }
+                else if (t.startsWith("ZM400")) { imprimante = "ZM400"; }
                 else {
-                    // Extraction générique si la chaîne est brute (ex: ZT23142...)
                     let match = t.match(/^(ZT\d{3}|ZD\d{3}|ZM\d{3})/);
                     if (match) {
-                        modele = match[1];
-                        let reste = t.substring(modele.length);
+                        imprimante = match[1];
+                        let reste = t.substring(imprimante.length);
                         if (reste.length >= 2) {
                             if (reste.charAt(1) === '3') dots = "12dots";
                             if (reste.charAt(1) === '6') dots = "24dots";
                         }
                     } else {
-                        return t; // Évite de bloquer si format atypique
+                        return t;
                     }
                 }
-                return `${modele} - ${dots}`;
+                return `${imprimante} - ${dots}`;
             }
             
-            // --- CAS B : ANALYSE AUTOMATIQUE DEPUIS UN NUMÉRO DE SÉRIE (S/N) ---
-            // Table de correspondance des préfixes matériels Zebra
+            // --- ANALYSE DEPUIS UN PREFIXE DE NUMERO DE SÉRIE (S/N) ---
             if (t.startsWith("41J")) return "ZT411 - 8dots";
             if (t.startsWith("42J")) return "ZT421 - 8dots";
             if (t.startsWith("23J") || t.startsWith("23C")) return "ZT231 - 8dots";
@@ -244,11 +242,11 @@
             if (t.startsWith("42A")) return "ZT420 - 8dots";
             if (t.startsWith("12C")) return "ZM400 - 8dots";
             
-            return ""; // Saisie libre si non identifié
+            return ""; 
         }
 
         /* ==========================================================
-           LOGIQUE DE NUMÉRISATION AVEC COMPRESSION COMPATIBLE HD
+           LOGIQUE DE NUMÉRISATION COMPATIBLE APPAREIL PHOTO PHOTO
            ========================================================== */
         window.triggerPhotoScanner = function() {
             document.getElementById('scannerCameraInput').click();
@@ -260,7 +258,7 @@
 
             const feedback = document.getElementById('scanFeedbackMessage');
             feedback.classList.remove('hidden');
-            feedback.innerText = "⏳ Analyse en cours...";
+            feedback.innerText = "⏳ Analyse de la photo...";
             feedback.className = "text-xs font-bold p-1 bg-blue-50 text-blue-700 mt-0.5 rounded animate-pulse";
 
             const reader = new FileReader();
@@ -269,7 +267,6 @@
                 img.src = event.target.result;
                 
                 img.onload = async function() {
-                    // Échantillonnage de la photo pour ne pas saturer le décodeur
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     
@@ -284,30 +281,29 @@
                         const optimizedFile = new File([blob], "compressed_scan.jpg", { type: "image/jpeg" });
                         let codeDetecte = null;
 
-                        // Étape 1 : Moteur Web Play Services
+                        // Play services natif
                         if ('BarcodeDetector' in window) {
                             try {
-                                const detector = new BarcodeDetector({ formats: ['code_128'] });
+                                const detector = new BarcodeDetector({ formats: ['code_128', 'data_matrix'] });
                                 const barcodes = await detector.detect(canvas);
                                 if (barcodes && barcodes.length > 0) {
                                     codeDetecte = barcodes[0].rawValue;
                                 }
-                            } catch (err) { console.log("Moteur d'API local passif."); }
+                            } catch (err) { console.log("L'API locale n'a pas intercepté de code."); }
                         }
 
-                        // Étape 2 : Secours
+                        // Moteur de secours statique robuste
                         if (!codeDetecte) {
                             try {
                                 const html5QrCodeStatic = new Html5Qrcode("staticScannerTmp");
                                 codeDetecte = await html5QrCodeStatic.scanFile(optimizedFile, false);
-                            } catch (err) { console.log("Échec décodage secondaire."); }
+                            } catch (err) { console.log("Le décodeur secondaire n'a rien trouvé."); }
                         }
 
-                        // Injection et routage intelligent des données lues
                         if (codeDetecte) {
                             trierEtValiderCode128(codeDetecte);
                         } else {
-                            feedback.innerText = "❌ Code invisible. Reculez un peu de l'étiquette et reprenez la photo.";
+                            feedback.innerText = "❌ Aucun code-barres exploitable trouvé. Approchez ou nettoyez la lentille.";
                             feedback.className = "text-xs font-bold p-1 bg-red-50 text-red-600 mt-0.5 rounded";
                         }
                         
@@ -326,14 +322,59 @@
             let fieldModele = document.getElementById('modele');
             let feedback = document.getElementById('scanFeedbackMessage');
 
-            // Sécurité anti-Datamatrix
-            if (brute.startsWith("[)>") || brute.startsWith(">") || brute.length > 35) {
-                feedback.innerText = "🛑 Code Datamatrix ignoré. Visez bien le code-barres à lignes horizontales.";
-                feedback.className = "text-xs font-bold p-1 bg-yellow-100 text-yellow-800 mt-0.5 rounded";
-                return;
+            // 🌟 PARSER INTELLIGENT DE DATAMATRIX CONSTRUCTEUR (ZEBRA)
+            if (upper.includes("[)>") || upper.includes(">") || brute.length > 35) {
+                let serialTrouve = null;
+                let pnTrouve = null;
+                
+                // Nettoyage des octets de contrôle invisibles (GS, RS...) pour isoler les chaînes
+                let texteNettoye = upper.replace(/[\x00-\x1F\x7F-\x9F]/g, ' ');
+                let segments = texteNettoye.split(/[\s,]+/);
+                
+                segments.forEach(segment => {
+                    segment = segment.trim();
+                    if (segment.startsWith('S') && segment.length >= 6) {
+                        let tentativeS = segment.substring(1);
+                        if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C|\d)/.test(tentativeS)) {
+                            serialTrouve = tentativeS;
+                        }
+                    }
+                    if (segment.startsWith('1P') && segment.length >= 7) {
+                        pnTrouve = segment.substring(2);
+                    } else if (segment.startsWith('P') && (segment.startsWith('PZT') || segment.startsWith('PZD') || segment.startsWith('PZM') || segment.includes('-'))) {
+                        pnTrouve = segment.substring(1);
+                    }
+                });
+                
+                // Recherche globale subsidiaire si compactage brut sans séparateur
+                if (!serialTrouve) {
+                    let matchS = upper.match(/S(41J|42J|23J|33J|23C|34J|41A|42A|12C)[A-Z0-9]+/);
+                    if (matchS) serialTrouve = matchS[0].substring(1);
+                }
+                if (!pnTrouve) {
+                    let matchP = upper.match(/(1P|P)(ZT\d{3}|ZD\d{3}|ZM\d{3})[A-Z0-9\-]+/);
+                    if (matchP) pnTrouve = matchP[0].startsWith('1P') ? matchP[0].substring(2) : matchP[0].substring(1);
+                }
+                
+                // Traitement et injection finale si trouvé dans le Datamatrix
+                if (serialTrouve || pnTrouve) {
+                    if (serialTrouve) fieldSerial.value = serialTrouve;
+                    if (pnTrouve) {
+                        fieldModele.value = devinerNomModele(pnTrouve);
+                    } else if (serialTrouve) {
+                        fieldModele.value = devinerNomModele(serialTrouve);
+                    }
+                    feedback.innerText = "✨ Bloc Datamatrix Zebra décodé (S/N et Modèle injectés) !";
+                    feedback.className = "text-xs font-bold p-1 bg-green-100 text-green-800 mt-0.5 rounded";
+                    return;
+                } else {
+                    feedback.innerText = "🛑 Format Datamatrix non reconnu. Essayez d'isoler le code à barres linéaire.";
+                    feedback.className = "text-xs font-bold p-1 bg-yellow-100 text-yellow-800 mt-0.5 rounded";
+                    return;
+                }
             }
 
-            // Identification et nettoyage des en-têtes d'identifiants Zebra (S, P, 1P)
+            // 📝 ROUTAGE TRADITIONNEL DES CODES-BARRES SIMPLES (CODE 128)
             let estPN = false;
             let propre = brute;
 
@@ -350,20 +391,15 @@
 
             let upperPropre = propre.toUpperCase();
 
-            // DISPATCHING INTELLIGENT
             if (estPN || upperPropre.includes("-") || upperPropre.startsWith("ZT") || upperPropre.startsWith("ZD") || upperPropre.startsWith("ZM")) {
-                // C'est une référence modèle (P/N)
                 fieldModele.value = devinerNomModele(propre);
                 feedback.innerText = "✔️ Modèle (" + fieldModele.value + ") identifié. Scannez maintenant le S/N.";
                 feedback.className = "text-xs font-bold p-1 bg-blue-100 text-blue-800 mt-0.5 rounded";
             } else {
-                // C'est un numéro de série (S/N)
                 fieldSerial.value = propre;
-                
-                // On tente de remplir le modèle en même temps grâce au préfixe matériel connu
-                let modeleDevine = devinerNomModele(propre);
-                if (modeleDevine) {
-                    fieldModele.value = modeleDevine;
+                let modeleAuto = devinerNomModele(propre);
+                if (modeleAuto) {
+                    fieldModele.value = modeleAuto;
                     feedback.innerText = "✨ S/N et Modèle auto-remplis avec succès !";
                     feedback.className = "text-xs font-bold p-1 bg-green-100 text-green-800 mt-0.5 rounded";
                 } else {
