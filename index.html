@@ -187,19 +187,16 @@
     <div id="scannerModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-lg p-4 max-w-md w-full shadow-2xl">
             <div class="flex justify-between items-center mb-2">
-                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Lecteur Code 128 (Zebra)</h3>
+                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Lecteur Exclusif Code 128</h3>
                 <button type="button" id="closeScannerBtn" class="text-gray-500 text-2xl font-bold cursor-pointer">&times;</button>
             </div>
             
             <div class="relative w-full bg-black rounded overflow-hidden" style="min-height: 280px;">
-                <!-- Caméra en flux direct -->
                 <div id="scannerContainer" class="w-full h-full"></div>
                 
-                <!-- VISEUR VISUEL LARGE : Optimisé pour le Code 128 (85% de la largeur disponible) -->
+                <!-- VISEUR VISUEL LARGE -->
                 <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] h-[120px] z-20 pointer-events-none">
-                    <!-- Ligne laser rouge centrale ultra-visible -->
                     <div class="w-full h-[2px] bg-red-600 absolute top-1/2 -translate-y-1/2 shadow-[0_0_10px_red]"></div>
-                    <!-- Coins de centrage -->
                     <div class="absolute top-0 left-0 w-5 h-5 border-t-4 border-l-4 border-white"></div>
                     <div class="absolute top-0 right-0 w-5 h-5 border-t-4 border-r-4 border-white"></div>
                     <div class="absolute bottom-0 left-0 w-5 h-5 border-b-4 border-l-4 border-white"></div>
@@ -208,8 +205,8 @@
             </div>
             
             <!-- Zone d'état dynamique -->
-            <div id="scannerStatusFeedback" class="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-center text-xs font-semibold text-blue-900 animate-pulse">
-                Connexion à la caméra...
+            <div id="scannerStatusFeedback" class="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-center text-xs font-semibold text-blue-900">
+                Prêt pour le scan...
             </div>
         </div>
     </div>
@@ -227,7 +224,7 @@
         </div>
     </div>
 
-    <!-- --- LOGIQUE APPLICATIVE --- -->
+    <!-- --- LOGIQUE APPLICATIVE CORRIGÉE --- -->
     <script>
         let reportData = [];
         let currentPhotoBase64 = null;
@@ -236,7 +233,6 @@
 
         document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
 
-        /* Analyse du préfixe matériel */
         function devinerNomModele(texte) {
             let t = texte.toUpperCase();
             if (t.includes("ZT421") || t.includes("42J")) return "ZEBRA ZT421 (203 dpi)";
@@ -248,24 +244,39 @@
             return "";
         }
 
-        /* Tri intelligent exclusif Code 128 */
+        /* ==========================================================
+           LOGIQUE DE TRI DU CODE 128 AVEC BLOCAGE DU DATAMATRIX
+           ========================================================== */
         function trierEtValiderCode128(decodedText) {
             let brute = decodedText.trim();
             let upper = brute.toUpperCase();
-            let troisDigits = upper.substring(0, 3);
             
             let fieldSerial = document.getElementById('serial');
             let fieldModele = document.getElementById('modele');
             let feedback = document.getElementById('scannerStatusFeedback');
 
+            // 🛑 SÉCURITÉ CRITIQUE : Si le capteur attrape le Datamatrix (commence par [)> ), on l'ignore silencieusement
+            if (brute.startsWith("[)>") || brute.startsWith(">") || (brute.includes("1P") && brute.includes("S") && brute.length > 30)) {
+                feedback.innerText = "⏳ Datamatrix détecté mais ignoré. Visez les lignes du Code 128...";
+                feedback.className = "mt-2 p-2 bg-yellow-100 border border-yellow-300 rounded text-center text-xs text-yellow-900";
+                return; // On stoppe immédiatement, le scanner continue sa recherche en tâche de fond
+            }
+
+            let troisDigits = upper.substring(0, 3);
+
+            // CAS 1 : C'est le Code 128 du MODÈLE (P/N)
             if (troisDigits === "ZT4" || troisDigits === "ZD4" || troisDigits === "42J" || troisDigits === "41J" || troisDigits === "1P" || brute.includes("-")) {
                 let propre = troisDigits === "1P" ? brute.substring(2) : brute;
                 fieldModele.value = devinerNomModele(propre) || propre;
                 
-                feedback.innerHTML = "✔️ Modèle enregistré !<br><span class='text-blue-700 font-bold'>Passez maintenant sur le Numéro de Série (S/N)...</span>";
+                feedback.innerHTML = "✔️ Modèle enregistré !<br><span class='text-blue-700 font-bold'>Passez maintenant sur le code du Numéro de Série (S/N)...</span>";
                 feedback.className = "mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-center text-xs text-blue-900";
             } 
+            // CAS 2 : C'est le Code 128 du NUMÉRO DE SÉRIE (S/N)
             else {
+                // Élimination des faux positifs ou chaînes trop courtes
+                if (brute.length < 5) return;
+
                 let propre = (upper.startsWith('S') && !isNaN(upper.charAt(1))) ? brute.substring(1) : brute;
                 fieldSerial.value = propre;
                 
@@ -281,16 +292,14 @@
         }
 
         /* ==========================================================
-           DÉMARRAGE DU SCANNER HAUTEMENT COMPATIBLE ET ASYNC
+           INITIALISATION ET OUVERTURE DU SCANNER VIDEO
            ========================================================== */
         window.openSmart128Scanner = async function() {
             document.getElementById('scannerModal').classList.remove('hidden');
             let feedback = document.getElementById('scannerStatusFeedback');
-            feedback.innerText = "Connexion au capteur photo...";
-            feedback.className = "mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-center text-xs font-semibold text-blue-900 animate-pulse";
+            feedback.innerText = "Initialisation de la caméra...";
 
             try {
-                // Étape critique : Libérer proprement la caméra si elle était déjà ouverte/bloquée
                 if (html5QrCode) {
                     if (html5QrCode.isScanning) {
                         await html5QrCode.stop();
@@ -299,13 +308,11 @@
                     html5QrCode = new Html5Qrcode("scannerContainer");
                 }
 
-                // Configuration : Bridage strict au Code 128 (Exclusion native du Datamatrix)
                 const config = { 
                     fps: 25,
                     formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_128 ]
                 };
 
-                // Lancement standardisé (Hautement compatible Android/iOS Chrome)
                 await html5QrCode.start(
                     { facingMode: "environment" }, 
                     config, 
@@ -313,17 +320,15 @@
                     () => {} 
                 );
 
-                feedback.innerText = "Alignez la ligne rouge sur un des codes de l'étiquette...";
+                feedback.innerText = "Alignez la ligne rouge sur un des codes-barres (1D)...";
                 feedback.className = "mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-center text-xs font-semibold text-blue-900";
 
             } catch (err) {
-                console.warn("Échec de la détection automatique, bascule sur listing matériel...", err);
-                
+                console.warn("Bascule sur listing matériel...", err);
                 try {
-                    // Plan B : Listing explicite si l'alias "environment" est rejeté par l'appareil
                     const cameras = await Html5Qrcode.getCameras();
                     if (cameras && cameras.length > 0) {
-                        let back = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('arrière') || c.label.toLowerCase().includes('environment'));
+                        let back = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('arrière'));
                         let idSelectionne = back ? back.id : cameras[cameras.length - 1].id;
                         
                         await html5QrCode.start(
@@ -332,16 +337,13 @@
                             (text) => trierEtValiderCode128(text), 
                             () => {}
                         );
-                        
-                        feedback.innerText = "Alignez la ligne rouge sur un des codes de l'étiquette...";
-                        feedback.className = "mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-center text-xs font-semibold text-blue-900";
+                        feedback.innerText = "Alignez la ligne rouge sur un des codes-barres (1D)...";
                     } else {
-                        alert("Aucun capteur photo détecté sur cet appareil.");
+                        alert("Aucune caméra détectée.");
                         stopBarcodeScanner();
                     }
                 } catch (fallbackErr) {
-                    console.error("Échec critique d'accès vidéo :", fallbackErr);
-                    alert("Impossible d'accéder à la caméra.\n\nSolutions :\n1. Autorisez le site à utiliser la caméra dans les paramètres Chrome.\n2. Fermez les autres applications (ou onglets) qui utilisent l'appareil photo.");
+                    alert("Erreur d'accès à la caméra. Vérifiez les autorisations de votre navigateur.");
                     stopBarcodeScanner();
                 }
             }
@@ -350,14 +352,14 @@
         function stopBarcodeScanner() {
             document.getElementById('scannerModal').classList.add('hidden');
             if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().catch(err => console.error("Erreur arrêt caméra :", err));
+                html5QrCode.stop().catch(err => console.error(err));
             }
         }
         document.getElementById('closeScannerBtn').addEventListener('click', stopBarcodeScanner);
 
         /* ==========================================================
-           LOGIQUE COMPAGNON (PHOTOS COUPEES & TABLEAU)
-           ========================================================= */
+           LOGIQUE PIÈCES-JOINTES (PHOTOS) & TABLEAU DE BORD
+           ========================================================== */
         const cameraInput = document.getElementById('cameraInput');
         const imageToCrop = document.getElementById('imageToCrop');
         document.getElementById('capturePhotoBtn').addEventListener('click', () => cameraInput.click());
