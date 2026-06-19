@@ -179,7 +179,7 @@
 
     <div id="liveScannerModal" class="hidden fixed inset-0 bg-black/90 flex flex-col items-center justify-between p-4 z-50">
         <div class="w-full flex justify-between items-center text-white max-w-md border-b border-gray-800 pb-2">
-            <span class="text-sm font-bold tracking-wide text-amber-400 flex items-center gap-1">⚡ SCANNER LIVE (HD + FLASH)</span>
+            <span class="text-sm font-bold tracking-wide text-amber-400 flex items-center gap-1">⚡ SCANNER LIVE (HD + FLASH INDUSTRIAL)</span>
             <button type="button" onclick="fermerScannerLive()" class="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold">Fermer</button>
         </div>
         
@@ -272,7 +272,7 @@
             return ""; 
         }
 
-        // ─── INITIALISATION DU SCANNER HAUTE PERFORMANCE ───
+        // ─── INITIALISATION RECTIFIÉE DU SCANNER EN CONTINU ───
         window.ouvrirScannerLive = function() {
             liveSerialDetected = null;
             liveModeleDetected = null;
@@ -285,17 +285,9 @@
             
             document.getElementById('liveScannerModal').classList.remove('hidden');
 
-            // Force l'activation des décodeurs industriels 1D et 2D DataMatrix
+            // Instanciation simple de la caméra
             if(!html5QrCodeLive) {
-                html5QrCodeLive = new Html5Qrcode("liveReader", {
-                    formatsToSupport: [
-                        Html5QrcodeSupportedFormats.DATA_MATRIX,
-                        Html5QrcodeSupportedFormats.CODE_128,
-                        Html5QrcodeSupportedFormats.CODE_39,
-                        Html5QrcodeSupportedFormats.EAN_13,
-                        Html5QrcodeSupportedFormats.QR_CODE
-                    ]
-                });
+                html5QrCodeLive = new Html5Qrcode("liveReader");
             }
 
             // Définition de la boîte d'analyse restrictive (85% de la largeur, 60% de la hauteur)
@@ -306,24 +298,31 @@
                 };
             };
 
+            // Démarrage avec les types industriels injectés correctement ici
             html5QrCodeLive.start(
                 { 
                     facingMode: "environment",
-                    // Forçage de la cible de résolution HD pour acquérir les petits détails
                     width: { ideal: 1280 },
                     height: { ideal: 720 }
                 },
                 { 
                     fps: 25, 
                     qrbox: zoneDeViseeCiblee,
+                    formatsToSupport: [
+                        Html5QrcodeSupportedFormats.DATA_MATRIX,
+                        Html5QrcodeSupportedFormats.CODE_128,
+                        Html5QrcodeSupportedFormats.CODE_39,
+                        Html5QrcodeSupportedFormats.EAN_13,
+                        Html5QrcodeSupportedFormats.QR_CODE
+                    ],
                     experimentalFeatures: {
-                        useBarCodeDetectorIfSupported: true // Accélération processeur native si dispo (iOS/Android)
+                        useBarCodeDetectorIfSupported: true
                     }
                 },
                 (decodedText) => {
                     analyserTexteEnDirect(decodedText);
                 },
-                (error) => { /* Silencieux pour éviter les saccades lors de la recherche */ }
+                (error) => { /* Silencieux en recherche active pour conserver la fluidité */ }
             )
             .then(() => {
                 setTimeout(() => {
@@ -331,7 +330,7 @@
                 }, 600);
             })
             .catch(err => {
-                alert("Erreur d'accès à la caméra arrière en mode HD.");
+                alert("Erreur d'accès matériel : vérifiez les autorisations de votre caméra.");
                 fermerScannerLive();
             });
         };
@@ -349,7 +348,7 @@
                         torcheActive = true;
                     }
                 });
-            } catch(e) { console.log("Composant Flash indisponible au démarrage automatique."); }
+            } catch(e) { console.log("Composant flash non connecté."); }
         }
 
         window.toggleTorcheLive = function() {
@@ -364,7 +363,7 @@
                         track.applyConstraints({ advanced: [{ torch: torcheActive }] });
                     }
                 });
-            } catch (e) { alert("Impossible de commuter le flash de l'appareil."); }
+            } catch (e) { alert("Le bouton matériel du flash ne répond pas."); }
         };
 
         function analyserTexteEnDirect(rawText) {
@@ -389,10 +388,4 @@
                 if (upper.startsWith("1P")) { liveModeleDetected = devinerNomModele(brute.substring(2)); }
                 else if (upper.startsWith("P") && (upper.startsWith("PZT") || upper.startsWith("PZD") || upper.startsWith("PZM") || brute.includes("-"))) { liveModeleDetected = devinerNomModele(brute.substring(1)); }
                 else if (upper.startsWith("S") && !isNaN(upper.charAt(1))) { liveSerialDetected = brute.substring(1); }
-                else if (brute.includes("-") || upper.startsWith("ZT") || upper.startsWith("ZD") || upper.startsWith("ZM")) { liveModeleDetected = devinerNomModele(brute); }
-                else if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/.test(upper)) { liveSerialDetected = brute; }
-                else if (!liveSerialDetected && brute.length >= 8 && brute.length <= 15) { liveSerialDetected = brute; }
-            }
-
-            if (liveSerialDetected) {
-                document.getElementById("liveStatus
+                else if (brute.includes("-") || upper.startsWith("ZT") || upper.startsWith("
