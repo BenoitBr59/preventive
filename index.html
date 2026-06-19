@@ -199,19 +199,56 @@
 
         document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
 
+        /* ==========================================================
+           FONCTION CRUCIALE : ANALYSE ET FORMATAGE DU MODELE & DOTS
+           ========================================================== */
         function devinerNomModele(texte) {
-            let t = texte.toUpperCase();
-            if (t.includes("ZT421") || t.includes("42J")) return "ZEBRA ZT421 (203 dpi)";
-            if (t.includes("ZT411") || t.includes("41J")) return "ZEBRA ZT411 (203 dpi)";
-            if (t.includes("ZD421") || t.includes("33J")) return "ZEBRA ZD421";
-            if (t.includes("ZM400") || t.includes("12C")) return "ZEBRA ZM400";
-            if (t.includes("ZT410") || t.includes("41A")) return "ZEBRA ZT410";
-            if (t.includes("ZT420") || t.includes("42A")) return "ZEBRA ZT420";
-            return "";
+            let t = texte.toUpperCase().trim();
+            
+            // --- CAS A : ANALYSE DPUIS UN PART NUMBER (P/N) ---
+            if (t.includes("-") || t.startsWith("ZT") || t.startsWith("ZD") || t.startsWith("ZM")) {
+                let modele = "ZEBRA";
+                let dots = "8dots"; // Résolution standard (203 dpi) par défaut
+                
+                if (t.startsWith("ZT231")) { modele = "ZT231"; if (t.charAt(6) === '3') dots = "12dots"; }
+                else if (t.startsWith("ZT411")) { modele = "ZT411"; if (t.charAt(6) === '3') dots = "12dots"; if (t.charAt(6) === '6') dots = "24dots"; }
+                else if (t.startsWith("ZT421")) { modele = "ZT421"; if (t.charAt(6) === '3') dots = "12dots"; }
+                else if (t.startsWith("ZD421")) { modele = "ZD421"; if (t.charAt(6) === '3') dots = "12dots"; }
+                else if (t.startsWith("ZT410")) { modele = "ZT410"; if (t.charAt(6) === '3') dots = "12dots"; }
+                else if (t.startsWith("ZT420")) { modele = "ZT420"; if (t.charAt(6) === '3') dots = "12dots"; }
+                else if (t.startsWith("ZM400")) { modele = "ZM400"; }
+                else {
+                    // Extraction générique si la chaîne est brute (ex: ZT23142...)
+                    let match = t.match(/^(ZT\d{3}|ZD\d{3}|ZM\d{3})/);
+                    if (match) {
+                        modele = match[1];
+                        let reste = t.substring(modele.length);
+                        if (reste.length >= 2) {
+                            if (reste.charAt(1) === '3') dots = "12dots";
+                            if (reste.charAt(1) === '6') dots = "24dots";
+                        }
+                    } else {
+                        return t; // Évite de bloquer si format atypique
+                    }
+                }
+                return `${modele} - ${dots}`;
+            }
+            
+            // --- CAS B : ANALYSE AUTOMATIQUE DEPUIS UN NUMÉRO DE SÉRIE (S/N) ---
+            // Table de correspondance des préfixes matériels Zebra
+            if (t.startsWith("41J")) return "ZT411 - 8dots";
+            if (t.startsWith("42J")) return "ZT421 - 8dots";
+            if (t.startsWith("23J") || t.startsWith("23C")) return "ZT231 - 8dots";
+            if (t.startsWith("33J") || t.startsWith("34J")) return "ZD421 - 8dots";
+            if (t.startsWith("41A")) return "ZT410 - 8dots";
+            if (t.startsWith("42A")) return "ZT420 - 8dots";
+            if (t.startsWith("12C")) return "ZM400 - 8dots";
+            
+            return ""; // Saisie libre si non identifié
         }
 
         /* ==========================================================
-           LOGIQUE DE NUMÉRISATION AVEC RE-SAMPLE CANVAs (MÉMOIRE)
+           LOGIQUE DE NUMÉRISATION AVEC COMPRESSION COMPATIBLE HD
            ========================================================== */
         window.triggerPhotoScanner = function() {
             document.getElementById('scannerCameraInput').click();
@@ -223,7 +260,7 @@
 
             const feedback = document.getElementById('scanFeedbackMessage');
             feedback.classList.remove('hidden');
-            feedback.innerText = "⏳ Optimisation de l'image & Décodage...";
+            feedback.innerText = "⏳ Analyse en cours...";
             feedback.className = "text-xs font-bold p-1 bg-blue-50 text-blue-700 mt-0.5 rounded animate-pulse";
 
             const reader = new FileReader();
@@ -232,25 +269,22 @@
                 img.src = event.target.result;
                 
                 img.onload = async function() {
-                    // 🎛️ CRÉATION DE LA MOULINETTE PIXELS (Canvas de réduction)
+                    // Échantillonnage de la photo pour ne pas saturer le décodeur
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     
-                    // On force une largeur de 1200px (Excellent compromis de netteté pour le Code 128)
                     const targetWidth = 1200;
                     const scaleFactor = targetWidth / img.width;
                     canvas.width = targetWidth;
                     canvas.height = img.height * scaleFactor;
                     
-                    // Dessin de l'image compressée
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     
-                    // Conversion de la zone nettoyée en blob pour le moteur d'analyse
                     canvas.toBlob(async function(blob) {
                         const optimizedFile = new File([blob], "compressed_scan.jpg", { type: "image/jpeg" });
                         let codeDetecte = null;
 
-                        // Tentative 1 : Utilisation des Play Services du navigateur (si dispo)
+                        // Étape 1 : Moteur Web Play Services
                         if ('BarcodeDetector' in window) {
                             try {
                                 const detector = new BarcodeDetector({ formats: ['code_128'] });
@@ -258,22 +292,22 @@
                                 if (barcodes && barcodes.length > 0) {
                                     codeDetecte = barcodes[0].rawValue;
                                 }
-                            } catch (err) { console.log("Moteur natif indisponible."); }
+                            } catch (err) { console.log("Moteur d'API local passif."); }
                         }
 
-                        // Tentative 2 : Moteur de secours robuste
+                        // Étape 2 : Secours
                         if (!codeDetecte) {
                             try {
                                 const html5QrCodeStatic = new Html5Qrcode("staticScannerTmp");
                                 codeDetecte = await html5QrCodeStatic.scanFile(optimizedFile, false);
-                            } catch (err) { console.log("Échec de la lecture de secours."); }
+                            } catch (err) { console.log("Échec décodage secondaire."); }
                         }
 
-                        // Analyse du résultat final
+                        // Injection et routage intelligent des données lues
                         if (codeDetecte) {
                             trierEtValiderCode128(codeDetecte);
                         } else {
-                            feedback.innerText = "❌ Code-barres non détecté. Reculez un peu et assurez-vous que l'étiquette soit bien éclairée.";
+                            feedback.innerText = "❌ Code invisible. Reculez un peu de l'étiquette et reprenez la photo.";
                             feedback.className = "text-xs font-bold p-1 bg-red-50 text-red-600 mt-0.5 rounded";
                         }
                         
@@ -292,33 +326,50 @@
             let fieldModele = document.getElementById('modele');
             let feedback = document.getElementById('scanFeedbackMessage');
 
-            // 🛑 FILTRE ANTI-DATAMATRIX INDUSTRIAL
+            // Sécurité anti-Datamatrix
             if (brute.startsWith("[)>") || brute.startsWith(">") || brute.length > 35) {
-                feedback.innerText = "🛑 Datamatrix ignoré. Ciblez bien le code à barres classique en lignes.";
+                feedback.innerText = "🛑 Code Datamatrix ignoré. Visez bien le code-barres à lignes horizontales.";
                 feedback.className = "text-xs font-bold p-1 bg-yellow-100 text-yellow-800 mt-0.5 rounded";
                 return;
             }
 
-            let troisDigits = upper.substring(0, 3);
+            // Identification et nettoyage des en-têtes d'identifiants Zebra (S, P, 1P)
+            let estPN = false;
+            let propre = brute;
 
-            // Détection Modèle (P/N)
-            if (troisDigits === "ZT4" || troisDigits === "ZD4" || troisDigits === "42J" || troisDigits === "41J" || troisDigits === "1P" || brute.includes("-")) {
-                let propre = troisDigits === "1P" ? brute.substring(2) : brute;
-                fieldModele.value = devinerNomModele(propre) || propre;
-                feedback.innerText = "✔️ Code Modèle enregistré ! Prenez maintenant le Numéro de Série (S/N).";
+            if (upper.startsWith("1P")) {
+                propre = brute.substring(2);
+                estPN = true;
+            } else if (upper.startsWith("P") && (upper.startsWith("PZT") || upper.startsWith("PZD") || upper.startsWith("PZM") || brute.includes("-"))) {
+                propre = brute.substring(1);
+                estPN = true;
+            } else if (upper.startsWith("S") && !isNaN(upper.charAt(1))) {
+                propre = brute.substring(1);
+                estPN = false;
+            }
+
+            let upperPropre = propre.toUpperCase();
+
+            // DISPATCHING INTELLIGENT
+            if (estPN || upperPropre.includes("-") || upperPropre.startsWith("ZT") || upperPropre.startsWith("ZD") || upperPropre.startsWith("ZM")) {
+                // C'est une référence modèle (P/N)
+                fieldModele.value = devinerNomModele(propre);
+                feedback.innerText = "✔️ Modèle (" + fieldModele.value + ") identifié. Scannez maintenant le S/N.";
                 feedback.className = "text-xs font-bold p-1 bg-blue-100 text-blue-800 mt-0.5 rounded";
-            } 
-            // Détection Numéro de Série (S/N)
-            else {
-                if (brute.length < 5) return;
-                let propre = (upper.startsWith('S') && !isNaN(upper.charAt(1))) ? brute.substring(1) : brute;
+            } else {
+                // C'est un numéro de série (S/N)
                 fieldSerial.value = propre;
                 
-                if (!fieldModele.value) {
-                    fieldModele.value = devinerNomModele(propre);
+                // On tente de remplir le modèle en même temps grâce au préfixe matériel connu
+                let modeleDevine = devinerNomModele(propre);
+                if (modeleDevine) {
+                    fieldModele.value = modeleDevine;
+                    feedback.innerText = "✨ S/N et Modèle auto-remplis avec succès !";
+                    feedback.className = "text-xs font-bold p-1 bg-green-100 text-green-800 mt-0.5 rounded";
+                } else {
+                    feedback.innerText = "✨ Numéro de Série (S/N) injecté !";
+                    feedback.className = "text-xs font-bold p-1 bg-green-100 text-green-800 mt-0.5 rounded";
                 }
-                feedback.innerText = "✨ Numéro de Série (S/N) injecté !";
-                feedback.className = "text-xs font-bold p-1 bg-green-100 text-green-800 mt-0.5 rounded";
             }
         }
 
