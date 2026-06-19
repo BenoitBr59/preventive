@@ -7,7 +7,16 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
+    <style>
+        .zone-header { background-color: #e6f0fa; font-weight: bold; color: #0a2540; }
+        .cropper-container { max-height: 400px; width: 100%; }
+        #image-to-crop { max-width: 100%; display: block; }
+    </style>
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen p-4 md:p-8">
 
@@ -58,7 +67,7 @@
             
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Modèle d'imprimante (P/N)</label>
-                <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm bg-yellow-50 font-semibold" placeholder="Déduit depuis le S/N" required>
+                <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm bg-yellow-50 font-semibold" placeholder="Détecté automatiquement" required>
             </div>
             
             <div>
@@ -68,12 +77,13 @@
             
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Numéro de Série (S/N)</label>
-                <div class="flex flex-col gap-2">
-                    <input type="text" id="serial" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-blue-500 font-bold bg-yellow-50" placeholder="Scanner le S/N" required>
-                    
-                    <button type="button" onclick="declencherAnalysePhoto()" class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded py-2 text-xs font-extrabold cursor-pointer flex items-center justify-center gap-2 shadow uppercase tracking-wide">
-                        📷 SCANNER L'ÉTIQUETTE
-                    </button>
+                <div class="flex flex-col gap-1">
+                    <div class="flex">
+                        <input type="text" id="serial" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm focus:outline-blue-500 font-bold" placeholder="S/N" required>
+                        <button type="button" onclick="ouvrirScannerLive()" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-4 text-xs font-bold cursor-pointer flex items-center gap-1 shadow whitespace-nowrap">
+                            📷 SCANNER L'ÉTIQUETTE
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -133,11 +143,11 @@
             </div>
 
             <div class="md:col-span-4 bg-blue-50 p-4 rounded border border-blue-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <span class="text-sm font-bold text-blue-900">Pièce-jointe (Photo d'illustration finale)</span>
-                <button type="button" id="captureIllustrationBtn" class="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs px-5 py-3 rounded-lg shadow cursor-pointer">
-                    📷 Prendre la photo finale
+                <span class="text-sm font-bold text-blue-900">Pièce-jointe (Photo d'illustration)</span>
+                <button type="button" id="capturePhotoBtn" class="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs px-5 py-3 rounded-lg shadow cursor-pointer">
+                    📷 Déclencher l'appareil photo
                 </button>
-                <input type="file" id="illustrationInput" accept="image/*" capture="environment" class="hidden">
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
                 <div id="photoPreviewContainer" class="hidden border-l pl-4 border-blue-200">
                     <img id="photoPreview" src="" class="h-12 w-auto rounded border bg-white" style="aspect-ratio: 10 / 4; object-fit: cover;">
                 </div>
@@ -149,8 +159,6 @@
                 </button>
             </div>
         </form>
-
-        <input type="file" id="scannerCameraInput" accept="image/*" capture="environment" class="hidden">
 
         <div class="overflow-x-auto border border-gray-200 rounded-lg">
             <table class="min-w-full divide-y divide-gray-200 text-sm text-center">
@@ -168,77 +176,153 @@
         </div>
     </div>
 
+    <div id="liveScannerModal" class="hidden fixed inset-0 bg-black/95 flex flex-col items-center justify-between p-4 z-50">
+        <div class="w-full flex justify-between items-center text-white max-w-md border-b border-gray-800 pb-2">
+            <span class="text-sm font-bold tracking-wide text-amber-400 flex items-center gap-1">⚡ LECTEUR MATÉRIEL CODE 128</span>
+            <button type="button" onclick="fermerScannerLive()" class="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold">Fermer</button>
+        </div>
+        
+        <div class="w-full max-w-md bg-black rounded-lg overflow-hidden relative border-2 border-blue-500 my-auto">
+            <div id="liveReader" class="w-full bg-black"></div>
+            
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                <div class="w-[85%] h-[30%] border-2 border-dashed border-amber-400 rounded bg-transparent flex items-center justify-center">
+                    <div class="w-full h-0.5 bg-red-500/90 animate-pulse"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full max-w-md bg-gray-900 text-white p-4 rounded-lg flex flex-col gap-2">
+            <button type="button" onclick="toggleTorcheLive()" class="w-full bg-amber-500 hover:bg-amber-600 text-gray-900 font-extrabold py-2 rounded text-xs flex items-center justify-center gap-2 shadow tracking-wider uppercase">
+                ⚡ ALLUMER / ÉTEINDRE LE FLASH
+            </button>
+            
+            <div class="bg-gray-950 p-2 rounded text-center border border-gray-800">
+                <span id="liveStatusRaw" class="text-xs text-gray-400 italic">Positionnez le code barre bien horizontalement...</span>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-2 mt-1">
+                <div class="bg-gray-800/50 p-2 rounded text-center">
+                    <div class="text-[10px] text-gray-400 uppercase">S/N Filtré</div>
+                    <div id="liveStatusSerial" class="font-bold text-red-500 text-xs mt-0.5">❌ En attente</div>
+                </div>
+                <div class="bg-gray-800/50 p-2 rounded text-center">
+                    <div class="text-[10px] text-gray-400 uppercase">Modèle Filtré</div>
+                    <div id="liveStatusModele" class="font-bold text-red-500 text-xs mt-0.5">❌ En attente</div>
+                </div>
+            </div>
+            
+            <button type="button" id="btnAppliquerLive" class="mt-2 w-full bg-blue-600 disabled:bg-gray-700 disabled:opacity-50 text-white font-bold py-2 rounded text-sm shadow cursor-pointer" disabled onclick="appliquerResultatsLive()">
+                Valider les captures
+            </button>
+        </div>
+    </div>
+
+    <div id="cropperModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-4 max-w-xl w-full flex flex-col max-h-[90vh]">
+            <h3 class="text-sm font-bold text-gray-900 mb-2 uppercase tracking-wide">Recadrage Image (Format Obligatoire 10x4)</h3>
+            <div class="overflow-hidden flex-1 bg-gray-100 rounded flex items-center justify-center" style="min-height: 300px; max-height: 55vh;">
+                <img id="imageToCrop" src="" style="max-width: 100%; display: block;">
+            </div>
+            <div class="flex justify-end gap-2 mt-4">
+                <button type="button" id="cancelCropBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 text-xs font-bold px-4 py-2 rounded cursor-pointer">Annuler</button>
+                <button type="button" id="saveCropBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded cursor-pointer">Valider la découpe</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let reportData = [];
         let currentPhotoBase64 = null;
-        let localHtml5QrCode = null;
+        let cropperInstance = null;
+        let html5QrCodeLive = null;
+        let torcheActive = false;
 
-        // Table de correspondance stricte basée sur les préfixes de numéros de série Zebra connus
-        function deduireModeleDepuisSerial(sn) {
-            let s = sn.toUpperCase().trim();
-            
-            if (s.startsWith("41J")) return "ZT411 - 8dots";
-            if (s.startsWith("42J")) return "ZT421 - 8dots";
-            if (s.startsWith("23J") || s.startsWith("23C")) return "ZT231 - 8dots";
-            if (s.startsWith("33J") || s.startsWith("34J")) return "ZD421 - 8dots";
-            if (s.startsWith("41A")) return "ZT410 - 8dots";
-            if (s.startsWith("42A")) return "ZT420 - 8dots";
-            if (s.startsWith("12C")) return "ZM400 - 8dots";
+        let liveSerialDetected = null;
+        let liveModeleDetected = null;
 
-            // Si le numéro de série commence par d'autres lettres connues ou chiffres
-            if (s.startsWith("ZT231")) return "ZT231 - 8dots";
-            if (s.startsWith("ZT411")) return "ZT411 - 8dots";
-            if (s.startsWith("ZT421")) return "ZT421 - 8dots";
-            if (s.startsWith("ZD421")) return "ZD421 - 8dots";
-
-            return "ZEBRA - Modèle à vérifier"; // Valeur par défaut si le préfixe est inconnu
+        function devinerNomModele(texte) {
+            let t = texte.toUpperCase().trim();
+            if (t.includes("-") || t.startsWith("ZT") || t.startsWith("ZD") || t.startsWith("ZM")) {
+                let imprimante = "ZEBRA";
+                let dots = "8dots";
+                if (t.startsWith("ZT231")) { imprimante = "ZT231"; if (t.charAt(6) === '3') dots = "12dots"; }
+                else if (t.startsWith("ZT411")) { imprimante = "ZT411"; if (t.charAt(6) === '3') dots = "12dots"; if (t.charAt(6) === '6') dots = "24dots"; }
+                else if (t.startsWith("ZT421")) { imprimante = "ZT421"; if (t.charAt(6) === '3') dots = "12dots"; }
+                else if (t.startsWith("ZD421")) { imprimante = "ZD421"; if (t.charAt(6) === '3') dots = "12dots"; }
+                else if (t.startsWith("ZT410")) { imprimante = "ZT410"; if (t.charAt(6) === '3') dots = "12dots"; }
+                else if (t.startsWith("ZT420")) { imprimante = "ZT420"; if (t.charAt(6) === '3') dots = "12dots"; }
+                else if (t.startsWith("ZM400")) { imprimante = "ZM400"; }
+                else {
+                    let match = t.match(/^(ZT\d{3}|ZD\d{3}|ZM\d{3})/);
+                    if (match) {
+                        imprimante = match[1];
+                        let reste = t.substring(imprimante.length);
+                        if (reste.length >= 2) {
+                            if (reste.charAt(1) === '3') dots = "12dots";
+                            if (reste.charAt(1) === '6') dots = "24dots";
+                        }
+                    } else { return t; }
+                }
+                return `${imprimante} - ${dots}`;
+            }
+            if (t.startsWith("41J")) return "ZT411 - 8dots";
+            if (t.startsWith("42J")) return "ZT421 - 8dots";
+            if (t.startsWith("23J") || t.startsWith("23C")) return "ZT231 - 8dots";
+            if (t.startsWith("33J") || t.startsWith("34J")) return "ZD421 - 8dots";
+            if (t.startsWith("41A")) return "ZT410 - 8dots";
+            if (t.startsWith("42A")) return "ZT420 - 8dots";
+            if (t.startsWith("12C")) return "ZM400 - 8dots";
+            return ""; 
         }
-
-        window.declencherAnalysePhoto = function() {
-            document.getElementById('scannerCameraInput').click();
-        };
 
         window.addEventListener('load', function() {
             document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
 
-            // Instance invisible du décodeur
-            localHtml5QrCode = new Html5Qrcode("scannerCameraInput"); 
-
-            document.getElementById('scannerCameraInput').addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                localHtml5QrCode.scanFile(file, true)
-                .then(decodedText => {
-                    extraireUniquementSerial(decodedText);
-                })
-                .catch(err => {
-                    alert("Lecture impossible. Assurez-vous de photographier l'étiquette de près et bien à plat.");
-                });
-            });
-
-            // Illustration du rapport
-            const captureIllustrationBtn = document.getElementById('captureIllustrationBtn');
-            const illustrationInput = document.getElementById('illustrationInput');
-            if (captureIllustrationBtn && illustrationInput) {
-                captureIllustrationBtn.addEventListener('click', () => illustrationInput.click());
+            const capturePhotoBtn = document.getElementById('capturePhotoBtn');
+            const cameraInput = document.getElementById('cameraInput');
+            if (capturePhotoBtn && cameraInput) {
+                capturePhotoBtn.addEventListener('click', () => cameraInput.click());
             }
-            if (illustrationInput) {
-                illustrationInput.addEventListener('change', function(e) {
+
+            if (cameraInput) {
+                cameraInput.addEventListener('change', function(e) {
                     const file = e.target.files[0];
                     if (file) {
                         const reader = new FileReader();
                         reader.onload = function(event) {
-                            currentPhotoBase64 = event.target.result;
-                            document.getElementById('photoPreview').src = currentPhotoBase64;
-                            document.getElementById('photoPreviewContainer').classList.remove('hidden');
+                            const imageToCrop = document.getElementById('imageToCrop');
+                            if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+                            
+                            imageToCrop.onload = function() {
+                                document.getElementById('cropperModal').classList.remove('hidden');
+                                cropperInstance = new Cropper(imageToCrop, {
+                                    aspectRatio: 10 / 4,
+                                    viewMode: 1,
+                                    autoCropArea: 0.9,
+                                    responsive: true
+                                });
+                                imageToCrop.onload = null;
+                            };
+                            imageToCrop.src = event.target.result;
                         };
                         reader.readAsDataURL(file);
                     }
                 });
             }
 
-            // Soumission générale
+            document.getElementById('saveCropBtn').addEventListener('click', function() {
+                if (cropperInstance) {
+                    const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 800, maxHeight: 320 });
+                    currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+                    document.getElementById('photoPreview').src = currentPhotoBase64;
+                    document.getElementById('photoPreviewContainer').classList.remove('hidden');
+                    closeCropperModal();
+                }
+            });
+
+            document.getElementById('cancelCropBtn').addEventListener('click', closeCropperModal);
+
             document.getElementById('machineForm').addEventListener('submit', function(e) {
                 e.preventDefault();
                 const item = {
@@ -268,51 +352,151 @@
             });
         });
 
-        // Extraction ciblée du S/N et auto-complétion du modèle
-        function extraireUniquementSerial(rawText) {
+        function closeCropperModal() {
+            document.getElementById('cropperModal').classList.add('hidden');
+            if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+            document.getElementById('cameraInput').value = '';
+        }
+
+        // --- SCANNER COMPATIBLE ET ACCÉLÉRÉ GOOGLE ---
+        window.ouvrirScannerLive = function() {
+            liveSerialDetected = null;
+            liveModeleDetected = null;
+            torcheActive = false;
+            
+            document.getElementById("liveStatusRaw").innerHTML = "🔍 Alignez le Code 128 horizontalement...";
+            document.getElementById("liveStatusRaw").className = "text-xs text-amber-400 italic";
+            document.getElementById("liveStatusSerial").innerHTML = "❌ En attente";
+            document.getElementById("liveStatusSerial").className = "font-bold text-red-500 text-xs mt-0.5";
+            document.getElementById("liveStatusModele").innerHTML = "❌ En attente";
+            document.getElementById("liveStatusModele").className = "font-bold text-red-500 text-xs mt-0.5";
+            document.getElementById("btnAppliquerLive").disabled = true;
+            
+            document.getElementById('liveScannerModal').classList.remove('hidden');
+
+            try {
+                if(!html5QrCodeLive) {
+                    html5QrCodeLive = new Html5Qrcode("liveReader");
+                }
+
+                // Configuration équilibrée pour éviter tout crash matériel
+                const configScanner = {
+                    fps: 25,
+                    qrbox: function(viewfinderWidth, viewfinderHeight) {
+                        return {
+                            width: Math.floor(viewfinderWidth * 0.85),
+                            height: Math.floor(viewfinderHeight * 0.30)
+                        };
+                    },
+                    experimentalFeatures: { 
+                        useBarCodeDetectorIfSupported: true // Déclenche le moteur natif Google si présent dans Chrome
+                    }
+                };
+
+                // Forçage exclusif Code 128 pour l'interpréteur JS secondaire
+                if (window.Html5QrcodeSupportedFormats) {
+                    configScanner.formatsToSupport = [
+                        Html5QrcodeSupportedFormats.CODE_128
+                    ];
+                }
+
+                // Lancement standard sécurisé (Caméra arrière native)
+                html5QrCodeLive.start(
+                    { facingMode: "environment" },
+                    configScanner,
+                    (decodedText) => { analyserTexteEnDirect(decodedText); },
+                    (error) => {} 
+                )
+                .then(() => { 
+                    setTimeout(() => { activerTorcheAutomatique(); }, 500); 
+                })
+                .catch(err => {
+                    console.error("Erreur critique d'ouverture :", err);
+                    alert("Impossible d'activer le capteur vidéo.");
+                    fermerScannerLive();
+                });
+            } catch(e) {
+                alert("Erreur système : " + e.message);
+                fermerScannerLive();
+            }
+        };
+
+        function activerTorcheAutomatique() {
+            try {
+                html5QrCodeLive.applyVideoConstraints({ advanced: [{ torch: true }] })
+                .then(() => { torcheActive = true; })
+                .catch(() => {});
+            } catch(e) {}
+        }
+
+        window.toggleTorcheLive = function() {
+            if (!html5QrCodeLive) return;
+            torcheActive = !torcheActive;
+            try {
+                html5QrCodeLive.applyVideoConstraints({ advanced: [{ torch: torcheActive }] });
+            } catch (e) {}
+        };
+
+        function analyserTexteEnDirect(rawText) {
             let brute = rawText.trim();
             if(!brute) return;
 
-            let upper = brute.toUpperCase();
-            let serialTrouve = null;
+            document.getElementById("liveStatusRaw").innerHTML = `🟢 Reçu : "${brute}"`;
+            document.getElementById("liveStatusRaw").className = "text-xs text-green-400 font-mono font-bold break-all";
 
-            // ANALYSE CAS 1 : C'est la chaîne complète du DataMatrix global [)>
-            if (upper.includes("[)>") || upper.includes(">") || brute.length > 25) {
-                // Remplacement des séparateurs de blocs invisibles par des espaces clairs
-                let texteNettoye = brute.replace(/[\x00-\x1F\x7F-\x9F]/g, ' ');
-                let morceaux = texteNettoye.split(/\s+/);
+            let upper = brute.toUpperCase();
+
+            if (upper.includes("[)>") || upper.includes(">") || brute.length > 35) {
+                let texteNettoye = upper.replace(/[\x00-\x1F\x7F-\x9F]/g, ' ');
+                let segments = texteNettoye.split(/[\s,]+/);
                 
-                morceaux.forEach(bloc => {
-                    let b = bloc.trim().toUpperCase();
-                    // On isole le bloc qui commence par 'S' (et qui n'est pas juste le mot 'S')
-                    if (b.startsWith('S') && b.length >= 6) {
-                        let tentativeS = bloc.substring(1).trim();
-                        // Vérification des préfixes de série Zebra types
-                        if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C|\d)/.test(tentativeS.toUpperCase())) {
-                            serialTrouve = tentativeS;
-                        }
+                segments.forEach(segment => {
+                    segment = segment.trim();
+                    if (segment.startsWith('S') && segment.length >= 6) {
+                        let tentativeS = segment.substring(1);
+                        if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C|\d)/.test(tentativeS)) { liveSerialDetected = tentativeS; }
                     }
+                    if (segment.startsWith('1P') && segment.length >= 7) { liveModeleDetected = devinerNomModele(segment.substring(2)); }
+                    else if (segment.startsWith('P') && (segment.startsWith('PZT') || segment.startsWith('PZD') || segment.startsWith('PZM') || segment.includes('-'))) { liveModeleDetected = devinerNomModele(segment.substring(1)); }
                 });
             } 
-            
-            // ANALYSE CAS 2 : C'est le code-barres 1D isolé du S/N (commençant ou non par un S d'identification)
-            if (!serialTrouve) {
-                if (upper.startsWith("S") && !isNaN(upper.charAt(1))) {
-                    serialTrouve = brute.substring(1);
-                } else if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/.test(upper)) {
-                    serialTrouve = brute;
-                } else {
-                    // Secours : on prend la valeur brute lue
-                    serialTrouve = brute;
-                }
+            else {
+                if (upper.startsWith("1P")) { liveModeleDetected = devinerNomModele(brute.substring(2)); }
+                else if (upper.startsWith("P") && (upper.startsWith("PZT") || upper.startsWith("PZD") || upper.startsWith("PZM") || brute.includes("-"))) { liveModeleDetected = devinerNomModele(brute.substring(1)); }
+                else if (upper.startsWith("S") && !isNaN(upper.charAt(1))) { liveSerialDetected = brute.substring(1); }
+                else if (brute.includes("-") || upper.startsWith("ZT") || upper.startsWith("ZD") || upper.startsWith("ZM")) { liveModeleDetected = devinerNomModele(brute); }
+                else if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/.test(upper)) { liveSerialDetected = brute; }
+                else if (!liveSerialDetected && brute.length >= 8 && brute.length <= 20) { liveSerialDetected = brute; }
             }
 
-            // Si on a isolé le S/N, on l'affiche et on calcule automatiquement le modèle
-            if (serialTrouve) {
-                document.getElementById('serial').value = serialTrouve;
-                document.getElementById('modele').value = deduireModeleDepuisSerial(serialTrouve);
+            if (liveSerialDetected) {
+                document.getElementById("liveStatusSerial").innerHTML = `🟢 ${liveSerialDetected}`;
+                document.getElementById("liveStatusSerial").className = "font-bold text-green-400 text-xs mt-0.5";
+            }
+            if (liveModeleDetected) {
+                document.getElementById("liveStatusModele").innerHTML = `🟢 ${liveModeleDetected}`;
+                document.getElementById("liveStatusModele").className = "font-bold text-green-400 text-xs mt-0.5";
+            }
+
+            if (liveSerialDetected || liveModeleDetected) {
+                document.getElementById("btnAppliquerLive").disabled = false;
+            }
+
+            if (liveSerialDetected && liveModeleDetected) {
+                setTimeout(() => { appliquerResultatsLive(); }, 400);
             }
         }
+
+        window.appliquerResultatsLive = function() {
+            if (liveSerialDetected) document.getElementById('serial').value = liveSerialDetected;
+            if (liveModeleDetected) document.getElementById('modele').value = liveModeleDetected;
+            fermerScannerLive();
+        };
+
+        window.fermerScannerLive = function() {
+            document.getElementById('liveScannerModal').classList.add('hidden');
+            if (html5QrCodeLive) { html5QrCodeLive.stop().catch(() => {}); }
+        };
 
         function updateTable() {
             const tbody = document.getElementById('reportTableBody');
