@@ -145,7 +145,7 @@
 
             <div class="md:col-span-4 bg-blue-50 p-4 rounded border border-blue-200 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <span class="text-sm font-bold text-blue-900">Pièce-jointe (Photo d'illustration)</span>
-                <button type="button" id="capturePhotoBtn" class="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs px-5 py-3 rounded-lg shadow">
+                <button type="button" id="capturePhotoBtn" class="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs px-5 py-3 rounded-lg shadow cursor-pointer">
                     📷 Déclencher l'appareil photo
                 </button>
                 <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
@@ -179,7 +179,7 @@
 
     <div id="liveScannerModal" class="hidden fixed inset-0 bg-black/90 flex flex-col items-center justify-between p-4 z-50">
         <div class="w-full flex justify-between items-center text-white max-w-md border-b border-gray-800 pb-2">
-            <span class="text-sm font-bold tracking-wide text-amber-400 flex items-center gap-1">⚡ SCANNER LIVE (HD + FLASH INDUSTRIAL)</span>
+            <span class="text-sm font-bold tracking-wide text-amber-400 flex items-center gap-1">⚡ SCANNER LIVE AUTOMATIQUE</span>
             <button type="button" onclick="fermerScannerLive()" class="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold">Fermer</button>
         </div>
         
@@ -196,7 +196,7 @@
         <div class="w-full max-w-md bg-gray-900 text-white p-4 rounded-lg flex flex-col gap-2">
             
             <button type="button" onclick="toggleTorcheLive()" class="w-full bg-amber-500 hover:bg-amber-600 text-gray-900 font-extrabold py-2.5 rounded text-xs flex items-center justify-center gap-2 mb-1 shadow tracking-wider uppercase">
-                ⚡ ALLUMER / FORCER LE FLASH
+                ⚡ ALLUMER / ÉTEINDRE LE FLASH
             </button>
             
             <div class="flex justify-between items-center text-xs border-b border-gray-800 pb-1.5">
@@ -235,8 +235,6 @@
         let liveSerialDetected = null;
         let liveModeleDetected = null;
 
-        document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
-
         function devinerNomModele(texte) {
             let t = texte.toUpperCase().trim();
             if (t.includes("-") || t.startsWith("ZT") || t.startsWith("ZD") || t.startsWith("ZM")) {
@@ -272,7 +270,98 @@
             return ""; 
         }
 
-        // ─── INITIALISATION RECTIFIÉE DU SCANNER EN CONTINU ───
+        // --- INITIALISATION DES BOUTONS APRES CHARGEMENT COMPLET ---
+        window.addEventListener('load', function() {
+            // Date du jour par défaut
+            const dateInput = document.getElementById('headerDate');
+            if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+
+            // Liaison sécurisée du bouton de déclenchement photo
+            const capturePhotoBtn = document.getElementById('capturePhotoBtn');
+            const cameraInput = document.getElementById('cameraInput');
+            if (capturePhotoBtn && cameraInput) {
+                capturePhotoBtn.addEventListener('click', function() {
+                    cameraInput.click();
+                });
+            }
+
+            // Gestionnaire de changement de fichier photo
+            if (cameraInput) {
+                cameraInput.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function(event) {
+                            const imageToCrop = document.getElementById('imageToCrop');
+                            document.getElementById('cropperModal').classList.remove('hidden');
+                            if (cropperInstance) cropperInstance.destroy();
+                            cropperInstance = new Cropper(imageToCrop, { aspectRatio: 10 / 4, viewMode: 1 });
+                            imageToCrop.src = event.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
+
+            // Enregistrement du recadrage photo
+            const saveCropBtn = document.getElementById('saveCropBtn');
+            if (saveCropBtn) {
+                saveCropBtn.addEventListener('click', function() {
+                    if (cropperInstance) {
+                        const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 800, maxHeight: 320 });
+                        currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+                        document.getElementById('photoPreview').src = currentPhotoBase64;
+                        document.getElementById('photoPreviewContainer').classList.remove('hidden');
+                        closeCropperModal();
+                    }
+                });
+            }
+
+            // Annuler le recadrage
+            const cancelCropBtn = document.getElementById('cancelCropBtn');
+            if (cancelCropBtn) cancelCropBtn.addEventListener('click', closeCropperModal);
+
+            // Envoi du formulaire au tableau
+            const machineForm = document.getElementById('machineForm');
+            if (machineForm) {
+                machineForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const item = {
+                        idKey: Date.now(),
+                        zone: document.getElementById('zone').value.trim(),
+                        modele: document.getElementById('modele').value.trim(),
+                        lieuId: document.getElementById('lieuId').value.trim(),
+                        serial: document.getElementById('serial').value.trim(),
+                        ip: document.getElementById('ip').value.trim(),
+                        cellules: document.getElementById('cellules').value,
+                        etatDot: document.getElementById('etatDot').value,
+                        roller: document.getElementById('roller').value,
+                        impression: document.getElementById('impression').value,
+                        general: document.getElementById('general').value,
+                        remarque: document.getElementById('remarque').value.trim(),
+                        photos: currentPhotoBase64 ? [currentPhotoBase64] : []
+                    };
+                    reportData.push(item);
+                    updateTable();
+                    document.getElementById('modele').value = '';
+                    document.getElementById('serial').value = '';
+                    document.getElementById('lieuId').value = '';
+                    document.getElementById('ip').value = '';
+                    document.getElementById('remarque').value = '';
+                    document.getElementById('photoPreviewContainer').classList.add('hidden');
+                    currentPhotoBase64 = null;
+                });
+            }
+        });
+
+        function closeCropperModal() {
+            document.getElementById('cropperModal').classList.add('hidden');
+            if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+            const cameraInput = document.getElementById('cameraInput');
+            if (cameraInput) cameraInput.value = '';
+        }
+
+        // --- SCANNER LIVE : LOGIQUE COMPATIBLE UNIVERSELLE ---
         window.ouvrirScannerLive = function() {
             liveSerialDetected = null;
             liveModeleDetected = null;
@@ -285,54 +374,43 @@
             
             document.getElementById('liveScannerModal').classList.remove('hidden');
 
-            // Instanciation simple de la caméra
-            if(!html5QrCodeLive) {
-                html5QrCodeLive = new Html5Qrcode("liveReader");
-            }
+            try {
+                if(!html5QrCodeLive) {
+                    html5QrCodeLive = new Html5Qrcode("liveReader");
+                }
 
-            // Définition de la boîte d'analyse restrictive (85% de la largeur, 60% de la hauteur)
-            const zoneDeViseeCiblee = (viewfinderWidth, viewfinderHeight) => {
-                return {
-                    width: Math.floor(viewfinderWidth * 0.85),
-                    height: Math.floor(viewfinderHeight * 0.60)
+                const zoneDeViseeCiblee = (viewfinderWidth, viewfinderHeight) => {
+                    return {
+                        width: Math.floor(viewfinderWidth * 0.85),
+                        height: Math.floor(viewfinderHeight * 0.60)
+                    };
                 };
-            };
 
-            // Démarrage avec les types industriels injectés correctement ici
-            html5QrCodeLive.start(
-                { 
-                    facingMode: "environment",
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                },
-                { 
-                    fps: 25, 
-                    qrbox: zoneDeViseeCiblee,
-                    formatsToSupport: [
-                        Html5QrcodeSupportedFormats.DATA_MATRIX,
-                        Html5QrcodeSupportedFormats.CODE_128,
-                        Html5QrcodeSupportedFormats.CODE_39,
-                        Html5QrcodeSupportedFormats.EAN_13,
-                        Html5QrcodeSupportedFormats.QR_CODE
-                    ],
-                    experimentalFeatures: {
-                        useBarCodeDetectorIfSupported: true
-                    }
-                },
-                (decodedText) => {
-                    analyserTexteEnDirect(decodedText);
-                },
-                (error) => { /* Silencieux en recherche active pour conserver la fluidité */ }
-            )
-            .then(() => {
-                setTimeout(() => {
-                    activerTorcheAutomatique();
-                }, 600);
-            })
-            .catch(err => {
-                alert("Erreur d'accès matériel : vérifiez les autorisations de votre caméra.");
+                // Lancement standardisé (Lit par défaut TOUS les formats 1D/2D dont Zebra)
+                html5QrCodeLive.start(
+                    { facingMode: "environment" },
+                    { 
+                        fps: 25, 
+                        qrbox: zoneDeViseeCiblee
+                    },
+                    (decodedText) => {
+                        analyserTexteEnDirect(decodedText);
+                    },
+                    (error) => { /* Recherche active silencieuse */ }
+                )
+                .then(() => {
+                    setTimeout(() => {
+                        activerTorcheAutomatique();
+                    }, 800);
+                })
+                .catch(err => {
+                    alert("Impossible d'accéder à la caméra de votre appareil. Vérifiez les autorisations.");
+                    fermerScannerLive();
+                });
+            } catch(e) {
+                alert("Erreur d'initialisation du scanner.");
                 fermerScannerLive();
-            });
+            }
         };
 
         function activerTorcheAutomatique() {
@@ -341,14 +419,8 @@
                     advanced: [{ torch: true }]
                 }).then(() => {
                     torcheActive = true;
-                }).catch(() => {
-                    const track = html5QrCodeLive.getRunningTrack();
-                    if (track && typeof track.getCapabilities === 'function' && track.getCapabilities().torch) {
-                        track.applyConstraints({ advanced: [{ torch: true }] });
-                        torcheActive = true;
-                    }
-                });
-            } catch(e) { console.log("Composant flash non connecté."); }
+                }).catch(() => {});
+            } catch(e) {}
         }
 
         window.toggleTorcheLive = function() {
@@ -358,12 +430,9 @@
                 html5QrCodeLive.applyVideoConstraints({
                     advanced: [{ torch: torcheActive }]
                 }).catch(() => {
-                    const track = html5QrCodeLive.getRunningTrack();
-                    if (track && typeof track.getCapabilities === 'function' && track.getCapabilities().torch) {
-                        track.applyConstraints({ advanced: [{ torch: torcheActive }] });
-                    }
+                    alert("Le contrôle physique du flash n'est pas supporté sur ce navigateur.");
                 });
-            } catch (e) { alert("Le bouton matériel du flash ne répond pas."); }
+            } catch (e) {}
         };
 
         function analyserTexteEnDirect(rawText) {
@@ -388,4 +457,72 @@
                 if (upper.startsWith("1P")) { liveModeleDetected = devinerNomModele(brute.substring(2)); }
                 else if (upper.startsWith("P") && (upper.startsWith("PZT") || upper.startsWith("PZD") || upper.startsWith("PZM") || brute.includes("-"))) { liveModeleDetected = devinerNomModele(brute.substring(1)); }
                 else if (upper.startsWith("S") && !isNaN(upper.charAt(1))) { liveSerialDetected = brute.substring(1); }
-                else if (brute.includes("-") || upper.startsWith("ZT") || upper.startsWith("
+                else if (brute.includes("-") || upper.startsWith("ZT") || upper.startsWith("ZD") || upper.startsWith("ZM")) { liveModeleDetected = devinerNomModele(brute); }
+                else if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/.test(upper)) { liveSerialDetected = brute; }
+                else if (!liveSerialDetected && brute.length >= 8 && brute.length <= 15) { liveSerialDetected = brute; }
+            }
+
+            if (liveSerialDetected) {
+                document.getElementById("liveStatusSerial").innerHTML = `🟢 ${liveSerialDetected}`;
+                document.getElementById("liveStatusSerial").className = "font-bold text-green-400 text-sm";
+            }
+            if (liveModeleDetected) {
+                document.getElementById("liveStatusModele").innerHTML = `🟢 ${liveModeleDetected}`;
+                document.getElementById("liveStatusModele").className = "font-bold text-green-400 text-sm";
+            }
+
+            if (liveSerialDetected || liveModeleDetected) {
+                document.getElementById("btnAppliquerLive").disabled = false;
+            }
+
+            if (liveSerialDetected && liveModeleDetected) {
+                setTimeout(() => {
+                    appliquerResultatsLive();
+                }, 500);
+            }
+        }
+
+        window.appliquerResultatsLive = function() {
+            if (liveSerialDetected) document.getElementById('serial').value = liveSerialDetected;
+            if (liveModeleDetected) document.getElementById('modele').value = liveModeleDetected;
+            fermerScannerLive();
+        };
+
+        window.fermerScannerLive = function() {
+            document.getElementById('liveScannerModal').classList.add('hidden');
+            if (html5QrCodeLive) {
+                html5QrCodeLive.stop().catch(() => {});
+            }
+        };
+
+        function updateTable() {
+            const tbody = document.getElementById('reportTableBody');
+            tbody.innerHTML = '';
+            if (reportData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport.</td></tr>`;
+                return;
+            }
+            reportData.forEach(d => {
+                const row = document.createElement('tr');
+                row.className = "hover:bg-gray-50 text-xs text-gray-700";
+                row.innerHTML = `
+                    <td class="px-3 py-3 text-left">
+                        <div class="font-bold text-gray-900">${d.modele}</div>
+                        <div class="text-gray-500 italic text-[11px]">${d.lieuId || '-'}</div>
+                    </td>
+                    <td class="px-3 py-3 font-bold text-gray-800 text-sm tracking-wider">${d.serial}</td>
+                    <td class="px-3 py-3">
+                        <button onclick="deleteRow(${d.idKey})" class="text-red-600 font-bold cursor-pointer">Supprimer</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        window.deleteRow = function(id) {
+            reportData = reportData.filter(i => i.idKey !== id);
+            updateTable();
+        };
+    </script>
+</body>
+</html>
