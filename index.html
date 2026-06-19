@@ -5,11 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RAPPORT DE MAINTENANCE PREVENTIVE</title>
     
+    <!-- Liens CDN stables -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- Librairie de recadrage d'image (Cropper.js) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     
+    <!-- Librairie de lecture de codes-barres (Html5-Qrcode) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 
     <style>
@@ -22,10 +25,12 @@
 
     <div class="max-w-7xl mx-auto bg-white rounded-xl shadow-md p-6">
         
+        <!-- --- TITRE DE L'APPLICATION --- -->
         <div class="flex items-center justify-between border-b pb-3 mb-4">
             <h1 class="text-2xl font-bold text-blue-950 tracking-wide">RAPPORT DE MAINTENANCE PREVENTIVE</h1>
         </div>
         
+        <!-- --- EN-TÊTE DU RAPPORT --- -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
             <div>
                 <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Client / Site</label>
@@ -55,6 +60,7 @@
             </div>
         </div>
 
+        <!-- --- FORMULAIRE D'AJOUT --- -->
         <form id="machineForm" class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
             <div class="md:col-span-4">
                 <h3 class="text-sm font-bold text-blue-950 uppercase border-b pb-1 mb-2">Ajouter un équipement au rapport</h3>
@@ -85,6 +91,7 @@
                 </div>
             </div>
 
+            <!-- REGROUPEMENT : STATUTS TECHNIQUES -->
             <div class="md:col-span-2 grid grid-cols-2 gap-4 bg-white p-3 rounded border border-gray-200">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Cellules / Capteurs</label>
@@ -140,6 +147,7 @@
                 </div>
             </div>
 
+            <!-- SECTION PHOTO -->
             <div class="md:col-span-4 bg-blue-50 p-4 rounded border border-blue-200 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <span class="text-sm font-bold text-blue-900">Pièce-jointe</span>
                 <button type="button" id="capturePhotoBtn" class="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs px-5 py-3 rounded-lg shadow">
@@ -158,6 +166,7 @@
             </div>
         </form>
 
+        <!-- --- TABLEAU --- -->
         <div class="overflow-x-auto border border-gray-200 rounded-lg">
             <table class="min-w-full divide-y divide-gray-200 text-sm text-center">
                 <thead class="bg-blue-950 text-white text-xs uppercase font-bold">
@@ -174,6 +183,7 @@
         </div>
     </div>
 
+    <!-- --- FENÊTRE MODALE : SCANNER CODE 128 PLEIN CADRE --- -->
     <div id="scannerModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-lg p-4 max-w-md w-full shadow-2xl">
             <div class="flex justify-between items-center mb-2">
@@ -182,10 +192,14 @@
             </div>
             
             <div class="relative w-full bg-black rounded overflow-hidden" style="min-height: 280px;">
+                <!-- Caméra en flux direct -->
                 <div id="scannerContainer" class="w-full h-full"></div>
                 
+                <!-- VISEUR VISUEL LARGE : Optimisé pour le Code 128 (85% de la largeur disponible) -->
                 <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] h-[120px] z-20 pointer-events-none">
+                    <!-- Ligne laser rouge centrale ultra-visible -->
                     <div class="w-full h-[2px] bg-red-600 absolute top-1/2 -translate-y-1/2 shadow-[0_0_10px_red]"></div>
+                    <!-- Coins de centrage -->
                     <div class="absolute top-0 left-0 w-5 h-5 border-t-4 border-l-4 border-white"></div>
                     <div class="absolute top-0 right-0 w-5 h-5 border-t-4 border-r-4 border-white"></div>
                     <div class="absolute bottom-0 left-0 w-5 h-5 border-b-4 border-l-4 border-white"></div>
@@ -193,12 +207,14 @@
                 </div>
             </div>
             
+            <!-- Zone d'état dynamique -->
             <div id="scannerStatusFeedback" class="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-center text-xs font-semibold text-blue-900 animate-pulse">
-                Alignez la ligne rouge sur le code-barres...
+                Connexion à la caméra...
             </div>
         </div>
     </div>
 
+    <!-- --- MODALE : RECADRAGE PHOTO --- -->
     <div id="cropperModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-lg p-4 max-w-lg w-full flex flex-col max-h-[90vh]">
             <div class="overflow-hidden flex-1 bg-gray-100 flex items-center justify-center rounded">
@@ -211,6 +227,7 @@
         </div>
     </div>
 
+    <!-- --- LOGIQUE APPLICATIVE --- -->
     <script>
         let reportData = [];
         let currentPhotoBase64 = null;
@@ -231,9 +248,7 @@
             return "";
         }
 
-        /* ==========================================================
-           LOGIQUE DE TRI EXCLUSIF CODE 128 (SANS DATAMATRIX)
-           ========================================================== */
+        /* Tri intelligent exclusif Code 128 */
         function trierEtValiderCode128(decodedText) {
             let brute = decodedText.trim();
             let upper = brute.toUpperCase();
@@ -243,17 +258,14 @@
             let fieldModele = document.getElementById('modele');
             let feedback = document.getElementById('scannerStatusFeedback');
 
-            // CAS 1 : C'est le Code 128 du MODÈLE (Détecté via les 3 premiers caractères majeurs ou tiret de P/N)
             if (troisDigits === "ZT4" || troisDigits === "ZD4" || troisDigits === "42J" || troisDigits === "41J" || troisDigits === "1P" || brute.includes("-")) {
                 let propre = troisDigits === "1P" ? brute.substring(2) : brute;
                 fieldModele.value = devinerNomModele(propre) || propre;
                 
-                feedback.innerHTML = "✔️ Modèle enregistré !<br><span class='text-blue-700 font-bold'>Passez maintenant sur le code du Numéro de Série (S/N)...</span>";
+                feedback.innerHTML = "✔️ Modèle enregistré !<br><span class='text-blue-700 font-bold'>Passez maintenant sur le Numéro de Série (S/N)...</span>";
                 feedback.className = "mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-center text-xs text-blue-900";
             } 
-            // CAS 2 : C'est le Code 128 du NUMÉRO DE SÉRIE (S/N)
             else {
-                // Nettoyage de l'identifiant usine "S" s'il précède un chiffre
                 let propre = (upper.startsWith('S') && !isNaN(upper.charAt(1))) ? brute.substring(1) : brute;
                 fieldSerial.value = propre;
                 
@@ -264,73 +276,87 @@
                 feedback.innerText = "✨ Numéro de Série validé !";
                 feedback.className = "mt-2 p-2 bg-green-100 border border-green-300 rounded text-center text-xs text-green-900";
                 
-                // Fermeture automatique du volet caméra
                 setTimeout(stopBarcodeScanner, 500);
             }
         }
 
         /* ==========================================================
-           DÉMARRAGE DU SCANNER FILTRÉ ET PLEIN CADRE
+           DÉMARRAGE DU SCANNER HAUTEMENT COMPATIBLE ET ASYNC
            ========================================================== */
-        window.openSmart128Scanner = function() {
+        window.openSmart128Scanner = async function() {
             document.getElementById('scannerModal').classList.remove('hidden');
             let feedback = document.getElementById('scannerStatusFeedback');
-            feedback.innerText = "Alignez la ligne rouge sur un des codes de l'étiquette...";
+            feedback.innerText = "Connexion au capteur photo...";
             feedback.className = "mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-center text-xs font-semibold text-blue-900 animate-pulse";
 
-            if (!html5QrCode) {
-                // Bridage natif au niveau de l'initialisation de l'instance
-                html5QrCode = new Html5Qrcode("scannerContainer", {
-                    formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_128 ]
-                });
-            }
-            
-            // Configuration de lecture : ON ENLÈVE qrbox pour analyser tout le flux sans couper les marges blanches du Code 128
-            const config = { 
-                fps: 30,
-                formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_128 ]
-            };
-            
-            // Paramètres caméra : On force une définition HD idéale (1280x720) pour la finesse des barres 1D
-            const cameraConstraints = { 
-                facingMode: "environment",
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            };
-
-            html5QrCode.start(
-                cameraConstraints, 
-                config, 
-                (text) => trierEtValiderCode128(text),
-                () => {} // Recherche fluide en tâche de fond
-            ).catch((err) => {
-                console.warn("Échec des contraintes idéales, bascule sur capteur alternatif...", err);
-                Html5Qrcode.getCameras().then(cameras => {
-                    if (cameras && cameras.length > 0) {
-                        let back = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('arrière'));
-                        let idSelectionne = back ? back.id : cameras[cameras.length - 1].id;
-                        html5QrCode.start(idSelectionne, config, (text) => trierEtValiderCode128(text), () => {});
-                    } else {
-                        alert("Aucun capteur photo détecté.");
+            try {
+                // Étape critique : Libérer proprement la caméra si elle était déjà ouverte/bloquée
+                if (html5QrCode) {
+                    if (html5QrCode.isScanning) {
+                        await html5QrCode.stop();
                     }
-                }).catch(() => {
-                    alert("Erreur fatale d'accès à la caméra.");
+                } else {
+                    html5QrCode = new Html5Qrcode("scannerContainer");
+                }
+
+                // Configuration : Bridage strict au Code 128 (Exclusion native du Datamatrix)
+                const config = { 
+                    fps: 25,
+                    formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_128 ]
+                };
+
+                // Lancement standardisé (Hautement compatible Android/iOS Chrome)
+                await html5QrCode.start(
+                    { facingMode: "environment" }, 
+                    config, 
+                    (text) => trierEtValiderCode128(text),
+                    () => {} 
+                );
+
+                feedback.innerText = "Alignez la ligne rouge sur un des codes de l'étiquette...";
+                feedback.className = "mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-center text-xs font-semibold text-blue-900";
+
+            } catch (err) {
+                console.warn("Échec de la détection automatique, bascule sur listing matériel...", err);
+                
+                try {
+                    // Plan B : Listing explicite si l'alias "environment" est rejeté par l'appareil
+                    const cameras = await Html5Qrcode.getCameras();
+                    if (cameras && cameras.length > 0) {
+                        let back = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('arrière') || c.label.toLowerCase().includes('environment'));
+                        let idSelectionne = back ? back.id : cameras[cameras.length - 1].id;
+                        
+                        await html5QrCode.start(
+                            idSelectionne, 
+                            { fps: 25, formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_128 ] }, 
+                            (text) => trierEtValiderCode128(text), 
+                            () => {}
+                        );
+                        
+                        feedback.innerText = "Alignez la ligne rouge sur un des codes de l'étiquette...";
+                        feedback.className = "mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-center text-xs font-semibold text-blue-900";
+                    } else {
+                        alert("Aucun capteur photo détecté sur cet appareil.");
+                        stopBarcodeScanner();
+                    }
+                } catch (fallbackErr) {
+                    console.error("Échec critique d'accès vidéo :", fallbackErr);
+                    alert("Impossible d'accéder à la caméra.\n\nSolutions :\n1. Autorisez le site à utiliser la caméra dans les paramètres Chrome.\n2. Fermez les autres applications (ou onglets) qui utilisent l'appareil photo.");
                     stopBarcodeScanner();
-                });
-            });
+                }
+            }
         };
 
         function stopBarcodeScanner() {
             document.getElementById('scannerModal').classList.add('hidden');
             if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().catch(err => console.error(err));
+                html5QrCode.stop().catch(err => console.error("Erreur arrêt caméra :", err));
             }
         }
         document.getElementById('closeScannerBtn').addEventListener('click', stopBarcodeScanner);
 
-
         /* ==========================================================
-           LOGIQUE COMPAGNON (PHOTOS & TABLEAU REPORTING)
+           LOGIQUE COMPAGNON (PHOTOS COUPEES & TABLEAU)
            ========================================================= */
         const cameraInput = document.getElementById('cameraInput');
         const imageToCrop = document.getElementById('imageToCrop');
