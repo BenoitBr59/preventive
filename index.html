@@ -7,7 +7,7 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <link class="html-attribute-value" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
@@ -16,7 +16,8 @@
         .zone-header { background-color: #e6f0fa; font-weight: bold; color: #0a2540; }
         .cropper-container { max-height: 400px; width: 100%; }
         #image-to-crop { max-width: 100%; display: block; }
-        #liveReader video { object-fit: cover !important; width: 100% !important; height: 100% !important; }
+        /* Suppression des distorsions forcées sur la vidéo pour préserver les pixels natifs */
+        #liveReader video { width: 100% !important; height: 100% !important; object-fit: contain !important; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen p-4 md:p-8">
@@ -183,11 +184,11 @@
             <button type="button" onclick="fermerScannerLive()" class="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold">Fermer</button>
         </div>
         
-        <div class="w-full max-w-md bg-gray-900 rounded-lg overflow-hidden relative border-2 border-blue-500 my-auto" style="aspect-ratio: 4/3;">
+        <div class="w-full max-w-md bg-gray-900 rounded-lg overflow-hidden relative border-2 border-blue-500 my-auto" style="aspect-ratio: 16/9;">
             <div id="liveReader" class="w-full h-full"></div>
             
             <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div class="w-[90%] h-[70%] border-2 border-dashed border-amber-400/50 rounded bg-black/5 flex items-center justify-center">
+                <div class="w-[85%] h-[65%] border-2 border-dashed border-amber-400/70 rounded bg-transparent flex items-center justify-center">
                     <div class="w-full h-0.5 bg-red-500/80 animate-pulse"></div>
                 </div>
             </div>
@@ -359,13 +360,13 @@
             document.getElementById('cameraInput').value = '';
         }
 
-        // --- SCANNER LIVE INTUITIF ET ADAPTATIF ---
+        // --- LANCEUR ADAPTATIF ET SANS APPLATISSEMENT ---
         window.ouvrirScannerLive = function() {
             liveSerialDetected = null;
             liveModeleDetected = null;
             torcheActive = false;
             
-            document.getElementById("liveStatusRaw").innerHTML = "🔍 Positionnez le code devant l'objectif...";
+            document.getElementById("liveStatusRaw").innerHTML = "🔍 Positionnez le code au centre...";
             document.getElementById("liveStatusRaw").className = "text-xs text-amber-400 italic";
             document.getElementById("liveStatusSerial").innerHTML = "❌ En attente";
             document.getElementById("liveStatusSerial").className = "font-bold text-red-500 text-xs mt-0.5";
@@ -382,47 +383,49 @@
                             Html5QrcodeSupportedFormats.DATA_MATRIX,
                             Html5QrcodeSupportedFormats.CODE_128,
                             Html5QrcodeSupportedFormats.CODE_39,
-                            Html5QrcodeSupportedFormats.EAN_13,
                             Html5QrcodeSupportedFormats.QR_CODE
                         ]
                     });
                 }
 
-                // Etape 1 : On tente le flux haute qualité sans bloquer avec "min"
+                // Configuration de scan ultra-précise
+                const configScanner = {
+                    fps: 30,
+                    // Restriction de la zone de scan (qrbox) pour forcer la haute densité de pixels sur l'étiquette
+                    qrbox: function(viewfinderWidth, viewfinderHeight) {
+                        return {
+                            width: Math.floor(viewfinderWidth * 0.85),
+                            height: Math.floor(viewfinderHeight * 0.70)
+                        };
+                    },
+                    experimentalFeatures: { 
+                        useBarCodeDetectorIfSupported: true 
+                    }
+                };
+
                 html5QrCodeLive.start(
-                    { 
-                        facingMode: "environment",
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
-                    },
-                    { 
-                        fps: 25,
-                        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-                    },
+                    { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
+                    configScanner,
                     (decodedText) => { analyserTexteEnDirect(decodedText); },
                     (error) => {}
                 )
-                .then(() => { setTimeout(() => { activerTorcheAutomatique(); }, 600); })
+                .then(() => { setTimeout(() => { activerTorcheAutomatique(); }, 500); })
                 .catch(err => {
-                    // Etape 2 : Secours automatique si le mode idéal crash
-                    console.log("Ajustement de la résolution...");
+                    // Secours basse résolution si la caméra refuse le 1080p natif
                     html5QrCodeLive.start(
                         { facingMode: "environment" },
-                        { 
-                            fps: 25,
-                            experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-                        },
+                        configScanner,
                         (decodedText) => { analyserTexteEnDirect(decodedText); },
                         (error) => {}
                     )
-                    .then(() => { setTimeout(() => { activerTorcheAutomatique(); }, 600); })
+                    .then(() => { setTimeout(() => { activerTorcheAutomatique(); }, 500); })
                     .catch(errFinal => {
-                        alert("Impossible de démarrer la caméra. Vérifiez les autorisations de votre navigateur.");
+                        alert("Accès caméra refusé.");
                         fermerScannerLive();
                     });
                 });
             } catch(e) {
-                alert("Erreur système lors du lancement.");
+                alert("Erreur d'initialisation du module.");
                 fermerScannerLive();
             }
         };
@@ -447,7 +450,8 @@
             let brute = rawText.trim();
             if(!brute) return;
 
-            document.getElementById("liveStatusRaw").innerHTML = `🟢 Capturé : "${brute}"`;
+            // Affichage instantané dès qu'un élément texte brut est intercepté
+            document.getElementById("liveStatusRaw").innerHTML = `🟢 Reçu : "${brute}"`;
             document.getElementById("liveStatusRaw").className = "text-xs text-green-400 font-mono font-bold break-all";
 
             let upper = brute.toUpperCase();
@@ -489,7 +493,7 @@
             }
 
             if (liveSerialDetected && liveModeleDetected) {
-                setTimeout(() => { appliquerResultatsLive(); }, 500);
+                setTimeout(() => { appliquerResultatsLive(); }, 400);
             }
         }
 
