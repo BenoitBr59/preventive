@@ -16,7 +16,7 @@
         .zone-header { background-color: #e6f0fa; font-weight: bold; color: #0a2540; }
         .cropper-container { max-height: 400px; width: 100%; }
         #image-to-crop { max-width: 100%; display: block; }
-        #liveReader video { width: 100% !important; height: 100% !important; object-fit: contain !important; }
+        /* Les styles vidéo conflictuels ont été totalement supprimés ici */
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen p-4 md:p-8">
@@ -177,17 +177,17 @@
         </div>
     </div>
 
-    <div id="liveScannerModal" class="hidden fixed inset-0 bg-black/90 flex flex-col items-center justify-between p-4 z-50">
+    <div id="liveScannerModal" class="hidden fixed inset-0 bg-black/95 flex flex-col items-center justify-between p-4 z-50">
         <div class="w-full flex justify-between items-center text-white max-w-md border-b border-gray-800 pb-2">
             <span class="text-sm font-bold tracking-wide text-amber-400 flex items-center gap-1">⚡ SCANNER INDUSTRIEL AUTO-ADAPTATIF</span>
             <button type="button" onclick="fermerScannerLive()" class="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold">Fermer</button>
         </div>
         
-        <div class="w-full max-w-md bg-gray-900 rounded-lg overflow-hidden relative border-2 border-blue-500 my-auto" style="aspect-ratio: 16/9;">
-            <div id="liveReader" class="w-full h-full"></div>
+        <div class="w-full max-w-md bg-black rounded-lg overflow-hidden relative border-2 border-blue-500 my-auto">
+            <div id="liveReader" class="w-full bg-black"></div>
             
-            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div class="w-[85%] h-[65%] border-2 border-dashed border-amber-400/70 rounded bg-transparent flex items-center justify-center">
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                <div class="w-[80%] h-[60%] border-2 border-dashed border-amber-400/80 rounded bg-transparent flex items-center justify-center">
                     <div class="w-full h-0.5 bg-red-500/80 animate-pulse"></div>
                 </div>
             </div>
@@ -359,7 +359,7 @@
             document.getElementById('cameraInput').value = '';
         }
 
-        // --- SCANNER LIVE ADAPTATIF ET SÉCURISÉ ---
+        // --- SCANNER LIVE NETTOYÉ ET FLUIDIFIÉ ---
         window.ouvrirScannerLive = function() {
             liveSerialDetected = null;
             liveModeleDetected = null;
@@ -376,18 +376,17 @@
             document.getElementById('liveScannerModal').classList.remove('hidden');
 
             try {
-                // CORRECTION CRITIQUE : Le constructeur prend UNIQUEMENT l'identifiant du container DOM
                 if(!html5QrCodeLive) {
                     html5QrCodeLive = new Html5Qrcode("liveReader");
                 }
 
-                // Configuration générale du scanneur
+                // Configuration native : On laisse la librairie adapter la boîte de visée
                 const configScanner = {
-                    fps: 30,
+                    fps: 25,
                     qrbox: function(viewfinderWidth, viewfinderHeight) {
                         return {
-                            width: Math.floor(viewfinderWidth * 0.85),
-                            height: Math.floor(viewfinderHeight * 0.70)
+                            width: Math.floor(viewfinderWidth * 0.80),
+                            height: Math.floor(viewfinderHeight * 0.60)
                         };
                     },
                     experimentalFeatures: { 
@@ -395,7 +394,6 @@
                     }
                 };
 
-                // Injection correcte des formats pris en charge au moment du .start()
                 if (window.Html5QrcodeSupportedFormats) {
                     configScanner.formatsToSupport = [
                         Html5QrcodeSupportedFormats.DATA_MATRIX,
@@ -406,28 +404,20 @@
                     ];
                 }
 
-                // Tentative de démarrage en haute définition
+                // Lancement direct sur la caméra arrière native (Zéro contrainte forcée)
                 html5QrCodeLive.start(
-                    { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
+                    { facingMode: "environment" },
                     configScanner,
                     (decodedText) => { analyserTexteEnDirect(decodedText); },
-                    (error) => {}
+                    (error) => {} // Erreurs d'analyse par image ignorées pour la fluidité
                 )
-                .then(() => { setTimeout(() => { activerTorcheAutomatique(); }, 500); })
+                .then(() => { 
+                    setTimeout(() => { activerTorcheAutomatique(); }, 500); 
+                })
                 .catch(err => {
-                    console.warn("Ajustement de résolution nécessaire...");
-                    // Repli basse résolution automatique en cas de refus matériel
-                    html5QrCodeLive.start(
-                        { facingMode: "environment" },
-                        configScanner,
-                        (decodedText) => { analyserTexteEnDirect(decodedText); },
-                        (error) => {}
-                    )
-                    .then(() => { setTimeout(() => { activerTorcheAutomatique(); }, 500); })
-                    .catch(errFinal => {
-                        alert("Accès caméra impossible ou indisponible.");
-                        fermerScannerLive();
-                    });
+                    console.error("Échec du démarrage de l'objectif :", err);
+                    alert("Erreur d'activation de la caméra : " + (err.message || err));
+                    fermerScannerLive();
                 });
             } catch(e) {
                 alert("Erreur système d'initialisation : " + e.message);
