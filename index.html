@@ -67,7 +67,12 @@
             
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Modèle d'imprimante (P/N)</label>
-                <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm bg-yellow-50 font-semibold" placeholder="Détecté automatiquement" required>
+                <div class="flex">
+                    <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm bg-yellow-50 font-semibold focus:outline-blue-500" placeholder="Modèle détecté ou saisi" required>
+                    <button type="button" onclick="ouvrirScannerLive('modele')" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-3 text-[10px] font-bold cursor-pointer flex items-center gap-1 shadow whitespace-nowrap">
+                        📷 SCAN P/N
+                    </button>
+                </div>
             </div>
             
             <div>
@@ -77,13 +82,11 @@
             
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Numéro de Série (S/N)</label>
-                <div class="flex flex-col gap-1">
-                    <div class="flex">
-                        <input type="text" id="serial" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm focus:outline-blue-500 font-bold" placeholder="S/N" required>
-                        <button type="button" onclick="ouvrirScannerLive()" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-4 text-xs font-bold cursor-pointer flex items-center gap-1 shadow whitespace-nowrap">
-                            📷 SCANNER L'ÉTIQUETTE
-                        </button>
-                    </div>
+                <div class="flex">
+                    <input type="text" id="serial" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm focus:outline-blue-500 font-bold" placeholder="S/N" required>
+                    <button type="button" onclick="ouvrirScannerLive('serial')" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-3 text-[10px] font-bold cursor-pointer flex items-center gap-1 shadow whitespace-nowrap">
+                        📷 SCAN S/N
+                    </button>
                 </div>
             </div>
 
@@ -178,16 +181,15 @@
 
     <div id="liveScannerModal" class="hidden fixed inset-0 bg-black/95 flex flex-col items-center justify-between p-4 z-50">
         <div class="w-full flex justify-between items-center text-white max-w-md border-b border-gray-800 pb-2">
-            <span class="text-sm font-bold tracking-wide text-amber-400 flex items-center gap-1">⚡ LECTEUR MATÉRIEL CODE 128</span>
+            <span id="modalTargetTitle" class="text-xs font-bold tracking-wide text-amber-400 flex items-center gap-1">⚡ LECTEUR MATÉRIEL CODE 128</span>
             <button type="button" onclick="fermerScannerLive()" class="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold">Fermer</button>
         </div>
         
         <div class="w-full max-w-md bg-black rounded-lg overflow-hidden relative border-2 border-blue-500 my-auto">
             <div id="liveReader" class="w-full bg-black"></div>
             
-            <!-- FIX 2 : hauteur de la zone de visée augmentée à 40% pour mieux couvrir les étiquettes Zebra larges -->
             <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                <div class="w-[85%] h-[40%] border-2 border-dashed border-amber-400 rounded bg-transparent flex items-center justify-center">
+                <div class="w-[85%] h-[30%] border-2 border-dashed border-amber-400 rounded bg-transparent flex items-center justify-center">
                     <div class="w-full h-0.5 bg-red-500/90 animate-pulse"></div>
                 </div>
             </div>
@@ -202,19 +204,8 @@
                 <span id="liveStatusRaw" class="text-xs text-gray-400 italic">Positionnez le code barre bien horizontalement...</span>
             </div>
             
-            <div class="grid grid-cols-2 gap-2 mt-1">
-                <div class="bg-gray-800/50 p-2 rounded text-center">
-                    <div class="text-[10px] text-gray-400 uppercase">S/N Filtré</div>
-                    <div id="liveStatusSerial" class="font-bold text-red-500 text-xs mt-0.5">❌ En attente</div>
-                </div>
-                <div class="bg-gray-800/50 p-2 rounded text-center">
-                    <div class="text-[10px] text-gray-400 uppercase">Modèle Filtré</div>
-                    <div id="liveStatusModele" class="font-bold text-red-500 text-xs mt-0.5">❌ En attente</div>
-                </div>
-            </div>
-            
             <button type="button" id="btnAppliquerLive" class="mt-2 w-full bg-blue-600 disabled:bg-gray-700 disabled:opacity-50 text-white font-bold py-2 rounded text-sm shadow cursor-pointer" disabled onclick="appliquerResultatsLive()">
-                Valider les captures
+                Valider la capture
             </button>
         </div>
     </div>
@@ -239,47 +230,42 @@
         let html5QrCodeLive = null;
         let torcheActive = false;
 
-        let liveSerialDetected = null;
-        let liveModeleDetected = null;
+        let scanTarget = null; // 'serial' ou 'modele'
+        let liveValueDetected = null;
 
-        // FIX 3 : debounce — évite de retraiter le même code 30 fois par seconde
         let lastRawScanned = null;
         let lastScanTime = 0;
-        const SCAN_COOLDOWN_MS = 1000;
+        const SCAN_COOLDOWN_MS = 1200;
 
+        // Fonction révisée pour extraire intelligemment le nom commercial
         function devinerNomModele(texte) {
             let t = texte.toUpperCase().trim();
-            if (t.includes("-") || t.startsWith("ZT") || t.startsWith("ZD") || t.startsWith("ZM")) {
-                let imprimante = "ZEBRA";
+            
+            // Nettoyage des préfixes d'identification Zebra si présents dans le flux
+            if (t.startsWith("1P")) t = t.substring(2);
+            else if (t.startsWith("P") && (t.startsWith("PZT") || t.startsWith("PZD") || t.startsWith("PZM"))) t = t.substring(1);
+
+            // Détection du pattern de base (ex: ZT231, ZT411, ZD421, ZM400, etc.)
+            let match = t.match(/^(ZT\d{3}|ZD\d{3}|ZM\d{3})/);
+            if (match) {
+                let imprimante = match[1];
                 let dots = "8dots";
-                if (t.startsWith("ZT231")) { imprimante = "ZT231"; if (t.charAt(6) === '3') dots = "12dots"; }
-                else if (t.startsWith("ZT411")) { imprimante = "ZT411"; if (t.charAt(6) === '3') dots = "12dots"; if (t.charAt(6) === '6') dots = "24dots"; }
-                else if (t.startsWith("ZT421")) { imprimante = "ZT421"; if (t.charAt(6) === '3') dots = "12dots"; }
-                else if (t.startsWith("ZD421")) { imprimante = "ZD421"; if (t.charAt(6) === '3') dots = "12dots"; }
-                else if (t.startsWith("ZT410")) { imprimante = "ZT410"; if (t.charAt(6) === '3') dots = "12dots"; }
-                else if (t.startsWith("ZT420")) { imprimante = "ZT420"; if (t.charAt(6) === '3') dots = "12dots"; }
-                else if (t.startsWith("ZM400")) { imprimante = "ZM400"; }
-                else {
-                    let match = t.match(/^(ZT\d{3}|ZD\d{3}|ZM\d{3})/);
-                    if (match) {
-                        imprimante = match[1];
-                        let reste = t.substring(imprimante.length);
-                        if (reste.length >= 2) {
-                            if (reste.charAt(1) === '3') dots = "12dots";
-                            if (reste.charAt(1) === '6') dots = "24dots";
-                        }
-                    } else { return t; }
+                
+                // Analyse du suffixe pour déterminer la densité de tête d'impression (dpi)
+                let reste = t.substring(imprimante.length);
+                if (reste.length >= 2) {
+                    if (reste.charAt(1) === '3') dots = "12dots";
+                    if (reste.charAt(1) === '6') dots = "24dots";
                 }
                 return `${imprimante} - ${dots}`;
             }
+
+            // Fallbacks sur signatures alternatives de S/N
             if (t.startsWith("41J")) return "ZT411 - 8dots";
             if (t.startsWith("42J")) return "ZT421 - 8dots";
             if (t.startsWith("23J") || t.startsWith("23C")) return "ZT231 - 8dots";
             if (t.startsWith("33J") || t.startsWith("34J")) return "ZD421 - 8dots";
-            if (t.startsWith("41A")) return "ZT410 - 8dots";
-            if (t.startsWith("42A")) return "ZT420 - 8dots";
-            if (t.startsWith("12C")) return "ZM400 - 8dots";
-            return "";
+            return texte; // Retourne le brut si non mappé
         }
 
         window.addEventListener('load', function() {
@@ -348,6 +334,7 @@
                 };
                 reportData.push(item);
                 updateTable();
+                
                 document.getElementById('modele').value = '';
                 document.getElementById('serial').value = '';
                 document.getElementById('lieuId').value = '';
@@ -364,20 +351,19 @@
             document.getElementById('cameraInput').value = '';
         }
 
-        // ─── SCANNER CODE 128 ZEBRA — CORRIGÉ ───────────────────────────────────────
-        window.ouvrirScannerLive = function() {
-            liveSerialDetected = null;
-            liveModeleDetected = null;
+        // WORKFLOW SÉQUENTIEL CONTEXTUEL
+        window.ouvrirScannerLive = function(target) {
+            scanTarget = target; 
+            liveValueDetected = null;
             lastRawScanned = null;
             lastScanTime = 0;
             torcheActive = false;
             
-            document.getElementById("liveStatusRaw").innerHTML = "🔍 Alignez le Code 128 horizontalement...";
+            // Mise à jour de l'interface graphique de la modal selon le besoin du tech
+            const titreTarget = target === 'serial' ? "SCAN DU NUMÉRO DE SÉRIE (S/N)" : "SCAN DU MODÈLE (P/N)";
+            document.getElementById("modalTargetTitle").innerText = `🎯 CIBLE : ${titreTarget}`;
+            document.getElementById("liveStatusRaw").innerHTML = "🔍 Alignez la ligne rouge sur le code barre...";
             document.getElementById("liveStatusRaw").className = "text-xs text-amber-400 italic";
-            document.getElementById("liveStatusSerial").innerHTML = "❌ En attente";
-            document.getElementById("liveStatusSerial").className = "font-bold text-red-500 text-xs mt-0.5";
-            document.getElementById("liveStatusModele").innerHTML = "❌ En attente";
-            document.getElementById("liveStatusModele").className = "font-bold text-red-500 text-xs mt-0.5";
             document.getElementById("btnAppliquerLive").disabled = true;
             
             document.getElementById('liveScannerModal').classList.remove('hidden');
@@ -387,24 +373,19 @@
                     html5QrCodeLive = new Html5Qrcode("liveReader");
                 }
 
-                // FIX 1 : FPS à 15 (plus stable sur mobile, évite la surchauffe)
-                // FIX 6 : experimentalFeatures bien structuré, useBarCodeDetectorIfSupported au bon niveau
                 const configScanner = {
                     fps: 15,
                     qrbox: function(viewfinderWidth, viewfinderHeight) {
-                        // FIX 2 : hauteur à 40% pour mieux englober les codes barres Zebra larges
                         return {
                             width: Math.floor(viewfinderWidth * 0.90),
-                            height: Math.floor(viewfinderHeight * 0.40)
+                            height: Math.floor(viewfinderHeight * 0.30)
                         };
                     },
                     experimentalFeatures: {
                         useBarCodeDetectorIfSupported: true
                     },
-                    // FIX 6 : forcer CODE_128 via formatsToSupport (chemin corrigé)
-                    formatsToSupport: window.Html5QrcodeSupportedFormats
-                        ? [ Html5QrcodeSupportedFormats.CODE_128 ]
-                        : undefined
+                    // FIX MAJEUR : On force EXCLUSIVEMENT le format Code 128 (ignore le DataMatrix)
+                    formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_128 ]
                 };
 
                 html5QrCodeLive.start(
@@ -417,8 +398,8 @@
                     setTimeout(() => { activerTorcheAutomatique(); }, 500);
                 })
                 .catch(err => {
-                    console.error("Erreur critique d'ouverture :", err);
-                    alert("Impossible d'activer le capteur vidéo.");
+                    console.error(err);
+                    alert("Erreur d'accès à la caméra.");
                     fermerScannerLive();
                 });
             } catch(e) {
@@ -447,90 +428,45 @@
             let brute = rawText.trim();
             if (!brute) return;
 
-            // FIX 3 : debounce — ignore les répétitions dans la fenêtre de cooldown
             const now = Date.now();
             if (brute === lastRawScanned && (now - lastScanTime) < SCAN_COOLDOWN_MS) return;
             lastRawScanned = brute;
             lastScanTime = now;
 
-            document.getElementById("liveStatusRaw").innerHTML = `🟢 Reçu : "${brute}"`;
-            document.getElementById("liveStatusRaw").className = "text-xs text-green-400 font-mono font-bold break-all";
+            let upper = brute.toUpperCase();
 
-            // FIX 5 : nettoyage explicite des caractères de contrôle GS1-128
-            // \x1D = GS (Group Separator), \x1E = RS, \x04 = EOT, \x02 = STX, \x03 = ETX
-            let texteNettoye = brute.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '|');
-            let upper = texteNettoye.toUpperCase();
-
-            // Détection multi-segments (GS1-128 / Code 128 concaténé)
-            if (upper.includes("[)>") || upper.includes("|") || upper.includes(">") || brute.length > 25) {
-                let segments = texteNettoye.split(/[|,\s]+/);
-
-                segments.forEach(segment => {
-                    segment = segment.trim();
-                    let segUp = segment.toUpperCase();
-
-                    // Champ S/N : préfixe "S" suivi de contenu alphanumérique Zebra
-                    if (segUp.startsWith('S') && segment.length >= 7 && segment.length <= 20) {
-                        let tentativeS = segment.substring(1);
-                        // FIX 4 : patterns étendus — S/N Zebra peuvent commencer par 41J/42J/... ou S4/S4A/numérique
-                        if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C|S4|[0-9])/.test(tentativeS.toUpperCase()) || /^[A-Z0-9]{6,15}$/i.test(tentativeS)) {
-                            liveSerialDetected = tentativeS;
-                        }
-                    }
-                    // Champ Modèle : préfixe "1P" (standard Zebra) ou "P" suivi du P/N
-                    if (segUp.startsWith('1P') && segment.length >= 7) {
-                        liveModeleDetected = devinerNomModele(segment.substring(2));
-                    } else if (segUp.startsWith('P') && (segUp.startsWith('PZT') || segUp.startsWith('PZD') || segUp.startsWith('PZM') || segment.includes('-'))) {
-                        liveModeleDetected = devinerNomModele(segment.substring(1));
-                    }
-                });
-            }
-
-            // Lecture de codes barres simples (1 seul champ par scan)
-            if (!liveSerialDetected && !liveModeleDetected) {
-                let raw = brute;
-                let rawUp = upper;
-
-                if (rawUp.startsWith("1P")) {
-                    liveModeleDetected = devinerNomModele(raw.substring(2));
-                } else if (rawUp.startsWith("P") && (rawUp.startsWith("PZT") || rawUp.startsWith("PZD") || rawUp.startsWith("PZM") || raw.includes("-"))) {
-                    liveModeleDetected = devinerNomModele(raw.substring(1));
-                } else if (rawUp.startsWith("S") && raw.length >= 7 && raw.length <= 20) {
-                    // FIX 4 : tout préfixe S + alphanumérique valide = S/N candidat
-                    liveSerialDetected = raw.substring(1);
-                } else if (raw.includes("-") || rawUp.startsWith("ZT") || rawUp.startsWith("ZD") || rawUp.startsWith("ZM")) {
-                    liveModeleDetected = devinerNomModele(raw);
-                } else if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/i.test(rawUp)) {
-                    // FIX 4 : S/N Zebra sans préfixe S (ex: "41J123456789")
-                    liveSerialDetected = raw;
-                } else if (!liveSerialDetected && raw.length >= 8 && raw.length <= 20 && /^[A-Z0-9]+$/i.test(raw)) {
-                    // Fallback : code alphanumérique pur de longueur raisonnable → S/N
-                    liveSerialDetected = raw;
+            if (scanTarget === 'serial') {
+                // Nettoyage classique du préfixe S de flux si présent isolément
+                if (upper.startsWith('S') && upper.length >= 8 && !upper.startsWith('S4')) {
+                    brute = brute.substring(1);
                 }
-            }
-
-            if (liveSerialDetected) {
-                document.getElementById("liveStatusSerial").innerHTML = `🟢 ${liveSerialDetected}`;
-                document.getElementById("liveStatusSerial").className = "font-bold text-green-400 text-xs mt-0.5";
-            }
-            if (liveModeleDetected) {
-                document.getElementById("liveStatusModele").innerHTML = `🟢 ${liveModeleDetected}`;
-                document.getElementById("liveStatusModele").className = "font-bold text-green-400 text-xs mt-0.5";
-            }
-
-            if (liveSerialDetected || liveModeleDetected) {
+                liveValueDetected = brute;
+                document.getElementById("liveStatusRaw").innerHTML = `🟢 S/N Capturé : <span class="font-mono font-bold text-sm">${liveValueDetected}</span>`;
+                document.getElementById("liveStatusRaw").className = "text-xs text-green-400 block p-1";
                 document.getElementById("btnAppliquerLive").disabled = false;
-            }
+                
+                // Auto-validation après 400ms pour fluidifier la saisie
+                setTimeout(() => { appliquerResultatsLive(); }, 400);
 
-            // Auto-validation si les deux champs sont capturés
-            if (liveSerialDetected && liveModeleDetected) {
+            } else if (scanTarget === 'modele') {
+                // Déduction immédiate via le dictionnaire de traitement de P/N
+                liveValueDetected = devinerNomModele(brute);
+                document.getElementById("liveStatusRaw").innerHTML = `🟢 P/N Reconnu : <span class="font-mono font-bold text-sm">${liveValueDetected}</span>`;
+                document.getElementById("liveStatusRaw").className = "text-xs text-green-400 block p-1";
+                document.getElementById("btnAppliquerLive").disabled = false;
+
                 setTimeout(() => { appliquerResultatsLive(); }, 400);
             }
         }
 
         window.appliquerResultatsLive = function() {
-            if (liveSerialDetected) document.getElementById('serial').value = liveSerialDetected;
-            if (liveModeleDetected) document.getElementById('modele').value = liveModeleDetected;
+            if (liveValueDetected) {
+                if (scanTarget === 'serial') {
+                    document.getElementById('serial').value = liveValueDetected;
+                } else if (scanTarget === 'modele') {
+                    document.getElementById('modele').value = liveValueDetected;
+                }
+            }
             fermerScannerLive();
         };
 
@@ -556,7 +492,7 @@
                     </td>
                     <td class="px-3 py-3 font-bold text-gray-800 text-sm tracking-wider">${d.serial}</td>
                     <td class="px-3 py-3">
-                        <button onclick="deleteRow(${d.idKey})" class="text-red-600 font-bold cursor-pointer">Supprimer</button>
+                        <button onclick="deleteRow(${d.idKey})" class="text-red-600 font-bold cursor-pointer hover:underline">Supprimer</button>
                     </td>
                 `;
                 tbody.appendChild(row);
