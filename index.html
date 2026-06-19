@@ -81,7 +81,7 @@
                     <div class="flex">
                         <input type="text" id="serial" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm focus:outline-blue-500 font-bold" placeholder="S/N" required>
                         <button type="button" onclick="triggerPhotoScanner()" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-4 text-xs font-bold cursor-pointer flex items-center gap-1 shadow whitespace-nowrap">
-                            📷 SCANNER CODE-BARRES
+                            📷 SCANNER L'ÉTIQUETTE
                         </button>
                     </div>
                     <div id="scanFeedbackMessage" class="hidden text-xs font-medium p-2 mt-0.5 rounded border"></div>
@@ -244,7 +244,7 @@
 
             const feedback = document.getElementById('scanFeedbackMessage');
             feedback.classList.remove('hidden');
-            feedback.innerHTML = "⏳ Analyse en cours à haute résolution...";
+            feedback.innerHTML = "⏳ Analyse globale de l'étiquette...";
             feedback.className = "text-xs font-bold p-2 bg-blue-50 text-blue-700 mt-0.5 rounded animate-pulse border border-blue-200";
 
             const reader = new FileReader();
@@ -253,36 +253,37 @@
                 img.src = event.target.result;
                 
                 img.onload = async function() {
-                    let codeDetecte = null;
+                    let listeCodesDetectes = [];
 
-                    // Essai 1 : Analyse native Haute Définition (Android / Chrome)
+                    // Étape 1 : Analyse Native Multi-Barcodes (Prise en charge complète sous Chrome/Android)
                     if ('BarcodeDetector' in window) {
                         try {
                             const detector = new BarcodeDetector({ formats: ['code_128', 'data_matrix', 'qr_code'] });
                             const barcodes = await detector.detect(img);
                             if (barcodes && barcodes.length > 0) {
-                                codeDetecte = barcodes[0].rawValue;
+                                listeCodesDetectes = barcodes.map(b => b.rawValue);
                             }
-                        } catch (err) { console.log("Échec de l'analyse native HD"); }
+                        } catch (err) { console.log("Échec multi-détection native"); }
                     }
 
-                    // Essai 2 : Moteur de secours sur le fichier brut d'origine (sans perte de qualité)
-                    if (!codeDetecte) {
+                    // Étape 2 : Moteur de secours monocode si l'API native n'a rien trouvé
+                    if (listeCodesDetectes.length === 0) {
                         try {
                             const html5QrCodeStatic = new Html5Qrcode("staticScannerTmp");
-                            codeDetecte = await html5QrCodeStatic.scanFile(file, false);
+                            let uniqueCode = await html5QrCodeStatic.scanFile(file, false);
+                            if (uniqueCode) listeCodesDetectes.push(uniqueCode);
                         } catch (err) { console.log("Échec du décodeur de secours"); }
                     }
 
-                    // Traitement du résultat final
-                    if (codeDetecte) {
-                        trierEtValiderCode128(codeDetecte);
+                    // Étape 3 : Traitement intelligent de la liste récoltée
+                    if (listeCodesDetectes.length > 0) {
+                        traiterTousLesCodes(listeCodesDetectes);
                     } else {
                         feedback.innerHTML = `❌ <b>Aucun code détecté.</b><br>
                         <span class="font-normal text-[11px] block mt-1 text-gray-600">
-                        <b>Conseils de terrain :</b><br>
-                        • <b>Inclinez légèrement</b> votre téléphone pour chasser le reflet de la lumière/néon sur le plastique.<br>
-                        • <b>Reculez d'environ 20 cm</b> pour permettre à l'appareil de faire une mise au point nette (si vous êtes trop près, c'est flou).
+                        <b>Pour réussir le doublé S/N + Modèle en 1 flash :</b><br>
+                        • Reculez de 25 cm pour prendre <b>toute l'étiquette blanche</b> bien nette.<br>
+                        • Inclinez un peu pour chasser le reflet de la lumière sur les barres noires.
                         </span>`;
                         feedback.className = "text-xs p-2 bg-red-50 text-red-700 mt-0.5 rounded border border-red-200";
                     }
@@ -292,73 +293,80 @@
             reader.readAsDataURL(file);
         });
 
-        function trierEtValiderCode128(decodedText) {
-            let brute = decodedText.trim();
-            let upper = brute.toUpperCase();
+        function traiterTousLesCodes(listeCodes) {
+            let serialTrouve = null;
+            let pnTrouve = null;
+
+            listeCodes.forEach(rawText => {
+                let brute = rawText.trim();
+                let upper = brute.toUpperCase();
+
+                // 🌟 ANALYSE BLOC DATAMATRIX (CONTIENT TOUT)
+                if (upper.includes("[)>") || upper.includes(">") || brute.length > 35) {
+                    let texteNettoye = upper.replace(/[\x00-\x1F\x7F-\x9F]/g, ' ');
+                    let segments = texteNettoye.split(/[\s,]+/);
+                    
+                    segments.forEach(segment => {
+                        segment = segment.trim();
+                        if (segment.startsWith('S') && segment.length >= 6) {
+                            let tentativeS = segment.substring(1);
+                            if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C|\d)/.test(tentativeS)) { serialTrouve = tentativeS; }
+                        }
+                        if (segment.startsWith('1P') && segment.length >= 7) { pnTrouve = segment.substring(2); }
+                        else if (segment.startsWith('P') && (segment.startsWith('PZT') || segment.startsWith('PZD') || segment.startsWith('PZM') || segment.includes('-'))) { pnTrouve = segment.substring(1); }
+                    });
+                    
+                    if (!serialTrouve) {
+                        let matchS = upper.match(/S(41J|42J|23J|33J|23C|34J|41A|42A|12C)[A-Z0-9]+/);
+                        if (matchS) serialTrouve = matchS[0].substring(1);
+                    }
+                    if (!pnTrouve) {
+                        let matchP = upper.match(/(1P|P)(ZT\d{3}|ZD\d{3}|ZM\d{3})[A-Z0-9\-]+/);
+                        if (matchP) pnTrouve = matchP[0].startsWith('1P') ? matchP[0].substring(2) : matchP[0].substring(1);
+                    }
+                } 
+                // 📝 ANALYSE CODES-BARRES LINÉAIRES INDIVIDUELS (CODE 128 COEXISTANTS)
+                else {
+                    if (upper.startsWith("1P")) { pnTrouve = brute.substring(2); }
+                    else if (upper.startsWith("P") && (upper.startsWith("PZT") || upper.startsWith("PZD") || upper.startsWith("PZM") || brute.includes("-"))) { pnTrouve = brute.substring(1); }
+                    else if (upper.startsWith("S") && !isNaN(upper.charAt(1))) { serialTrouve = brute.substring(1); }
+                    else if (brute.includes("-") || upper.startsWith("ZT") || upper.startsWith("ZD") || upper.startsWith("ZM")) { pnTrouve = brute; }
+                    else if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/.test(upper)) { serialTrouve = brute; }
+                    else if (!serialTrouve && brute.length >= 8 && brute.length <= 15) { serialTrouve = brute; }
+                }
+            });
+
             let fieldSerial = document.getElementById('serial');
             let fieldModele = document.getElementById('modele');
             let feedback = document.getElementById('scanFeedbackMessage');
 
-            if (upper.includes("[)>") || upper.includes(">") || brute.length > 35) {
-                let serialTrouve = null;
-                let pnTrouve = null;
-                let texteNettoye = upper.replace(/[\x00-\x1F\x7F-\x9F]/g, ' ');
-                let segments = texteNettoye.split(/[\s,]+/);
-                
-                segments.forEach(segment => {
-                    segment = segment.trim();
-                    if (segment.startsWith('S') && segment.length >= 6) {
-                        let tentativeS = segment.substring(1);
-                        if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C|\d)/.test(tentativeS)) { serialTrouve = tentativeS; }
-                    }
-                    if (segment.startsWith('1P') && segment.length >= 7) { pnTrouve = segment.substring(2); }
-                    else if (segment.startsWith('P') && (segment.startsWith('PZT') || segment.startsWith('PZD') || segment.startsWith('PZM') || segment.includes('-'))) { pnTrouve = segment.substring(1); }
-                });
-                
-                if (!serialTrouve) {
-                    let matchS = upper.match(/S(41J|42J|23J|33J|23C|34J|41A|42A|12C)[A-Z0-9]+/);
-                    if (matchS) serialTrouve = matchS[0].substring(1);
+            if (serialTrouve || pnTrouve) {
+                if (serialTrouve) fieldSerial.value = serialTrouve;
+                if (pnTrouve) {
+                    fieldModele.value = devinerNomModele(pnTrouve);
+                } else if (serialTrouve) {
+                    let modDevine = devinerNomModele(serialTrouve);
+                    if (modDevine) fieldModele.value = modDevine;
                 }
-                if (!pnTrouve) {
-                    let matchP = upper.match(/(1P|P)(ZT\d{3}|ZD\d{3}|ZM\d{3})[A-Z0-9\-]+/);
-                    if (matchP) pnTrouve = matchP[0].startsWith('1P') ? matchP[0].substring(2) : matchP[0].substring(1);
-                }
-                
-                if (serialTrouve || pnTrouve) {
-                    if (serialTrouve) fieldSerial.value = serialTrouve;
-                    if (pnTrouve) { fieldModele.value = devinerNomModele(pnTrouve); }
-                    else if (serialTrouve) { fieldModele.value = devinerNomModele(serialTrouve); }
-                    feedback.innerText = "✨ Bloc Datamatrix décodé (S/N et Modèle injectés) !";
-                    feedback.className = "text-xs font-bold p-2 bg-green-100 text-green-800 mt-0.5 rounded border border-green-200";
-                    return;
-                }
-            }
 
-            let estPN = false;
-            let propre = brute;
-            if (upper.startsWith("1P")) { propre = brute.substring(2); estPN = true; }
-            else if (upper.startsWith("P") && (upper.startsWith("PZT") || upper.startsWith("PZD") || upper.startsWith("PZM") || brute.includes("-"))) { propre = brute.substring(1); estPN = true; }
-            else if (upper.startsWith("S") && !isNaN(upper.charAt(1))) { propre = brute.substring(1); estPN = false; }
-
-            let upperPropre = propre.toUpperCase();
-            if (estPN || upperPropre.includes("-") || upperPropre.startsWith("ZT") || upperPropre.startsWith("ZD") || upperPropre.startsWith("ZM")) {
-                fieldModele.value = devinerNomModele(propre);
-                feedback.innerText = "✔️ Modèle (" + fieldModele.value + ") identifié. Scannez le S/N.";
-                feedback.className = "text-xs font-bold p-2 bg-blue-100 text-blue-800 mt-0.5 rounded border border-blue-200";
-            } else {
-                fieldSerial.value = propre;
-                let modeleAuto = devinerNomModele(propre);
-                if (modeleAuto) {
-                    fieldModele.value = modeleAuto;
-                    feedback.innerText = "✨ S/N et Modèle auto-remplis avec succès !";
+                // Affichage d'un bilan précis à l'utilisateur
+                if (serialTrouve && (pnTrouve || fieldModele.value)) {
+                    feedback.innerHTML = `✨ <b>Succès total !</b><br>S/N (<b>${fieldSerial.value}</b>) et Modèle (<b>${fieldModele.value}</b>) capturés ensemble !`;
+                    feedback.className = "text-xs p-2 bg-green-100 text-green-800 mt-0.5 rounded border border-green-200 font-medium";
+                } else if (serialTrouve) {
+                    feedback.innerHTML = `✔️ <b>S/N injecté (${fieldSerial.value}).</b><br><span class="text-[11px] font-normal text-gray-600">Le code modèle était masqué ou flou, complétez-le ou ajustez l'angle.</span>`;
+                    feedback.className = "text-xs p-2 bg-blue-100 text-blue-800 mt-0.5 rounded border border-blue-200 font-medium";
                 } else {
-                    feedback.innerText = "✨ Numéro de Série (S/N) injecté !";
+                    feedback.innerHTML = `✔️ <b>Modèle injecté (${fieldModele.value}).</b><br><span class="text-[11px] font-normal text-gray-600">Le numéro de série était masqué, refaites une capture globale.</span>`;
+                    feedback.className = "text-xs p-2 bg-blue-100 text-blue-800 mt-0.5 rounded border border-blue-200 font-medium";
                 }
-                feedback.className = "text-xs font-bold p-2 bg-green-100 text-green-800 mt-0.5 rounded border border-green-200";
+            } else {
+                feedback.innerHTML = `❌ <b>Aucun code exploitable extrait.</b> Rapprochez ou éloignez légèrement l'objectif.`;
+                feedback.className = "text-xs p-2 bg-red-50 text-red-700 mt-0.5 rounded border border-red-200";
             }
         }
 
-        /* --- RESTANCE DU SCRIPT (COMPAGNON ET TABLEAU) --- */
+        /* --- LOGIQUE DE GESTION DU TABLEAU ET PIÈCES JOINTES --- */
         const cameraInput = document.getElementById('cameraInput');
         const imageToCrop = document.getElementById('imageToCrop');
         document.getElementById('capturePhotoBtn').addEventListener('click', () => cameraInput.click());
