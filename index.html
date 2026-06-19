@@ -84,7 +84,7 @@
                             📷 SCANNER CODE-BARRES
                         </button>
                     </div>
-                    <div id="scanFeedbackMessage" class="hidden text-xs font-medium p-1 mt-0.5 rounded"></div>
+                    <div id="scanFeedbackMessage" class="hidden text-xs font-medium p-2 mt-0.5 rounded border"></div>
                 </div>
                 <input type="file" id="scannerCameraInput" accept="image/*" capture="environment" class="hidden">
             </div>
@@ -199,17 +199,11 @@
 
         document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
 
-        /* ==========================================================
-           FONCTION DE CORRESPONDANCE ET FORMATAGE PATTERN STRICT
-           ========================================================== */
         function devinerNomModele(texte) {
             let t = texte.toUpperCase().trim();
-            
-            // --- ANALYSE DEPUIS UN CODE MODÈLE COMPLET (P/N) ---
             if (t.includes("-") || t.startsWith("ZT") || t.startsWith("ZD") || t.startsWith("ZM")) {
                 let imprimante = "ZEBRA";
-                let dots = "8dots"; // Résolution standard par défaut (203 dpi)
-                
+                let dots = "8dots";
                 if (t.startsWith("ZT231")) { imprimante = "ZT231"; if (t.charAt(6) === '3') dots = "12dots"; }
                 else if (t.startsWith("ZT411")) { imprimante = "ZT411"; if (t.charAt(6) === '3') dots = "12dots"; if (t.charAt(6) === '6') dots = "24dots"; }
                 else if (t.startsWith("ZT421")) { imprimante = "ZT421"; if (t.charAt(6) === '3') dots = "12dots"; }
@@ -226,14 +220,10 @@
                             if (reste.charAt(1) === '3') dots = "12dots";
                             if (reste.charAt(1) === '6') dots = "24dots";
                         }
-                    } else {
-                        return t;
-                    }
+                    } else { return t; }
                 }
                 return `${imprimante} - ${dots}`;
             }
-            
-            // --- ANALYSE DEPUIS UN PREFIXE DE NUMERO DE SÉRIE (S/N) ---
             if (t.startsWith("41J")) return "ZT411 - 8dots";
             if (t.startsWith("42J")) return "ZT421 - 8dots";
             if (t.startsWith("23J") || t.startsWith("23C")) return "ZT231 - 8dots";
@@ -241,13 +231,9 @@
             if (t.startsWith("41A")) return "ZT410 - 8dots";
             if (t.startsWith("42A")) return "ZT420 - 8dots";
             if (t.startsWith("12C")) return "ZM400 - 8dots";
-            
             return ""; 
         }
 
-        /* ==========================================================
-           LOGIQUE DE NUMÉRISATION COMPATIBLE APPAREIL PHOTO PHOTO
-           ========================================================== */
         window.triggerPhotoScanner = function() {
             document.getElementById('scannerCameraInput').click();
         };
@@ -258,8 +244,8 @@
 
             const feedback = document.getElementById('scanFeedbackMessage');
             feedback.classList.remove('hidden');
-            feedback.innerText = "⏳ Analyse de la photo...";
-            feedback.className = "text-xs font-bold p-1 bg-blue-50 text-blue-700 mt-0.5 rounded animate-pulse";
+            feedback.innerHTML = "⏳ Analyse en cours à haute résolution...";
+            feedback.className = "text-xs font-bold p-2 bg-blue-50 text-blue-700 mt-0.5 rounded animate-pulse border border-blue-200";
 
             const reader = new FileReader();
             reader.onload = function(event) {
@@ -267,48 +253,40 @@
                 img.src = event.target.result;
                 
                 img.onload = async function() {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    
-                    const targetWidth = 1200;
-                    const scaleFactor = targetWidth / img.width;
-                    canvas.width = targetWidth;
-                    canvas.height = img.height * scaleFactor;
-                    
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    
-                    canvas.toBlob(async function(blob) {
-                        const optimizedFile = new File([blob], "compressed_scan.jpg", { type: "image/jpeg" });
-                        let codeDetecte = null;
+                    let codeDetecte = null;
 
-                        // Play services natif
-                        if ('BarcodeDetector' in window) {
-                            try {
-                                const detector = new BarcodeDetector({ formats: ['code_128', 'data_matrix'] });
-                                const barcodes = await detector.detect(canvas);
-                                if (barcodes && barcodes.length > 0) {
-                                    codeDetecte = barcodes[0].rawValue;
-                                }
-                            } catch (err) { console.log("L'API locale n'a pas intercepté de code."); }
-                        }
+                    // Essai 1 : Analyse native Haute Définition (Android / Chrome)
+                    if ('BarcodeDetector' in window) {
+                        try {
+                            const detector = new BarcodeDetector({ formats: ['code_128', 'data_matrix', 'qr_code'] });
+                            const barcodes = await detector.detect(img);
+                            if (barcodes && barcodes.length > 0) {
+                                codeDetecte = barcodes[0].rawValue;
+                            }
+                        } catch (err) { console.log("Échec de l'analyse native HD"); }
+                    }
 
-                        // Moteur de secours statique robuste
-                        if (!codeDetecte) {
-                            try {
-                                const html5QrCodeStatic = new Html5Qrcode("staticScannerTmp");
-                                codeDetecte = await html5QrCodeStatic.scanFile(optimizedFile, false);
-                            } catch (err) { console.log("Le décodeur secondaire n'a rien trouvé."); }
-                        }
+                    // Essai 2 : Moteur de secours sur le fichier brut d'origine (sans perte de qualité)
+                    if (!codeDetecte) {
+                        try {
+                            const html5QrCodeStatic = new Html5Qrcode("staticScannerTmp");
+                            codeDetecte = await html5QrCodeStatic.scanFile(file, false);
+                        } catch (err) { console.log("Échec du décodeur de secours"); }
+                    }
 
-                        if (codeDetecte) {
-                            trierEtValiderCode128(codeDetecte);
-                        } else {
-                            feedback.innerText = "❌ Aucun code-barres exploitable trouvé. Approchez ou nettoyez la lentille.";
-                            feedback.className = "text-xs font-bold p-1 bg-red-50 text-red-600 mt-0.5 rounded";
-                        }
-                        
-                        document.getElementById('scannerCameraInput').value = '';
-                    }, 'image/jpeg', 0.90);
+                    // Traitement du résultat final
+                    if (codeDetecte) {
+                        trierEtValiderCode128(codeDetecte);
+                    } else {
+                        feedback.innerHTML = `❌ <b>Aucun code détecté.</b><br>
+                        <span class="font-normal text-[11px] block mt-1 text-gray-600">
+                        <b>Conseils de terrain :</b><br>
+                        • <b>Inclinez légèrement</b> votre téléphone pour chasser le reflet de la lumière/néon sur le plastique.<br>
+                        • <b>Reculez d'environ 20 cm</b> pour permettre à l'appareil de faire une mise au point nette (si vous êtes trop près, c'est flou).
+                        </span>`;
+                        feedback.className = "text-xs p-2 bg-red-50 text-red-700 mt-0.5 rounded border border-red-200";
+                    }
+                    document.getElementById('scannerCameraInput').value = '';
                 };
             };
             reader.readAsDataURL(file);
@@ -317,17 +295,13 @@
         function trierEtValiderCode128(decodedText) {
             let brute = decodedText.trim();
             let upper = brute.toUpperCase();
-            
             let fieldSerial = document.getElementById('serial');
             let fieldModele = document.getElementById('modele');
             let feedback = document.getElementById('scanFeedbackMessage');
 
-            // 🌟 PARSER INTELLIGENT DE DATAMATRIX CONSTRUCTEUR (ZEBRA)
             if (upper.includes("[)>") || upper.includes(">") || brute.length > 35) {
                 let serialTrouve = null;
                 let pnTrouve = null;
-                
-                // Nettoyage des octets de contrôle invisibles (GS, RS...) pour isoler les chaînes
                 let texteNettoye = upper.replace(/[\x00-\x1F\x7F-\x9F]/g, ' ');
                 let segments = texteNettoye.split(/[\s,]+/);
                 
@@ -335,18 +309,12 @@
                     segment = segment.trim();
                     if (segment.startsWith('S') && segment.length >= 6) {
                         let tentativeS = segment.substring(1);
-                        if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C|\d)/.test(tentativeS)) {
-                            serialTrouve = tentativeS;
-                        }
+                        if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C|\d)/.test(tentativeS)) { serialTrouve = tentativeS; }
                     }
-                    if (segment.startsWith('1P') && segment.length >= 7) {
-                        pnTrouve = segment.substring(2);
-                    } else if (segment.startsWith('P') && (segment.startsWith('PZT') || segment.startsWith('PZD') || segment.startsWith('PZM') || segment.includes('-'))) {
-                        pnTrouve = segment.substring(1);
-                    }
+                    if (segment.startsWith('1P') && segment.length >= 7) { pnTrouve = segment.substring(2); }
+                    else if (segment.startsWith('P') && (segment.startsWith('PZT') || segment.startsWith('PZD') || segment.startsWith('PZM') || segment.includes('-'))) { pnTrouve = segment.substring(1); }
                 });
                 
-                // Recherche globale subsidiaire si compactage brut sans séparateur
                 if (!serialTrouve) {
                     let matchS = upper.match(/S(41J|42J|23J|33J|23C|34J|41A|42A|12C)[A-Z0-9]+/);
                     if (matchS) serialTrouve = matchS[0].substring(1);
@@ -356,62 +324,41 @@
                     if (matchP) pnTrouve = matchP[0].startsWith('1P') ? matchP[0].substring(2) : matchP[0].substring(1);
                 }
                 
-                // Traitement et injection finale si trouvé dans le Datamatrix
                 if (serialTrouve || pnTrouve) {
                     if (serialTrouve) fieldSerial.value = serialTrouve;
-                    if (pnTrouve) {
-                        fieldModele.value = devinerNomModele(pnTrouve);
-                    } else if (serialTrouve) {
-                        fieldModele.value = devinerNomModele(serialTrouve);
-                    }
-                    feedback.innerText = "✨ Bloc Datamatrix Zebra décodé (S/N et Modèle injectés) !";
-                    feedback.className = "text-xs font-bold p-1 bg-green-100 text-green-800 mt-0.5 rounded";
-                    return;
-                } else {
-                    feedback.innerText = "🛑 Format Datamatrix non reconnu. Essayez d'isoler le code à barres linéaire.";
-                    feedback.className = "text-xs font-bold p-1 bg-yellow-100 text-yellow-800 mt-0.5 rounded";
+                    if (pnTrouve) { fieldModele.value = devinerNomModele(pnTrouve); }
+                    else if (serialTrouve) { fieldModele.value = devinerNomModele(serialTrouve); }
+                    feedback.innerText = "✨ Bloc Datamatrix décodé (S/N et Modèle injectés) !";
+                    feedback.className = "text-xs font-bold p-2 bg-green-100 text-green-800 mt-0.5 rounded border border-green-200";
                     return;
                 }
             }
 
-            // 📝 ROUTAGE TRADITIONNEL DES CODES-BARRES SIMPLES (CODE 128)
             let estPN = false;
             let propre = brute;
-
-            if (upper.startsWith("1P")) {
-                propre = brute.substring(2);
-                estPN = true;
-            } else if (upper.startsWith("P") && (upper.startsWith("PZT") || upper.startsWith("PZD") || upper.startsWith("PZM") || brute.includes("-"))) {
-                propre = brute.substring(1);
-                estPN = true;
-            } else if (upper.startsWith("S") && !isNaN(upper.charAt(1))) {
-                propre = brute.substring(1);
-                estPN = false;
-            }
+            if (upper.startsWith("1P")) { propre = brute.substring(2); estPN = true; }
+            else if (upper.startsWith("P") && (upper.startsWith("PZT") || upper.startsWith("PZD") || upper.startsWith("PZM") || brute.includes("-"))) { propre = brute.substring(1); estPN = true; }
+            else if (upper.startsWith("S") && !isNaN(upper.charAt(1))) { propre = brute.substring(1); estPN = false; }
 
             let upperPropre = propre.toUpperCase();
-
             if (estPN || upperPropre.includes("-") || upperPropre.startsWith("ZT") || upperPropre.startsWith("ZD") || upperPropre.startsWith("ZM")) {
                 fieldModele.value = devinerNomModele(propre);
-                feedback.innerText = "✔️ Modèle (" + fieldModele.value + ") identifié. Scannez maintenant le S/N.";
-                feedback.className = "text-xs font-bold p-1 bg-blue-100 text-blue-800 mt-0.5 rounded";
+                feedback.innerText = "✔️ Modèle (" + fieldModele.value + ") identifié. Scannez le S/N.";
+                feedback.className = "text-xs font-bold p-2 bg-blue-100 text-blue-800 mt-0.5 rounded border border-blue-200";
             } else {
                 fieldSerial.value = propre;
                 let modeleAuto = devinerNomModele(propre);
                 if (modeleAuto) {
                     fieldModele.value = modeleAuto;
                     feedback.innerText = "✨ S/N et Modèle auto-remplis avec succès !";
-                    feedback.className = "text-xs font-bold p-1 bg-green-100 text-green-800 mt-0.5 rounded";
                 } else {
                     feedback.innerText = "✨ Numéro de Série (S/N) injecté !";
-                    feedback.className = "text-xs font-bold p-1 bg-green-100 text-green-800 mt-0.5 rounded";
                 }
+                feedback.className = "text-xs font-bold p-2 bg-green-100 text-green-800 mt-0.5 rounded border border-green-200";
             }
         }
 
-        /* ==========================================================
-           LOGIQUE TECHNIQUE INTERNE (COMPAGNON PHOTOS & TABLEAU)
-           ========================================================== */
+        /* --- RESTANCE DU SCRIPT (COMPAGNON ET TABLEAU) --- */
         const cameraInput = document.getElementById('cameraInput');
         const imageToCrop = document.getElementById('imageToCrop');
         document.getElementById('capturePhotoBtn').addEventListener('click', () => cameraInput.click());
