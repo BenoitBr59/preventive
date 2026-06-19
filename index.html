@@ -178,7 +178,7 @@
 
     <div id="liveScannerModal" class="hidden fixed inset-0 bg-black/95 flex flex-col items-center justify-between p-4 z-50">
         <div class="w-full flex justify-between items-center text-white max-w-md border-b border-gray-800 pb-2">
-            <span class="text-sm font-bold tracking-wide text-amber-400 flex items-center gap-1">⚡ LECTEUR SÉRIE CODE 128 UNIQUE</span>
+            <span class="text-sm font-bold tracking-wide text-amber-400 flex items-center gap-1">⚡ LECTEUR MATÉRIEL CODE 128</span>
             <button type="button" onclick="fermerScannerLive()" class="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold">Fermer</button>
         </div>
         
@@ -186,7 +186,7 @@
             <div id="liveReader" class="w-full bg-black"></div>
             
             <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                <div class="w-[90%] h-[25%] border-2 border-dashed border-amber-400 rounded bg-transparent flex items-center justify-center">
+                <div class="w-[85%] h-[30%] border-2 border-dashed border-amber-400 rounded bg-transparent flex items-center justify-center">
                     <div class="w-full h-0.5 bg-red-500/90 animate-pulse"></div>
                 </div>
             </div>
@@ -198,7 +198,7 @@
             </button>
             
             <div class="bg-gray-950 p-2 rounded text-center border border-gray-800">
-                <span id="liveStatusRaw" class="text-xs text-gray-400 italic">Alignez le code barre horizontalement dans la fente...</span>
+                <span id="liveStatusRaw" class="text-xs text-gray-400 italic">Positionnez le code barre bien horizontalement...</span>
             </div>
             
             <div class="grid grid-cols-2 gap-2 mt-1">
@@ -358,13 +358,13 @@
             document.getElementById('cameraInput').value = '';
         }
 
-        // --- ENGIN DE NUMÉRISATION ULTRA-CIBLÉ CODE 128 ---
+        // --- SCANNER COMPATIBLE ET ACCÉLÉRÉ GOOGLE ---
         window.ouvrirScannerLive = function() {
             liveSerialDetected = null;
             liveModeleDetected = null;
             torcheActive = false;
             
-            document.getElementById("liveStatusRaw").innerHTML = "📊 Alignez le Code 128 au centre...";
+            document.getElementById("liveStatusRaw").innerHTML = "🔍 Alignez le Code 128 horizontalement...";
             document.getElementById("liveStatusRaw").className = "text-xs text-amber-400 italic";
             document.getElementById("liveStatusSerial").innerHTML = "❌ En attente";
             document.getElementById("liveStatusSerial").className = "font-bold text-red-500 text-xs mt-0.5";
@@ -379,30 +379,30 @@
                     html5QrCodeLive = new Html5Qrcode("liveReader");
                 }
 
-                // Configuration optimisée pour Code 128 (Fente fine et longue)
+                // Configuration équilibrée pour éviter tout crash matériel
                 const configScanner = {
-                    fps: 30, // Fréquence de capture maximale
+                    fps: 25,
                     qrbox: function(viewfinderWidth, viewfinderHeight) {
                         return {
-                            width: Math.floor(viewfinderWidth * 0.90),
-                            height: Math.floor(viewfinderHeight * 0.25) // Seulement 25% de hauteur pour concentrer les calculs
+                            width: Math.floor(viewfinderWidth * 0.85),
+                            height: Math.floor(viewfinderHeight * 0.30)
                         };
                     },
                     experimentalFeatures: { 
-                        useBarCodeDetectorIfSupported: true // Utilise l'accélération matérielle native (Google/Apple) si dispo
+                        useBarCodeDetectorIfSupported: true // Déclenche le moteur natif Google si présent dans Chrome
                     }
                 };
 
-                // Restriction absolue : Uniquement le CODE 128 (Supprime la surcharge CPU des autres formats)
+                // Forçage exclusif Code 128 pour l'interpréteur JS secondaire
                 if (window.Html5QrcodeSupportedFormats) {
                     configScanner.formatsToSupport = [
                         Html5QrcodeSupportedFormats.CODE_128
                     ];
                 }
 
-                // FORÇAGE DE LA HAUTE DÉFINITION (Indispensable pour lire des barres de 1D denses)
+                // Lancement standard sécurisé (Caméra arrière native)
                 html5QrCodeLive.start(
-                    { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
+                    { facingMode: "environment" },
                     configScanner,
                     (decodedText) => { analyserTexteEnDirect(decodedText); },
                     (error) => {} 
@@ -411,22 +411,12 @@
                     setTimeout(() => { activerTorcheAutomatique(); }, 500); 
                 })
                 .catch(err => {
-                    // Repli en résolution standard si le capteur refuse la HD intégrale
-                    console.warn("Repli caméra nécessaire...");
-                    html5QrCodeLive.start(
-                        { facingMode: "environment" },
-                        configScanner,
-                        (decodedText) => { analyserTexteEnDirect(decodedText); },
-                        (error) => {}
-                    )
-                    .then(() => { setTimeout(() => { activerTorcheAutomatique(); }, 500); })
-                    .catch(errFinal => {
-                        alert("Accès caméra refusé.");
-                        fermerScannerLive();
-                    });
+                    console.error("Erreur critique d'ouverture :", err);
+                    alert("Impossible d'activer le capteur vidéo.");
+                    fermerScannerLive();
                 });
             } catch(e) {
-                alert("Erreur système d'initialisation : " + e.message);
+                alert("Erreur système : " + e.message);
                 fermerScannerLive();
             }
         };
@@ -451,12 +441,11 @@
             let brute = rawText.trim();
             if(!brute) return;
 
-            document.getElementById("liveStatusRaw").innerHTML = `🟢 Code détecté : "${brute}"`;
+            document.getElementById("liveStatusRaw").innerHTML = `🟢 Reçu : "${brute}"`;
             document.getElementById("liveStatusRaw").className = "text-xs text-green-400 font-mono font-bold break-all";
 
             let upper = brute.toUpperCase();
 
-            // Gestion des chaînes imbriquées industrielles ou des lectures directes unitaires
             if (upper.includes("[)>") || upper.includes(">") || brute.length > 35) {
                 let texteNettoye = upper.replace(/[\x00-\x1F\x7F-\x9F]/g, ' ');
                 let segments = texteNettoye.split(/[\s,]+/);
