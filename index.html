@@ -16,7 +16,6 @@
         .zone-header { background-color: #e6f0fa; font-weight: bold; color: #0a2540; }
         .cropper-container { max-height: 400px; width: 100%; }
         #image-to-crop { max-width: 100%; display: block; }
-        /* Les styles vidéo conflictuels ont été totalement supprimés ici */
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen p-4 md:p-8">
@@ -179,7 +178,7 @@
 
     <div id="liveScannerModal" class="hidden fixed inset-0 bg-black/95 flex flex-col items-center justify-between p-4 z-50">
         <div class="w-full flex justify-between items-center text-white max-w-md border-b border-gray-800 pb-2">
-            <span class="text-sm font-bold tracking-wide text-amber-400 flex items-center gap-1">⚡ SCANNER INDUSTRIEL AUTO-ADAPTATIF</span>
+            <span class="text-sm font-bold tracking-wide text-amber-400 flex items-center gap-1">⚡ LECTEUR SÉRIE CODE 128 UNIQUE</span>
             <button type="button" onclick="fermerScannerLive()" class="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold">Fermer</button>
         </div>
         
@@ -187,8 +186,8 @@
             <div id="liveReader" class="w-full bg-black"></div>
             
             <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                <div class="w-[80%] h-[60%] border-2 border-dashed border-amber-400/80 rounded bg-transparent flex items-center justify-center">
-                    <div class="w-full h-0.5 bg-red-500/80 animate-pulse"></div>
+                <div class="w-[90%] h-[25%] border-2 border-dashed border-amber-400 rounded bg-transparent flex items-center justify-center">
+                    <div class="w-full h-0.5 bg-red-500/90 animate-pulse"></div>
                 </div>
             </div>
         </div>
@@ -199,7 +198,7 @@
             </button>
             
             <div class="bg-gray-950 p-2 rounded text-center border border-gray-800">
-                <span id="liveStatusRaw" class="text-xs text-gray-400 italic">Analyse du flux vidéo en cours...</span>
+                <span id="liveStatusRaw" class="text-xs text-gray-400 italic">Alignez le code barre horizontalement dans la fente...</span>
             </div>
             
             <div class="grid grid-cols-2 gap-2 mt-1">
@@ -359,13 +358,13 @@
             document.getElementById('cameraInput').value = '';
         }
 
-        // --- SCANNER LIVE NETTOYÉ ET FLUIDIFIÉ ---
+        // --- ENGIN DE NUMÉRISATION ULTRA-CIBLÉ CODE 128 ---
         window.ouvrirScannerLive = function() {
             liveSerialDetected = null;
             liveModeleDetected = null;
             torcheActive = false;
             
-            document.getElementById("liveStatusRaw").innerHTML = "🔍 Positionnez le code au centre...";
+            document.getElementById("liveStatusRaw").innerHTML = "📊 Alignez le Code 128 au centre...";
             document.getElementById("liveStatusRaw").className = "text-xs text-amber-400 italic";
             document.getElementById("liveStatusSerial").innerHTML = "❌ En attente";
             document.getElementById("liveStatusSerial").className = "font-bold text-red-500 text-xs mt-0.5";
@@ -380,44 +379,51 @@
                     html5QrCodeLive = new Html5Qrcode("liveReader");
                 }
 
-                // Configuration native : On laisse la librairie adapter la boîte de visée
+                // Configuration optimisée pour Code 128 (Fente fine et longue)
                 const configScanner = {
-                    fps: 25,
+                    fps: 30, // Fréquence de capture maximale
                     qrbox: function(viewfinderWidth, viewfinderHeight) {
                         return {
-                            width: Math.floor(viewfinderWidth * 0.80),
-                            height: Math.floor(viewfinderHeight * 0.60)
+                            width: Math.floor(viewfinderWidth * 0.90),
+                            height: Math.floor(viewfinderHeight * 0.25) // Seulement 25% de hauteur pour concentrer les calculs
                         };
                     },
                     experimentalFeatures: { 
-                        useBarCodeDetectorIfSupported: true 
+                        useBarCodeDetectorIfSupported: true // Utilise l'accélération matérielle native (Google/Apple) si dispo
                     }
                 };
 
+                // Restriction absolue : Uniquement le CODE 128 (Supprime la surcharge CPU des autres formats)
                 if (window.Html5QrcodeSupportedFormats) {
                     configScanner.formatsToSupport = [
-                        Html5QrcodeSupportedFormats.DATA_MATRIX,
-                        Html5QrcodeSupportedFormats.CODE_128,
-                        Html5QrcodeSupportedFormats.CODE_39,
-                        Html5QrcodeSupportedFormats.EAN_13,
-                        Html5QrcodeSupportedFormats.QR_CODE
+                        Html5QrcodeSupportedFormats.CODE_128
                     ];
                 }
 
-                // Lancement direct sur la caméra arrière native (Zéro contrainte forcée)
+                // FORÇAGE DE LA HAUTE DÉFINITION (Indispensable pour lire des barres de 1D denses)
                 html5QrCodeLive.start(
-                    { facingMode: "environment" },
+                    { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
                     configScanner,
                     (decodedText) => { analyserTexteEnDirect(decodedText); },
-                    (error) => {} // Erreurs d'analyse par image ignorées pour la fluidité
+                    (error) => {} 
                 )
                 .then(() => { 
                     setTimeout(() => { activerTorcheAutomatique(); }, 500); 
                 })
                 .catch(err => {
-                    console.error("Échec du démarrage de l'objectif :", err);
-                    alert("Erreur d'activation de la caméra : " + (err.message || err));
-                    fermerScannerLive();
+                    // Repli en résolution standard si le capteur refuse la HD intégrale
+                    console.warn("Repli caméra nécessaire...");
+                    html5QrCodeLive.start(
+                        { facingMode: "environment" },
+                        configScanner,
+                        (decodedText) => { analyserTexteEnDirect(decodedText); },
+                        (error) => {}
+                    )
+                    .then(() => { setTimeout(() => { activerTorcheAutomatique(); }, 500); })
+                    .catch(errFinal => {
+                        alert("Accès caméra refusé.");
+                        fermerScannerLive();
+                    });
                 });
             } catch(e) {
                 alert("Erreur système d'initialisation : " + e.message);
@@ -445,11 +451,12 @@
             let brute = rawText.trim();
             if(!brute) return;
 
-            document.getElementById("liveStatusRaw").innerHTML = `🟢 Reçu : "${brute}"`;
+            document.getElementById("liveStatusRaw").innerHTML = `🟢 Code détecté : "${brute}"`;
             document.getElementById("liveStatusRaw").className = "text-xs text-green-400 font-mono font-bold break-all";
 
             let upper = brute.toUpperCase();
 
+            // Gestion des chaînes imbriquées industrielles ou des lectures directes unitaires
             if (upper.includes("[)>") || upper.includes(">") || brute.length > 35) {
                 let texteNettoye = upper.replace(/[\x00-\x1F\x7F-\x9F]/g, ' ');
                 let segments = texteNettoye.split(/[\s,]+/);
@@ -470,7 +477,7 @@
                 else if (upper.startsWith("S") && !isNaN(upper.charAt(1))) { liveSerialDetected = brute.substring(1); }
                 else if (brute.includes("-") || upper.startsWith("ZT") || upper.startsWith("ZD") || upper.startsWith("ZM")) { liveModeleDetected = devinerNomModele(brute); }
                 else if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/.test(upper)) { liveSerialDetected = brute; }
-                else if (!liveSerialDetected && brute.length >= 8 && brute.length <= 15) { liveSerialDetected = brute; }
+                else if (!liveSerialDetected && brute.length >= 8 && brute.length <= 20) { liveSerialDetected = brute; }
             }
 
             if (liveSerialDetected) {
