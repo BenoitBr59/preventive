@@ -7,7 +7,7 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <link class="html-attribute-value" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
@@ -179,7 +179,7 @@
 
     <div id="liveScannerModal" class="hidden fixed inset-0 bg-black/90 flex flex-col items-center justify-between p-4 z-50">
         <div class="w-full flex justify-between items-center text-white max-w-md border-b border-gray-800 pb-2">
-            <span class="text-sm font-bold tracking-wide text-amber-400 flex items-center gap-1">⚡ SCANNER HAUTE-RESOLUTION</span>
+            <span class="text-sm font-bold tracking-wide text-amber-400 flex items-center gap-1">⚡ SCANNER INDUSTRIEL AUTO-ADAPTATIF</span>
             <button type="button" onclick="fermerScannerLive()" class="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold">Fermer</button>
         </div>
         
@@ -199,7 +199,7 @@
             </button>
             
             <div class="bg-gray-950 p-2 rounded text-center border border-gray-800">
-                <span id="liveStatusRaw" class="text-xs text-gray-400 italic">Aucun texte brut détecté pour l'instant</span>
+                <span id="liveStatusRaw" class="text-xs text-gray-400 italic">Analyse du flux vidéo en cours...</span>
             </div>
             
             <div class="grid grid-cols-2 gap-2 mt-1">
@@ -359,13 +359,13 @@
             document.getElementById('cameraInput').value = '';
         }
 
-        // --- INTERFACE SCANNER FLUIDE ET ULTRA-HAUTE RESOLUTION ---
+        // --- SCANNER LIVE INTUITIF ET ADAPTATIF ---
         window.ouvrirScannerLive = function() {
             liveSerialDetected = null;
             liveModeleDetected = null;
             torcheActive = false;
             
-            document.getElementById("liveStatusRaw").innerHTML = "🔍 Recherche de lignes de code...";
+            document.getElementById("liveStatusRaw").innerHTML = "🔍 Positionnez le code devant l'objectif...";
             document.getElementById("liveStatusRaw").className = "text-xs text-amber-400 italic";
             document.getElementById("liveStatusSerial").innerHTML = "❌ En attente";
             document.getElementById("liveStatusSerial").className = "font-bold text-red-500 text-xs mt-0.5";
@@ -388,33 +388,41 @@
                     });
                 }
 
-                // Configuration de la caméra poussée en résolution FHD/HD pour décoder le petit industriel
+                // Etape 1 : On tente le flux haute qualité sans bloquer avec "min"
                 html5QrCodeLive.start(
                     { 
                         facingMode: "environment",
-                        width: { ideal: 1920, min: 1280 },
-                        height: { ideal: 1080, min: 720 }
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
                     },
                     { 
                         fps: 25,
-                        experimentalFeatures: {
-                            useBarCodeDetectorIfSupported: true // Utilise l'accélération matérielle native du téléphone (très puissant)
-                        }
+                        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
                     },
-                    (decodedText) => {
-                        analyserTexteEnDirect(decodedText);
-                    },
-                    (error) => { /* Boucle de frame fluide */ }
+                    (decodedText) => { analyserTexteEnDirect(decodedText); },
+                    (error) => {}
                 )
-                .then(() => {
-                    setTimeout(() => { activerTorcheAutomatique(); }, 800);
-                })
+                .then(() => { setTimeout(() => { activerTorcheAutomatique(); }, 600); })
                 .catch(err => {
-                    alert("Caméra inaccessible en haute résolution. Réessayez.");
-                    fermerScannerLive();
+                    // Etape 2 : Secours automatique si le mode idéal crash
+                    console.log("Ajustement de la résolution...");
+                    html5QrCodeLive.start(
+                        { facingMode: "environment" },
+                        { 
+                            fps: 25,
+                            experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+                        },
+                        (decodedText) => { analyserTexteEnDirect(decodedText); },
+                        (error) => {}
+                    )
+                    .then(() => { setTimeout(() => { activerTorcheAutomatique(); }, 600); })
+                    .catch(errFinal => {
+                        alert("Impossible de démarrer la caméra. Vérifiez les autorisations de votre navigateur.");
+                        fermerScannerLive();
+                    });
                 });
             } catch(e) {
-                alert("Erreur matérielle d'initialisation.");
+                alert("Erreur système lors du lancement.");
                 fermerScannerLive();
             }
         };
@@ -439,13 +447,11 @@
             let brute = rawText.trim();
             if(!brute) return;
 
-            // Affichage immédiat du texte "brut" détecté dans la petite boîte de contrôle
-            document.getElementById("liveStatusRaw").innerHTML = `🟢 Reçu : "${brute}"`;
+            document.getElementById("liveStatusRaw").innerHTML = `🟢 Capturé : "${brute}"`;
             document.getElementById("liveStatusRaw").className = "text-xs text-green-400 font-mono font-bold break-all";
 
             let upper = brute.toUpperCase();
 
-            // Analyse Macaroni Code / Zebra multi-champs
             if (upper.includes("[)>") || upper.includes(">") || brute.length > 35) {
                 let texteNettoye = upper.replace(/[\x00-\x1F\x7F-\x9F]/g, ' ');
                 let segments = texteNettoye.split(/[\s,]+/);
@@ -461,7 +467,6 @@
                 });
             } 
             else {
-                // Analyse champ unitaire
                 if (upper.startsWith("1P")) { liveModeleDetected = devinerNomModele(brute.substring(2)); }
                 else if (upper.startsWith("P") && (upper.startsWith("PZT") || upper.startsWith("PZD") || upper.startsWith("PZM") || brute.includes("-"))) { liveModeleDetected = devinerNomModele(brute.substring(1)); }
                 else if (upper.startsWith("S") && !isNaN(upper.charAt(1))) { liveSerialDetected = brute.substring(1); }
@@ -483,7 +488,6 @@
                 document.getElementById("btnAppliquerLive").disabled = false;
             }
 
-            // Si les deux infos vitales sont capturées en même temps, on valide automatiquement après un mini délai
             if (liveSerialDetected && liveModeleDetected) {
                 setTimeout(() => { appliquerResultatsLive(); }, 500);
             }
