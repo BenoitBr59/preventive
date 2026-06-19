@@ -4,505 +4,631 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RAPPORT DE MAINTENANCE PREVENTIVE</title>
-    
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
-
     <style>
         .zone-header { background-color: #e6f0fa; font-weight: bold; color: #0a2540; }
-        .cropper-container { max-height: 400px; width: 100%; }
-        #image-to-crop { max-width: 100%; display: block; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen p-4 md:p-8">
 
-    <div class="max-w-7xl mx-auto bg-white rounded-xl shadow-md p-6">
-        
-        <div class="flex items-center justify-between border-b pb-3 mb-4">
-            <h1 class="text-2xl font-bold text-blue-950 tracking-wide">RAPPORT DE MAINTENANCE PREVENTIVE</h1>
+<div class="max-w-7xl mx-auto bg-white rounded-xl shadow-md p-6">
+    <div class="flex items-center justify-between border-b pb-3 mb-4">
+        <h1 class="text-2xl font-bold text-blue-950 tracking-wide">RAPPORT DE MAINTENANCE PREVENTIVE</h1>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div>
+            <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Client / Site</label>
+            <input type="text" id="headerSite" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm" placeholder="Ex: Site Paris">
         </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <div>
-                <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Client / Site</label>
-                <input type="text" id="headerSite" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:outline-blue-500" placeholder="Ex: Site Paris">
+        <div>
+            <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Intervenant / Technicien</label>
+            <select id="headerIntervenant" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
+                <option value="">-- Choisir l'intervenant --</option>
+                <option value="Pascal CARTON">Pascal CARTON</option>
+                <option value="Benoît BRACKMAN">Benoît BRACKMAN</option>
+                <option value="Pascal CARTON / Benoît BRACKMAN">Pascal CARTON / Benoît BRACKMAN</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Parc d'imprimante</label>
+            <select id="headerBrand" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
+                <option value="ZEBRA">ZEBRA</option>
+                <option value="HONEYWELL">HONEYWELL</option>
+                <option value="TOSHIBA">TOSHIBA</option>
+                <option value="INTERMEC">INTERMEC</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Date d'intervention</label>
+            <input type="date" id="headerDate" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
+        </div>
+    </div>
+
+    <form id="machineForm" class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="md:col-span-4">
+            <h3 class="text-sm font-bold text-blue-950 uppercase border-b pb-1 mb-2">Ajouter un équipement au rapport</h3>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Zone / Emplacement</label>
+            <input type="text" id="zone" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ex: Expédition">
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Modèle d'imprimante (P/N)</label>
+            <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm bg-yellow-50 font-semibold" placeholder="Détecté automatiquement" required>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Machine ID / Lieu précis</label>
+            <input type="text" id="lieuId" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="ID Interne / Emplacement">
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Numéro de Série (S/N)</label>
+            <div class="flex">
+                <input type="text" id="serial" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm font-bold" placeholder="S/N" required>
+                <button type="button" onclick="ouvrirScannerLive()" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-4 text-xs font-bold cursor-pointer flex items-center gap-1 shadow whitespace-nowrap">
+                    📷 SCANNER L'ÉTIQUETTE
+                </button>
             </div>
+        </div>
+
+        <div class="md:col-span-2 grid grid-cols-2 gap-4 bg-white p-3 rounded border border-gray-200">
             <div>
-                <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Intervenant / Technicien</label>
-                <select id="headerIntervenant" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:outline-blue-500">
-                    <option value="">-- Choisir l'intervenant --</option>
-                    <option value="Pascal CARTON">Pascal CARTON</option>
-                    <option value="Benoît BRACKMAN">Benoît BRACKMAN</option>
-                    <option value="Pascal CARTON / Benoît BRACKMAN">Pascal CARTON / Benoît BRACKMAN</option>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Cellules / Capteurs</label>
+                <select id="cellules" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
+                    <option value="OK">OK</option><option value="NOK">NOK</option><option value="-">-</option>
                 </select>
             </div>
             <div>
-                <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Parc d'imprimante</label>
-                <select id="headerBrand" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:outline-blue-500">
-                    <option value="ZEBRA">ZEBRA</option>
-                    <option value="HONEYWELL">HONEYWELL</option>
-                    <option value="TOSHIBA">TOSHIBA</option>
-                    <option value="INTERMEC">INTERMEC</option>
+                <label class="block text-xs font-medium text-gray-700 mb-1">État Dot (Tête)</label>
+                <select id="etatDot" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
+                    <option value="OK">OK</option><option value="1 Dot HS">1 Dot HS</option>
+                    <option value="2 Dots HS">2 Dots HS</option><option value="Plusieurs Dots HS">Plusieurs Dots HS</option>
+                    <option value="Tête HS">Tête HS</option>
                 </select>
             </div>
             <div>
-                <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Date d'intervention</label>
-                <input type="date" id="headerDate" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:outline-blue-500">
+                <label class="block text-xs font-medium text-gray-700 mb-1">Pressing Roller</label>
+                <select id="roller" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
+                    <option value="OK">OK</option><option value="Marqué">Marqué</option><option value="À remplacer">À remplacer</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Test Impression</label>
+                <select id="impression" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
+                    <option value="OK">OK</option><option value="NOK">NOK</option>
+                </select>
             </div>
         </div>
 
-        <form id="machineForm" class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div class="md:col-span-4">
-                <h3 class="text-sm font-bold text-blue-950 uppercase border-b pb-1 mb-2">Ajouter un équipement au rapport</h3>
-            </div>
-            
+        <div class="md:col-span-2 grid grid-cols-2 gap-4">
             <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Zone / Emplacement</label>
-                <input type="text" id="zone" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ex: Expédition">
+                <label class="block text-xs font-medium text-gray-700 mb-1">Adresse IP</label>
+                <input type="text" id="ip" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="192.168.x.x">
             </div>
-            
             <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Modèle d'imprimante (P/N)</label>
-                <div class="flex">
-                    <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm bg-yellow-50 font-semibold focus:outline-blue-500" placeholder="Modèle détecté ou saisi" required>
-                    <button type="button" onclick="ouvrirScannerLive('modele')" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-3 text-[10px] font-bold cursor-pointer flex items-center gap-1 shadow whitespace-nowrap">
-                        📷 SCAN P/N
-                    </button>
-                </div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">État Général</label>
+                <select id="general" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm">
+                    <option value="OK">OK</option><option value="A surveiller">A surveiller</option><option value="Critique">Critique</option>
+                </select>
             </div>
-            
-            <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Machine ID / Lieu précis</label>
-                <input type="text" id="lieuId" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="ID Interne / Emplacement">
+            <div class="col-span-2">
+                <label class="block text-xs font-medium text-gray-700 mb-1">Remarques / Actions menées</label>
+                <textarea id="remarque" rows="2" class="w-full bg-white border border-gray-300 rounded px-3 py-1 text-sm" placeholder="Nettoyage, changement de pièce..."></textarea>
             </div>
-            
-            <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Numéro de Série (S/N)</label>
-                <div class="flex">
-                    <input type="text" id="serial" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm focus:outline-blue-500 font-bold" placeholder="S/N" required>
-                    <button type="button" onclick="ouvrirScannerLive('serial')" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-3 text-[10px] font-bold cursor-pointer flex items-center gap-1 shadow whitespace-nowrap">
-                        📷 SCAN S/N
-                    </button>
-                </div>
-            </div>
+        </div>
 
-            <div class="md:col-span-2 grid grid-cols-2 gap-4 bg-white p-3 rounded border border-gray-200">
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Cellules / Capteurs</label>
-                    <select id="cellules" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
-                        <option value="OK">OK</option>
-                        <option value="NOK">NOK</option>
-                        <option value="-">-</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-1">État Dot (Tête)</label>
-                    <select id="etatDot" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
-                        <option value="OK">OK</option>
-                        <option value="1 Dot HS">1 Dot HS</option>
-                        <option value="2 Dots HS">2 Dots HS</option>
-                        <option value="Plusieurs Dots HS">Plusieurs Dots HS</option>
-                        <option value="Tête HS">Tête HS</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Pressing Roller</label>
-                    <select id="roller" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
-                        <option value="OK">OK</option>
-                        <option value="Marqué">Marqué</option>
-                        <option value="À remplacer">À remplacer</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Test Impression</label>
-                    <select id="impression" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
-                        <option value="OK">OK</option>
-                        <option value="NOK">NOK</option>
-                    </select>
-                </div>
+        <div class="md:col-span-4 bg-blue-50 p-4 rounded border border-blue-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <span class="text-sm font-bold text-blue-900">Pièce-jointe (Photo d'illustration)</span>
+            <button type="button" id="capturePhotoBtn" class="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs px-5 py-3 rounded-lg shadow cursor-pointer">📷 Déclencher l'appareil photo</button>
+            <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+            <div id="photoPreviewContainer" class="hidden border-l pl-4 border-blue-200">
+                <img id="photoPreview" src="" class="h-12 w-auto rounded border bg-white" style="aspect-ratio:10/4;object-fit:cover;">
             </div>
+        </div>
 
-            <div class="md:col-span-2 grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Adresse IP</label>
-                    <input type="text" id="ip" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="192.168.x.x">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-1">État Général</label>
-                    <select id="general" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm">
-                        <option value="OK">OK</option>
-                        <option value="A surveiller">A surveiller</option>
-                        <option value="Critique">Critique</option>
-                    </select>
-                </div>
-                <div class="col-span-2">
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Remarques / Actions menées</label>
-                    <textarea id="remarque" rows="2" class="w-full bg-white border border-gray-300 rounded px-3 py-1 text-sm" placeholder="Nettoyage, changement de pièce..."></textarea>
-                </div>
+        <div class="md:col-span-4 flex justify-end mt-2">
+            <button type="submit" class="bg-blue-950 hover:bg-blue-900 text-white font-bold text-sm px-6 py-2 rounded shadow">Ajouter au tableau</button>
+        </div>
+    </form>
+
+    <div class="overflow-x-auto border border-gray-200 rounded-lg">
+        <table class="min-w-full divide-y divide-gray-200 text-sm text-center">
+            <thead class="bg-blue-950 text-white text-xs uppercase font-bold">
+                <tr>
+                    <th class="px-3 py-3 text-left">Imprimante / Lieu ID</th>
+                    <th class="px-3 py-3">Numéro de Série (S/N)</th>
+                    <th class="px-3 py-3">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="reportTableBody" class="bg-white divide-y divide-gray-200">
+                <tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MODAL SCANNER — MODE SÉQUENTIEL S/N puis P/N
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="liveScannerModal" class="hidden fixed inset-0 bg-black/95 flex flex-col items-center justify-between p-4 z-50">
+
+    <!-- Titre + Fermer -->
+    <div class="w-full flex justify-between items-center text-white max-w-md border-b border-gray-800 pb-2">
+        <div class="flex flex-col">
+            <span class="text-sm font-bold tracking-wide text-amber-400">⚡ LECTEUR CODE 128 — ZEBRA</span>
+            <span id="scanModeLabel" class="text-xs text-blue-300 mt-0.5">ÉTAPE 1 : Scannez le code S/N (numéro de série)</span>
+        </div>
+        <button type="button" onclick="fermerScannerLive()" class="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold">Fermer</button>
+    </div>
+
+    <!-- Viewfinder -->
+    <div class="w-full max-w-md bg-black rounded-lg overflow-hidden relative border-2 border-blue-500 my-auto" id="viewfinderWrapper">
+        <div id="liveReader" class="w-full bg-black"></div>
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+            <div id="scanBox" class="w-[88%] h-[40%] border-2 border-dashed border-amber-400 rounded bg-transparent flex items-center justify-center">
+                <div class="w-full h-0.5 bg-red-500/90 animate-pulse"></div>
             </div>
-
-            <div class="md:col-span-4 bg-blue-50 p-4 rounded border border-blue-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <span class="text-sm font-bold text-blue-900">Pièce-jointe (Photo d'illustration)</span>
-                <button type="button" id="capturePhotoBtn" class="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs px-5 py-3 rounded-lg shadow cursor-pointer">
-                    📷 Déclencher l'appareil photo
-                </button>
-                <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
-                <div id="photoPreviewContainer" class="hidden border-l pl-4 border-blue-200">
-                    <img id="photoPreview" src="" class="h-12 w-auto rounded border bg-white" style="aspect-ratio: 10 / 4; object-fit: cover;">
-                </div>
-            </div>
-
-            <div class="md:col-span-4 flex justify-end mt-2">
-                <button type="submit" class="bg-blue-950 hover:bg-blue-900 text-white font-bold text-sm px-6 py-2 rounded shadow">
-                    Ajouter au tableau
-                </button>
-            </div>
-        </form>
-
-        <div class="overflow-x-auto border border-gray-200 rounded-lg">
-            <table class="min-w-full divide-y divide-gray-200 text-sm text-center">
-                <thead class="bg-blue-950 text-white text-xs uppercase font-bold">
-                    <tr>
-                        <th class="px-3 py-3 text-left">Imprimante / Lieu ID</th>
-                        <th class="px-3 py-3">Numéro de Série (S/N)</th>
-                        <th class="px-3 py-3">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="reportTableBody" class="bg-white divide-y divide-gray-200">
-                    <tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport.</td></tr>
-                </tbody>
-            </table>
+        </div>
+        <!-- Étiquette mode en surimpression -->
+        <div id="scanOverlayLabel" class="absolute top-2 left-0 right-0 flex justify-center pointer-events-none z-20">
+            <span class="bg-amber-500 text-gray-900 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-widest">S/N</span>
         </div>
     </div>
 
-    <div id="liveScannerModal" class="hidden fixed inset-0 bg-black/95 flex flex-col items-center justify-between p-4 z-50">
-        <div class="w-full flex justify-between items-center text-white max-w-md border-b border-gray-800 pb-2">
-            <span id="modalTargetTitle" class="text-xs font-bold tracking-wide text-amber-400 flex items-center gap-1">⚡ LECTEUR MATÉRIEL CODE 128</span>
-            <button type="button" onclick="fermerScannerLive()" class="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold">Fermer</button>
-        </div>
-        
-        <div class="w-full max-w-md bg-black rounded-lg overflow-hidden relative border-2 border-blue-500 my-auto">
-            <div id="liveReader" class="w-full bg-black"></div>
-            
-            <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                <div class="w-[85%] h-[30%] border-2 border-dashed border-amber-400 rounded bg-transparent flex items-center justify-center">
-                    <div class="w-full h-0.5 bg-red-500/90 animate-pulse"></div>
-                </div>
+    <!-- Panneau statut + contrôles -->
+    <div class="w-full max-w-md bg-gray-900 text-white p-3 rounded-lg flex flex-col gap-2">
+
+        <button type="button" onclick="toggleTorcheLive()" class="w-full bg-amber-500 hover:bg-amber-600 text-gray-900 font-extrabold py-2 rounded text-xs flex items-center justify-center gap-2 shadow tracking-wider uppercase">
+            ⚡ Flash ON / OFF
+        </button>
+
+        <!-- Résultats des deux scans -->
+        <div class="grid grid-cols-2 gap-2">
+            <div id="card_sn" class="bg-gray-800 p-2 rounded text-center border-2 border-amber-500">
+                <div class="text-[10px] text-amber-400 uppercase font-bold mb-1">📌 Étape 1 — S/N</div>
+                <div id="liveStatusSerial" class="font-bold text-red-400 text-xs break-all">❌ En attente</div>
+            </div>
+            <div id="card_pn" class="bg-gray-800 p-2 rounded text-center border border-gray-700 opacity-50">
+                <div class="text-[10px] text-gray-400 uppercase font-bold mb-1">📌 Étape 2 — P/N</div>
+                <div id="liveStatusModele" class="font-bold text-red-400 text-xs break-all">❌ En attente</div>
             </div>
         </div>
 
-        <div class="w-full max-w-md bg-gray-900 text-white p-4 rounded-lg flex flex-col gap-2">
-            <button type="button" onclick="toggleTorcheLive()" class="w-full bg-amber-500 hover:bg-amber-600 text-gray-900 font-extrabold py-2 rounded text-xs flex items-center justify-center gap-2 shadow tracking-wider uppercase">
-                ⚡ ALLUMER / ÉTEINDRE LE FLASH
-            </button>
-            
-            <div class="bg-gray-950 p-2 rounded text-center border border-gray-800">
-                <span id="liveStatusRaw" class="text-xs text-gray-400 italic">Positionnez le code barre bien horizontalement...</span>
-            </div>
-            
-            <button type="button" id="btnAppliquerLive" class="mt-2 w-full bg-blue-600 disabled:bg-gray-700 disabled:opacity-50 text-white font-bold py-2 rounded text-sm shadow cursor-pointer" disabled onclick="appliquerResultatsLive()">
-                Valider la capture
-            </button>
+        <!-- Brut reçu -->
+        <div class="bg-gray-950 px-2 py-1.5 rounded border border-gray-800 text-center">
+            <span id="liveStatusRaw" class="text-[11px] text-gray-400 italic font-mono break-all">Positionnez le code barre...</span>
+        </div>
+
+        <!-- Bouton passer à P/N -->
+        <button type="button" id="btnNextStep" class="hidden w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded text-sm shadow">
+            ✅ S/N capturé — Scanner le P/N →
+        </button>
+
+        <!-- Bouton valider final -->
+        <button type="button" id="btnAppliquerLive" class="w-full bg-green-600 disabled:bg-gray-700 disabled:opacity-40 text-white font-bold py-2 rounded text-sm shadow cursor-pointer" disabled onclick="appliquerResultatsLive()">
+            ✅ Valider et remplir le formulaire
+        </button>
+    </div>
+</div>
+
+<!-- Modal recadrage photo -->
+<div id="cropperModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg p-4 max-w-xl w-full flex flex-col max-h-[90vh]">
+        <h3 class="text-sm font-bold text-gray-900 mb-2 uppercase tracking-wide">Recadrage Image (Format 10x4)</h3>
+        <div class="overflow-hidden flex-1 bg-gray-100 rounded flex items-center justify-center" style="min-height:300px;max-height:55vh;">
+            <img id="imageToCrop" src="" style="max-width:100%;display:block;">
+        </div>
+        <div class="flex justify-end gap-2 mt-4">
+            <button type="button" id="cancelCropBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 text-xs font-bold px-4 py-2 rounded cursor-pointer">Annuler</button>
+            <button type="button" id="saveCropBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded cursor-pointer">Valider la découpe</button>
         </div>
     </div>
+</div>
 
-    <div id="cropperModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-lg p-4 max-w-xl w-full flex flex-col max-h-[90vh]">
-            <h3 class="text-sm font-bold text-gray-900 mb-2 uppercase tracking-wide">Recadrage Image (Format Obligatoire 10x4)</h3>
-            <div class="overflow-hidden flex-1 bg-gray-100 rounded flex items-center justify-center" style="min-height: 300px; max-height: 55vh;">
-                <img id="imageToCrop" src="" style="max-width: 100%; display: block;">
-            </div>
-            <div class="flex justify-end gap-2 mt-4">
-                <button type="button" id="cancelCropBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 text-xs font-bold px-4 py-2 rounded cursor-pointer">Annuler</button>
-                <button type="button" id="saveCropBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded cursor-pointer">Valider la découpe</button>
-            </div>
-        </div>
-    </div>
+<script>
+// ─── État global ──────────────────────────────────────────────────────────────
+let reportData        = [];
+let currentPhotoBase64 = null;
+let cropperInstance   = null;
+let html5QrCodeLive   = null;
+let torcheActive      = false;
 
-    <script>
-        let reportData = [];
-        let currentPhotoBase64 = null;
-        let cropperInstance = null;
-        let html5QrCodeLive = null;
-        let torcheActive = false;
+// Résultats du double-scan
+let liveSerialDetected = null;
+let liveModeleDetected = null;
 
-        let scanTarget = null; // 'serial' ou 'modele'
-        let liveValueDetected = null;
+// Mode : 'SN' = on attend le numéro de série, 'PN' = on attend le P/N
+let scanMode = 'SN';
 
-        let lastRawScanned = null;
-        let lastScanTime = 0;
-        const SCAN_COOLDOWN_MS = 1200;
+// Debounce
+let lastRawScanned = null;
+let lastScanTime   = 0;
+const SCAN_COOLDOWN_MS = 1200;
 
-        // Fonction révisée pour extraire intelligemment le nom commercial
-        function devinerNomModele(texte) {
-            let t = texte.toUpperCase().trim();
-            
-            // Nettoyage des préfixes d'identification Zebra si présents dans le flux
-            if (t.startsWith("1P")) t = t.substring(2);
-            else if (t.startsWith("P") && (t.startsWith("PZT") || t.startsWith("PZD") || t.startsWith("PZM"))) t = t.substring(1);
+// ─── Identification du modèle à partir du P/N brut ───────────────────────────
+function devinerNomModele(texte) {
+    let t = texte.toUpperCase().trim();
 
-            // Détection du pattern de base (ex: ZT231, ZT411, ZD421, ZM400, etc.)
-            let match = t.match(/^(ZT\d{3}|ZD\d{3}|ZM\d{3})/);
-            if (match) {
-                let imprimante = match[1];
-                let dots = "8dots";
-                
-                // Analyse du suffixe pour déterminer la densité de tête d'impression (dpi)
-                let reste = t.substring(imprimante.length);
-                if (reste.length >= 2) {
-                    if (reste.charAt(1) === '3') dots = "12dots";
-                    if (reste.charAt(1) === '6') dots = "24dots";
-                }
-                return `${imprimante} - ${dots}`;
-            }
+    // Nettoyer les éventuels préfixes connus (1P, P)
+    if (t.startsWith('1P')) t = t.substring(2);
+    else if (t.startsWith('P') && (t.startsWith('PZT') || t.startsWith('PZD') || t.startsWith('PZM'))) t = t.substring(1);
 
-            // Fallbacks sur signatures alternatives de S/N
-            if (t.startsWith("41J")) return "ZT411 - 8dots";
-            if (t.startsWith("42J")) return "ZT421 - 8dots";
-            if (t.startsWith("23J") || t.startsWith("23C")) return "ZT231 - 8dots";
-            if (t.startsWith("33J") || t.startsWith("34J")) return "ZD421 - 8dots";
-            return texte; // Retourne le brut si non mappé
-        }
+    // Cas direct : le P/N Zebra commence déjà par ZTxxx ou ZDxxx (ex: ZT23143-T1E000FZ)
+    // On extrait le modèle de base (ex: ZT231) et la résolution via le 6e caractère du P/N complet
+    //
+    // Format P/N Zebra : ZTxxyy-ZZZZZ
+    //   xx = modèle numérique (ex: 23 → ZT231, 41 → ZT411)
+    //   yy = résolution (03 = 12dots/300dpi, 06 = 24dots/600dpi, sinon 8dots/203dpi)
+    //
+    const matchPN = t.match(/^(ZT|ZD|ZM)(\d{2})(\d{2})/);
+    if (matchPN) {
+        const famille = matchPN[1];           // ZT / ZD / ZM
+        const modNum  = matchPN[2];           // ex: "23" → ZT231, "41" → ZT411
+        const resCode = matchPN[3];           // ex: "14" → 1=8dots, "03" → 0=8dots 3→12dots
 
-        window.addEventListener('load', function() {
-            document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
+        // Table de correspondance modèle
+        const modeles = {
+            'ZT': { '23': 'ZT231', '41': 'ZT411', '42': 'ZT421', '61': 'ZT610', '62': 'ZT620', '63': 'ZT630' },
+            'ZD': { '42': 'ZD421', '62': 'ZD621', '22': 'ZD220', '23': 'ZD230' },
+            'ZM': { '40': 'ZM400', '60': 'ZM600' }
+        };
+        let nomModele = (modeles[famille] && modeles[famille][modNum])
+            ? modeles[famille][modNum]
+            : `${famille}${modNum}x`;
 
-            const capturePhotoBtn = document.getElementById('capturePhotoBtn');
-            const cameraInput = document.getElementById('cameraInput');
-            if (capturePhotoBtn && cameraInput) {
-                capturePhotoBtn.addEventListener('click', () => cameraInput.click());
-            }
+        // Résolution : 2e chiffre du code résolution
+        let dots = '8dots';
+        const resDig = resCode.charAt(1); // ex: resCode="14" → '4', "03" → '3', "06" → '6'
+        if (resDig === '3') dots = '12dots';
+        else if (resDig === '6') dots = '24dots';
 
-            if (cameraInput) {
-                cameraInput.addEventListener('change', function(e) {
-                    const file = e.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = function(event) {
-                            const imageToCrop = document.getElementById('imageToCrop');
-                            if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
-                            
-                            imageToCrop.onload = function() {
-                                document.getElementById('cropperModal').classList.remove('hidden');
-                                cropperInstance = new Cropper(imageToCrop, {
-                                    aspectRatio: 10 / 4,
-                                    viewMode: 1,
-                                    autoCropArea: 0.9,
-                                    responsive: true
-                                });
-                                imageToCrop.onload = null;
-                            };
-                            imageToCrop.src = event.target.result;
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                });
-            }
+        return `${nomModele} - ${dots}`;
+    }
 
-            document.getElementById('saveCropBtn').addEventListener('click', function() {
-                if (cropperInstance) {
-                    const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 800, maxHeight: 320 });
-                    currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
-                    document.getElementById('photoPreview').src = currentPhotoBase64;
-                    document.getElementById('photoPreviewContainer').classList.remove('hidden');
-                    closeCropperModal();
-                }
-            });
+    // Anciens préfixes courts (étiquettes sans tiret)
+    if (t.startsWith("ZT231")) return "ZT231 - " + (t.charAt(6)==='3'?'12dots':'8dots');
+    if (t.startsWith("ZT411")) return "ZT411 - " + (t.charAt(6)==='3'?'12dots':t.charAt(6)==='6'?'24dots':'8dots');
+    if (t.startsWith("ZT421")) return "ZT421 - " + (t.charAt(6)==='3'?'12dots':'8dots');
+    if (t.startsWith("ZD421")) return "ZD421 - " + (t.charAt(6)==='3'?'12dots':'8dots');
+    if (t.startsWith("ZT410")) return "ZT410 - " + (t.charAt(6)==='3'?'12dots':'8dots');
+    if (t.startsWith("ZT420")) return "ZT420 - " + (t.charAt(6)==='3'?'12dots':'8dots');
+    if (t.startsWith("ZM400")) return "ZM400 - 8dots";
 
-            document.getElementById('cancelCropBtn').addEventListener('click', closeCropperModal);
+    // Codes internes courts (S/N commençant par préfixe de famille)
+    if (t.startsWith("41J")) return "ZT411 - 8dots";
+    if (t.startsWith("42J")) return "ZT421 - 8dots";
+    if (t.startsWith("23J") || t.startsWith("23C")) return "ZT231 - 8dots";
+    if (t.startsWith("33J") || t.startsWith("34J")) return "ZD421 - 8dots";
+    if (t.startsWith("41A")) return "ZT410 - 8dots";
+    if (t.startsWith("42A")) return "ZT420 - 8dots";
+    if (t.startsWith("12C")) return "ZM400 - 8dots";
 
-            document.getElementById('machineForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                const item = {
-                    idKey: Date.now(),
-                    zone: document.getElementById('zone').value.trim(),
-                    modele: document.getElementById('modele').value.trim(),
-                    lieuId: document.getElementById('lieuId').value.trim(),
-                    serial: document.getElementById('serial').value.trim(),
-                    ip: document.getElementById('ip').value.trim(),
-                    cellules: document.getElementById('cellules').value,
-                    etatDot: document.getElementById('etatDot').value,
-                    roller: document.getElementById('roller').value,
-                    impression: document.getElementById('impression').value,
-                    general: document.getElementById('general').value,
-                    remarque: document.getElementById('remarque').value.trim(),
-                    photos: currentPhotoBase64 ? [currentPhotoBase64] : []
-                };
-                reportData.push(item);
-                updateTable();
-                
-                document.getElementById('modele').value = '';
-                document.getElementById('serial').value = '';
-                document.getElementById('lieuId').value = '';
-                document.getElementById('ip').value = '';
-                document.getElementById('remarque').value = '';
-                document.getElementById('photoPreviewContainer').classList.add('hidden');
-                currentPhotoBase64 = null;
-            });
-        });
+    // Fallback : retourner le texte brut nettoyé (P/N complet)
+    return t;
+}
 
-        function closeCropperModal() {
-            document.getElementById('cropperModal').classList.add('hidden');
+// ─── Init page ────────────────────────────────────────────────────────────────
+window.addEventListener('load', function() {
+    document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
+
+    document.getElementById('capturePhotoBtn').addEventListener('click', () => document.getElementById('cameraInput').click());
+
+    document.getElementById('cameraInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const img = document.getElementById('imageToCrop');
             if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
-            document.getElementById('cameraInput').value = '';
+            img.onload = function() {
+                document.getElementById('cropperModal').classList.remove('hidden');
+                cropperInstance = new Cropper(img, { aspectRatio: 10/4, viewMode: 1, autoCropArea: 0.9, responsive: true });
+                img.onload = null;
+            };
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    document.getElementById('saveCropBtn').addEventListener('click', function() {
+        if (cropperInstance) {
+            const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 800, maxHeight: 320 });
+            currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+            document.getElementById('photoPreview').src = currentPhotoBase64;
+            document.getElementById('photoPreviewContainer').classList.remove('hidden');
+            closeCropperModal();
         }
+    });
 
-        // WORKFLOW SÉQUENTIEL CONTEXTUEL
-        window.ouvrirScannerLive = function(target) {
-            scanTarget = target; 
-            liveValueDetected = null;
-            lastRawScanned = null;
-            lastScanTime = 0;
-            torcheActive = false;
-            
-            // Mise à jour de l'interface graphique de la modal selon le besoin du tech
-            const titreTarget = target === 'serial' ? "SCAN DU NUMÉRO DE SÉRIE (S/N)" : "SCAN DU MODÈLE (P/N)";
-            document.getElementById("modalTargetTitle").innerText = `🎯 CIBLE : ${titreTarget}`;
-            document.getElementById("liveStatusRaw").innerHTML = "🔍 Alignez la ligne rouge sur le code barre...";
-            document.getElementById("liveStatusRaw").className = "text-xs text-amber-400 italic";
-            document.getElementById("btnAppliquerLive").disabled = true;
-            
-            document.getElementById('liveScannerModal').classList.remove('hidden');
+    document.getElementById('cancelCropBtn').addEventListener('click', closeCropperModal);
 
-            try {
-                if (!html5QrCodeLive) {
-                    html5QrCodeLive = new Html5Qrcode("liveReader");
-                }
+    document.getElementById('machineForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        reportData.push({
+            idKey: Date.now(),
+            zone: document.getElementById('zone').value.trim(),
+            modele: document.getElementById('modele').value.trim(),
+            lieuId: document.getElementById('lieuId').value.trim(),
+            serial: document.getElementById('serial').value.trim(),
+            ip: document.getElementById('ip').value.trim(),
+            cellules: document.getElementById('cellules').value,
+            etatDot: document.getElementById('etatDot').value,
+            roller: document.getElementById('roller').value,
+            impression: document.getElementById('impression').value,
+            general: document.getElementById('general').value,
+            remarque: document.getElementById('remarque').value.trim(),
+            photos: currentPhotoBase64 ? [currentPhotoBase64] : []
+        });
+        updateTable();
+        ['modele','serial','lieuId','ip','remarque'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('photoPreviewContainer').classList.add('hidden');
+        currentPhotoBase64 = null;
+    });
+});
 
-                const configScanner = {
-                    fps: 15,
-                    qrbox: function(viewfinderWidth, viewfinderHeight) {
-                        return {
-                            width: Math.floor(viewfinderWidth * 0.90),
-                            height: Math.floor(viewfinderHeight * 0.30)
-                        };
-                    },
-                    experimentalFeatures: {
-                        useBarCodeDetectorIfSupported: true
-                    },
-                    // FIX MAJEUR : On force EXCLUSIVEMENT le format Code 128 (ignore le DataMatrix)
-                    formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_128 ]
-                };
+function closeCropperModal() {
+    document.getElementById('cropperModal').classList.add('hidden');
+    if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+    document.getElementById('cameraInput').value = '';
+}
 
-                html5QrCodeLive.start(
-                    { facingMode: "environment" },
-                    configScanner,
-                    (decodedText) => { analyserTexteEnDirect(decodedText); },
-                    () => {}
-                )
-                .then(() => {
-                    setTimeout(() => { activerTorcheAutomatique(); }, 500);
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert("Erreur d'accès à la caméra.");
-                    fermerScannerLive();
-                });
-            } catch(e) {
-                alert("Erreur système : " + e.message);
-                fermerScannerLive();
-            }
-        };
+// ─── Scanner — ouverture ─────────────────────────────────────────────────────
+window.ouvrirScannerLive = function() {
+    // Reset état
+    liveSerialDetected = null;
+    liveModeleDetected = null;
+    lastRawScanned     = null;
+    lastScanTime       = 0;
+    torcheActive       = false;
+    scanMode           = 'SN';
 
-        function activerTorcheAutomatique() {
-            try {
-                html5QrCodeLive.applyVideoConstraints({ advanced: [{ torch: true }] })
-                .then(() => { torcheActive = true; })
-                .catch(() => {});
-            } catch(e) {}
+    resetUIScanner();
+    document.getElementById('liveScannerModal').classList.remove('hidden');
+
+    if (!html5QrCodeLive) {
+        html5QrCodeLive = new Html5Qrcode("liveReader");
+    }
+
+    demarrerScanner();
+};
+
+function demarrerScanner() {
+    // ── CLÉS : on force CODE_128 uniquement, on exclut le Datamatrix et QR ──
+    const formatsCode128 = window.Html5QrcodeSupportedFormats
+        ? [ Html5QrcodeSupportedFormats.CODE_128 ]
+        : undefined;
+
+    const config = {
+        fps: 15,
+        qrbox: function(w, h) {
+            return { width: Math.floor(w * 0.88), height: Math.floor(h * 0.40) };
+        },
+        // On ne déclare QUE CODE_128 → le Datamatrix/QR ne sera jamais détecté
+        formatsToSupport: formatsCode128,
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    };
+
+    html5QrCodeLive.start(
+        { facingMode: "environment" },
+        config,
+        (decodedText) => analyserCode(decodedText),
+        () => {}
+    )
+    .then(() => setTimeout(activerTorcheAutomatique, 600))
+    .catch(err => {
+        console.error(err);
+        alert("Impossible d'activer la caméra.");
+        fermerScannerLive();
+    });
+}
+
+// ─── Logique d'analyse — séquentielle S/N → P/N ──────────────────────────────
+function analyserCode(rawText) {
+    let brute = rawText.trim();
+    if (!brute) return;
+
+    // Debounce
+    const now = Date.now();
+    if (brute === lastRawScanned && (now - lastScanTime) < SCAN_COOLDOWN_MS) return;
+    lastRawScanned = brute;
+    lastScanTime   = now;
+
+    // Nettoyage caractères de contrôle GS1
+    let texte = brute.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '|');
+    let upper = texte.toUpperCase();
+
+    document.getElementById("liveStatusRaw").textContent = `Reçu : ${texte}`;
+    document.getElementById("liveStatusRaw").className   = "text-[11px] text-green-400 font-mono font-bold break-all";
+
+    // ── MODE S/N ─────────────────────────────────────────────────────────────
+    if (scanMode === 'SN') {
+        let sn = extraireSN(texte, upper);
+        if (sn) {
+            liveSerialDetected = sn;
+            document.getElementById("liveStatusSerial").textContent  = `✅ ${sn}`;
+            document.getElementById("liveStatusSerial").className     = "font-bold text-green-400 text-xs break-all";
+
+            // Passe en mode P/N
+            passerEnModePN();
         }
+        return;
+    }
 
-        window.toggleTorcheLive = function() {
-            if (!html5QrCodeLive) return;
-            torcheActive = !torcheActive;
-            try {
-                html5QrCodeLive.applyVideoConstraints({ advanced: [{ torch: torcheActive }] });
-            } catch (e) {}
-        };
+    // ── MODE P/N ─────────────────────────────────────────────────────────────
+    if (scanMode === 'PN') {
+        let pn = extrairePN(texte, upper);
+        if (pn) {
+            liveModeleDetected = pn;
+            document.getElementById("liveStatusModele").textContent = `✅ ${pn}`;
+            document.getElementById("liveStatusModele").className   = "font-bold text-green-400 text-xs break-all";
+            document.getElementById("btnAppliquerLive").disabled    = false;
 
-        function analyserTexteEnDirect(rawText) {
-            let brute = rawText.trim();
-            if (!brute) return;
+            // Auto-validation si les deux sont capturés
+            setTimeout(() => appliquerResultatsLive(), 500);
+        }
+    }
+}
 
-            const now = Date.now();
-            if (brute === lastRawScanned && (now - lastScanTime) < SCAN_COOLDOWN_MS) return;
-            lastRawScanned = brute;
-            lastScanTime = now;
-
-            let upper = brute.toUpperCase();
-
-            if (scanTarget === 'serial') {
-                // Nettoyage classique du préfixe S de flux si présent isolément
-                if (upper.startsWith('S') && upper.length >= 8 && !upper.startsWith('S4')) {
-                    brute = brute.substring(1);
-                }
-                liveValueDetected = brute;
-                document.getElementById("liveStatusRaw").innerHTML = `🟢 S/N Capturé : <span class="font-mono font-bold text-sm">${liveValueDetected}</span>`;
-                document.getElementById("liveStatusRaw").className = "text-xs text-green-400 block p-1";
-                document.getElementById("btnAppliquerLive").disabled = false;
-                
-                // Auto-validation après 400ms pour fluidifier la saisie
-                setTimeout(() => { appliquerResultatsLive(); }, 400);
-
-            } else if (scanTarget === 'modele') {
-                // Déduction immédiate via le dictionnaire de traitement de P/N
-                liveValueDetected = devinerNomModele(brute);
-                document.getElementById("liveStatusRaw").innerHTML = `🟢 P/N Reconnu : <span class="font-mono font-bold text-sm">${liveValueDetected}</span>`;
-                document.getElementById("liveStatusRaw").className = "text-xs text-green-400 block p-1";
-                document.getElementById("btnAppliquerLive").disabled = false;
-
-                setTimeout(() => { appliquerResultatsLive(); }, 400);
+// ─── Extraction S/N ──────────────────────────────────────────────────────────
+// S/N Zebra : préfixe "S" + contenu (T3J231701883), ou code interne (41J…/T3J…)
+function extraireSN(texte, upper) {
+    // Cas multi-segments GS1 (séparateur |)
+    if (texte.includes('|')) {
+        const segments = texte.split('|');
+        for (let seg of segments) {
+            seg = seg.trim();
+            let segUp = seg.toUpperCase();
+            if (segUp.startsWith('S') && seg.length >= 7 && seg.length <= 22) {
+                let cand = seg.substring(1);
+                if (/^[A-Z0-9]{6,20}$/i.test(cand)) return cand;
             }
         }
+    }
 
-        window.appliquerResultatsLive = function() {
-            if (liveValueDetected) {
-                if (scanTarget === 'serial') {
-                    document.getElementById('serial').value = liveValueDetected;
-                } else if (scanTarget === 'modele') {
-                    document.getElementById('modele').value = liveValueDetected;
-                }
-            }
-            fermerScannerLive();
-        };
+    // Code simple — préfixe S
+    if (upper.startsWith('S') && texte.length >= 7 && texte.length <= 22) {
+        let cand = texte.substring(1);
+        if (/^[A-Z0-9]{5,20}$/i.test(cand)) return cand;
+    }
 
-        window.fermerScannerLive = function() {
-            document.getElementById('liveScannerModal').classList.add('hidden');
-            if (html5QrCodeLive) { html5QrCodeLive.stop().catch(() => {}); }
-        };
+    // Code interne court (ex: T3J231701883 directement, ou 41J…)
+    if (/^[T-Z][0-9][A-Z][0-9]{6,}/i.test(upper) && texte.length <= 20) return texte;
+    if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/i.test(upper)) return texte;
 
-        function updateTable() {
-            const tbody = document.getElementById('reportTableBody');
-            tbody.innerHTML = '';
-            if (reportData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport.</td></tr>`;
-                return;
-            }
-            reportData.forEach(d => {
-                const row = document.createElement('tr');
-                row.className = "hover:bg-gray-50 text-xs text-gray-700";
-                row.innerHTML = `
-                    <td class="px-3 py-3 text-left">
-                        <div class="font-bold text-gray-900">${d.modele}</div>
-                        <div class="text-gray-500 italic text-[11px]">${d.lieuId || '-'}</div>
-                    </td>
-                    <td class="px-3 py-3 font-bold text-gray-800 text-sm tracking-wider">${d.serial}</td>
-                    <td class="px-3 py-3">
-                        <button onclick="deleteRow(${d.idKey})" class="text-red-600 font-bold cursor-pointer hover:underline">Supprimer</button>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
+    // Fallback alphanumérique pur de longueur S/N
+    if (/^[A-Z0-9]{8,20}$/i.test(texte) && !texte.includes('-')) return texte;
+
+    return null;
+}
+
+// ─── Extraction P/N ──────────────────────────────────────────────────────────
+// P/N Zebra : ZT23143-T1E000FZ (ou avec préfixe 1P / P)
+function extrairePN(texte, upper) {
+    let src = texte;
+
+    // Segments GS1
+    if (texte.includes('|')) {
+        const segments = texte.split('|');
+        for (let seg of segments) {
+            seg = seg.trim();
+            let segUp = seg.toUpperCase();
+            if (segUp.startsWith('1P')) { src = seg.substring(2); break; }
+            if (segUp.startsWith('P') && (segUp.startsWith('PZT') || segUp.startsWith('PZD') || segUp.startsWith('PZM'))) { src = seg.substring(1); break; }
+            if (/^ZT|^ZD|^ZM/i.test(seg) && seg.includes('-')) { src = seg; break; }
         }
+    }
 
-        window.deleteRow = function(id) {
-            reportData = reportData.filter(i => i.idKey !== id);
-            updateTable();
-        };
-    </script>
+    let s = src.toUpperCase().trim();
+
+    // Retirer les préfixes 1P / P
+    if (s.startsWith('1P')) s = s.substring(2);
+    else if (s.startsWith('P') && (s.startsWith('PZT') || s.startsWith('PZD') || s.startsWith('PZM'))) s = s.substring(1);
+
+    // Vérifier que c'est bien un P/N Zebra (ZTxxx / ZDxxx / ZMxxx)
+    if (/^(ZT|ZD|ZM)\d{3,}/.test(s)) {
+        return devinerNomModele(s);
+    }
+
+    // Rejeter si ça ressemble à un S/N
+    if (!s.includes('-') && /^[A-Z0-9]{8,20}$/.test(s) && !s.startsWith('ZT') && !s.startsWith('ZD')) return null;
+
+    // Accepter tout ce qui contient un tiret et ressemble à un P/N
+    if (s.includes('-') && s.length >= 8) return devinerNomModele(s);
+
+    return null;
+}
+
+// ─── Passage en mode P/N ─────────────────────────────────────────────────────
+function passerEnModePN() {
+    scanMode = 'PN';
+
+    // UI : étape 1 validée, étape 2 active
+    document.getElementById('scanModeLabel').textContent     = 'ÉTAPE 2 : Scannez le code P/N (modèle)';
+    document.getElementById('scanOverlayLabel').innerHTML    = '<span class="bg-blue-500 text-white text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-widest">P/N</span>';
+    document.getElementById('scanBox').className             = 'w-[88%] h-[40%] border-2 border-dashed border-blue-400 rounded bg-transparent flex items-center justify-center';
+    document.getElementById('card_sn').className             = 'bg-gray-800 p-2 rounded text-center border border-gray-700 opacity-60';
+    document.getElementById('card_pn').className             = 'bg-gray-800 p-2 rounded text-center border-2 border-blue-400 opacity-100';
+    document.getElementById('card_pn').querySelector('div').className = 'text-[10px] text-blue-400 uppercase font-bold mb-1';
+    document.getElementById('btnNextStep').classList.add('hidden');
+    document.getElementById('btnAppliquerLive').disabled     = true;
+
+    // Reset debounce pour ne pas bloquer le P/N avec le S/N précédent
+    lastRawScanned = null;
+    lastScanTime   = 0;
+    document.getElementById("liveStatusRaw").textContent = "Positionnez maintenant le code P/N...";
+    document.getElementById("liveStatusRaw").className   = "text-[11px] text-blue-400 italic font-mono break-all";
+}
+
+// ─── Reset UI ────────────────────────────────────────────────────────────────
+function resetUIScanner() {
+    document.getElementById('scanModeLabel').textContent     = 'ÉTAPE 1 : Scannez le code S/N (numéro de série)';
+    document.getElementById('scanOverlayLabel').innerHTML    = '<span class="bg-amber-500 text-gray-900 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-widest">S/N</span>';
+    document.getElementById('scanBox').className             = 'w-[88%] h-[40%] border-2 border-dashed border-amber-400 rounded bg-transparent flex items-center justify-center';
+    document.getElementById('card_sn').className             = 'bg-gray-800 p-2 rounded text-center border-2 border-amber-500';
+    document.getElementById('card_pn').className             = 'bg-gray-800 p-2 rounded text-center border border-gray-700 opacity-50';
+    document.getElementById('card_pn').querySelector('div').className = 'text-[10px] text-gray-400 uppercase font-bold mb-1';
+    document.getElementById("liveStatusSerial").textContent  = "❌ En attente";
+    document.getElementById("liveStatusSerial").className    = "font-bold text-red-400 text-xs break-all";
+    document.getElementById("liveStatusModele").textContent  = "❌ En attente";
+    document.getElementById("liveStatusModele").className    = "font-bold text-red-400 text-xs break-all";
+    document.getElementById("liveStatusRaw").textContent     = "Positionnez le code barre...";
+    document.getElementById("liveStatusRaw").className       = "text-[11px] text-gray-400 italic font-mono break-all";
+    document.getElementById('btnNextStep').classList.add('hidden');
+    document.getElementById('btnAppliquerLive').disabled     = true;
+}
+
+// ─── Torche ───────────────────────────────────────────────────────────────────
+function activerTorcheAutomatique() {
+    try { html5QrCodeLive.applyVideoConstraints({ advanced: [{ torch: true }] }).then(() => torcheActive = true).catch(()=>{}); } catch(e) {}
+}
+window.toggleTorcheLive = function() {
+    if (!html5QrCodeLive) return;
+    torcheActive = !torcheActive;
+    try { html5QrCodeLive.applyVideoConstraints({ advanced: [{ torch: torcheActive }] }); } catch(e) {}
+};
+
+// ─── Valider + fermer ─────────────────────────────────────────────────────────
+window.appliquerResultatsLive = function() {
+    if (liveSerialDetected) document.getElementById('serial').value = liveSerialDetected;
+    if (liveModeleDetected) document.getElementById('modele').value = liveModeleDetected;
+    fermerScannerLive();
+};
+
+window.fermerScannerLive = function() {
+    document.getElementById('liveScannerModal').classList.add('hidden');
+    if (html5QrCodeLive) html5QrCodeLive.stop().catch(()=>{});
+};
+
+// ─── Table ────────────────────────────────────────────────────────────────────
+function updateTable() {
+    const tbody = document.getElementById('reportTableBody');
+    tbody.innerHTML = '';
+    if (!reportData.length) {
+        tbody.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport.</td></tr>';
+        return;
+    }
+    reportData.forEach(d => {
+        const row = document.createElement('tr');
+        row.className = "hover:bg-gray-50 text-xs text-gray-700";
+        row.innerHTML = `
+            <td class="px-3 py-3 text-left">
+                <div class="font-bold text-gray-900">${d.modele}</div>
+                <div class="text-gray-500 italic text-[11px]">${d.lieuId || '-'}</div>
+            </td>
+            <td class="px-3 py-3 font-bold text-gray-800 text-sm tracking-wider">${d.serial}</td>
+            <td class="px-3 py-3">
+                <button onclick="deleteRow(${d.idKey})" class="text-red-600 font-bold cursor-pointer">Supprimer</button>
+            </td>`;
+        tbody.appendChild(row);
+    });
+}
+window.deleteRow = function(id) {
+    reportData = reportData.filter(i => i.idKey !== id);
+    updateTable();
+};
+</script>
 </body>
 </html>
