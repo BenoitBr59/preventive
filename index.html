@@ -115,14 +115,14 @@
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">État Dot (Tête)</label>
                 <select id="etatDot" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
-                    <option>OK</option><option>1 Dot HS</option><option>2 Dots HS</option>
-                    <option>Plusieurs Dots HS</option><option>Tête HS</option>
+                    <option>OK</option><option>Dots HS</option><option>Surchauffe</option>
+                    <option>Dots Usées</option>
                 </select>
             </div>
             <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Pressing Roller</label>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Platen Roller</label>
                 <select id="roller" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
-                    <option>OK</option><option>Marqué</option><option>À remplacer</option>
+                    <option>OK</option><option>Manque Matières</option><option>Cutter</option>
                 </select>
             </div>
             <div>
@@ -141,7 +141,7 @@
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">État Général</label>
                 <select id="general" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm">
-                    <option>OK</option><option>A surveiller</option><option>Critique</option>
+                    <option>OK</option><option>Voir Rem</option>
                 </select>
             </div>
             <div class="col-span-2">
@@ -326,8 +326,7 @@
 // ════════════════════════════════════════════════════════
 const MODELES_SUGGESTIONS = [
     // ZT100
-    'ZT111 - 8dots','ZT111 - 12dots',
-    'ZT220 - 8dots','ZT220 - 12dots',
+    'ZT111 - 8dots','ZT220 - 8dots',
     // ZT200
     'ZT230 - 8dots','ZT230 - 12dots',
     'ZT231 - 8dots','ZT231 - 12dots',
@@ -339,7 +338,6 @@ const MODELES_SUGGESTIONS = [
     // ZT600
     'ZT610 - 8dots','ZT610 - 12dots','ZT610 - 24dots',
     'ZT620 - 8dots','ZT620 - 12dots',
-    'ZT630 - 8dots',
     // ZD
     'ZD220 - 8dots','ZD230 - 8dots',
     'ZD421 - 8dots','ZD421 - 12dots',
@@ -399,7 +397,7 @@ function identifierModele(pnBrut) {
     if (m) {
         const fam = m[1], mod = m[2], res = m[3];
         const TBL = {
-            ZT:{'23':'ZT231','41':'ZT411','42':'ZT421','61':'ZT610','62':'ZT620','63':'ZT630','30':'ZT230'},
+            ZT:{'23':'ZT231','41':'ZT411','42':'ZT421','61':'ZT610','62':'ZT620','30':'ZT230'},
             ZD:{'42':'ZD421','62':'ZD621','22':'ZD220','23':'ZD230'},
             ZM:{'40':'ZM400','60':'ZM600'}
         };
@@ -412,7 +410,7 @@ function identifierModele(pnBrut) {
     const COURTS = {
         'ZT231':'ZT231','ZT230':'ZT230','ZT411':'ZT411','ZT421':'ZT421',
         'ZD421':'ZD421','ZD221':'ZD221','ZT410':'ZT410','ZT420':'ZT420',
-        'ZT610':'ZT610','ZT620':'ZT620','ZT630':'ZT630','ZM400':'ZM400','ZM600':'ZM600'
+        'ZT610':'ZT610','ZT620':'ZT620','ZM400':'ZM400','ZM600':'ZM600'
     };
     for (const [k,v] of Object.entries(COURTS)) {
         if (t.startsWith(k)) {
