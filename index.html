@@ -7,13 +7,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-
     <!--
-        IMPORTANT : on utilise ZXing-js à la place de html5-qrcode.
-        ZXing permet de forcer CODE_128 uniquement ET d'ignorer complètement
-        le Datamatrix / QR Code présents sur l'étiquette Zebra.
+        On utilise l'API native BarcodeDetector (Chrome Android 83+)
+        qui accepte formats:['code_128'] pour ignorer le Datamatrix.
+        Pas de bibliothèque externe pour le scanner — juste la caméra + canvas.
     -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.18.6/zxing.min.js"></script>
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen p-4 md:p-8">
 
@@ -31,18 +29,15 @@
             <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Intervenant / Technicien</label>
             <select id="headerIntervenant" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
                 <option value="">-- Choisir l'intervenant --</option>
-                <option value="Pascal CARTON">Pascal CARTON</option>
-                <option value="Benoît BRACKMAN">Benoît BRACKMAN</option>
-                <option value="Pascal CARTON / Benoît BRACKMAN">Pascal CARTON / Benoît BRACKMAN</option>
+                <option>Pascal CARTON</option>
+                <option>Benoît BRACKMAN</option>
+                <option>Pascal CARTON / Benoît BRACKMAN</option>
             </select>
         </div>
         <div>
             <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Parc d'imprimante</label>
             <select id="headerBrand" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
-                <option value="ZEBRA">ZEBRA</option>
-                <option value="HONEYWELL">HONEYWELL</option>
-                <option value="TOSHIBA">TOSHIBA</option>
-                <option value="INTERMEC">INTERMEC</option>
+                <option>ZEBRA</option><option>HONEYWELL</option><option>TOSHIBA</option><option>INTERMEC</option>
             </select>
         </div>
         <div>
@@ -60,18 +55,18 @@
             <input type="text" id="zone" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ex: Expédition">
         </div>
         <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">Modèle d'imprimante (P/N)</label>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Modèle (P/N détecté)</label>
             <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm bg-yellow-50 font-semibold" placeholder="Détecté automatiquement" required>
         </div>
         <div>
             <label class="block text-xs font-medium text-gray-700 mb-1">Machine ID / Lieu précis</label>
-            <input type="text" id="lieuId" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="ID Interne / Emplacement">
+            <input type="text" id="lieuId" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="ID Interne">
         </div>
         <div>
             <label class="block text-xs font-medium text-gray-700 mb-1">Numéro de Série (S/N)</label>
             <div class="flex">
                 <input type="text" id="serial" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm font-bold" placeholder="S/N" required>
-                <button type="button" onclick="ouvrirScanner()" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-4 text-xs font-bold cursor-pointer flex items-center gap-1 shadow whitespace-nowrap">
+                <button type="button" onclick="ouvrirScanner()" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-4 text-xs font-bold cursor-pointer whitespace-nowrap">
                     📷 SCANNER
                 </button>
             </div>
@@ -152,67 +147,71 @@
     </div>
 </div>
 
-<!-- ═══════════════════════ MODAL SCANNER ═══════════════════════ -->
-<div id="scannerModal" class="hidden fixed inset-0 bg-black flex flex-col z-50">
+<!-- ═══════════════════ MODAL SCANNER ═══════════════════ -->
+<div id="scannerModal" class="hidden fixed inset-0 bg-black flex flex-col z-50" style="touch-action:none;">
 
-    <!-- Header -->
-    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+    <!-- En-tête -->
+    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-800 flex-shrink-0">
         <div>
-            <div class="text-amber-400 font-bold text-sm tracking-wide">⚡ SCANNER CODE 128 — ZEBRA</div>
+            <div class="text-amber-400 font-bold text-sm">⚡ SCANNER CODE 128 — ZEBRA</div>
             <div id="stepLabel" class="text-blue-300 text-xs mt-0.5">ÉTAPE 1 / 2 — Pointez sur le code S/N</div>
         </div>
         <button onclick="fermerScanner()" class="bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded">✕ Fermer</button>
     </div>
 
-    <!-- Viewfinder -->
+    <!-- Vidéo + visée -->
     <div class="relative flex-1 bg-black overflow-hidden">
-        <video id="scanVideo" class="w-full h-full object-cover" playsinline muted></video>
+        <video id="scanVideo" class="absolute inset-0 w-full h-full object-cover" playsinline muted autoplay></video>
 
-        <!-- Fenêtre de visée avec ligne laser -->
-        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <!-- Masque sombre autour -->
-            <div class="absolute inset-0 bg-black/50"></div>
-            <!-- Zone de scan transparente -->
-            <div id="scanWindow" class="relative z-10 w-[88%] rounded"
-                 style="height:18%; border: 2px dashed #f59e0b; background: transparent; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);">
-                <!-- Ligne laser animée -->
-                <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-0.5 bg-red-500 animate-pulse"></div>
-                <!-- Coins -->
-                <div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-amber-400"></div>
-                <div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-amber-400"></div>
-                <div class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-amber-400"></div>
-                <div class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-amber-400"></div>
-            </div>
+        <!-- Canvas de décodage (invisible) -->
+        <canvas id="decodeCanvas" class="hidden"></canvas>
+
+        <!-- Overlay sombre + fenêtre de visée -->
+        <div class="absolute inset-0 pointer-events-none" id="overlay">
+            <!-- SVG overlay avec découpe transparente au centre -->
+            <svg class="absolute inset-0 w-full h-full">
+                <defs>
+                    <mask id="scanMask">
+                        <rect width="100%" height="100%" fill="white"/>
+                        <rect id="cutout" x="6%" y="38%" width="88%" height="24%" rx="4" fill="black"/>
+                    </mask>
+                </defs>
+                <rect width="100%" height="100%" fill="rgba(0,0,0,0.55)" mask="url(#scanMask)"/>
+                <!-- Bordure de la zone de scan -->
+                <rect id="scanBorder" x="6%" y="38%" width="88%" height="24%" rx="4"
+                      fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="8,4"/>
+                <!-- Ligne laser -->
+                <line id="laserLine" x1="6%" y1="50%" x2="94%" y2="50%"
+                      stroke="#ef4444" stroke-width="1.5" opacity="0.85">
+                    <animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+            </svg>
             <!-- Badge mode -->
-            <div id="modeBadge" class="absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-amber-500 text-gray-900 text-[11px] font-extrabold px-4 py-1 rounded-full uppercase tracking-widest">S/N</div>
+            <div id="modeBadge" class="absolute top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-gray-900 text-[11px] font-extrabold px-4 py-1 rounded-full uppercase tracking-widest">S/N</div>
         </div>
     </div>
 
-    <!-- Panneau bas -->
-    <div class="bg-gray-900 px-4 py-3 flex flex-col gap-2">
-        <!-- Flash -->
+    <!-- Panneau contrôles -->
+    <div class="bg-gray-900 px-4 py-3 flex flex-col gap-2 flex-shrink-0">
         <button onclick="toggleFlash()" class="w-full bg-amber-500 hover:bg-amber-400 text-gray-900 font-bold text-xs py-2 rounded uppercase tracking-wider">
             ⚡ Flash ON / OFF
         </button>
 
-        <!-- Résultats S/N + P/N -->
         <div class="grid grid-cols-2 gap-2">
             <div id="cardSN" class="bg-gray-800 rounded p-2 text-center border-2 border-amber-500">
                 <div class="text-[10px] text-amber-400 font-bold uppercase mb-1">Étape 1 — S/N</div>
                 <div id="resultSN" class="text-red-400 font-bold text-xs break-all">❌ En attente</div>
             </div>
             <div id="cardPN" class="bg-gray-800 rounded p-2 text-center border border-gray-700 opacity-50">
-                <div class="text-[10px] text-gray-400 font-bold uppercase mb-1">Étape 2 — P/N</div>
+                <div class="text-[10px] text-gray-400 font-bold uppercase mb-1" id="cardPNLabel">Étape 2 — P/N</div>
                 <div id="resultPN" class="text-red-400 font-bold text-xs break-all">❌ En attente</div>
             </div>
         </div>
 
-        <!-- Brut reçu -->
         <div class="bg-black rounded px-2 py-1.5 text-center border border-gray-800">
             <span id="rawResult" class="text-[11px] text-gray-500 font-mono break-all">Aucune lecture...</span>
         </div>
 
-        <!-- Valider -->
         <button id="btnValider" onclick="validerEtFermer()" disabled
             class="w-full bg-green-600 disabled:bg-gray-700 disabled:opacity-40 text-white font-bold py-2.5 rounded text-sm">
             ✅ Valider et remplir le formulaire
@@ -220,7 +219,7 @@
     </div>
 </div>
 
-<!-- Modal recadrage -->
+<!-- Modal recadrage photo -->
 <div id="cropperModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-4 max-w-xl w-full flex flex-col max-h-[90vh]">
         <h3 class="text-sm font-bold text-gray-900 mb-2 uppercase">Recadrage (10x4)</h3>
@@ -235,202 +234,179 @@
 </div>
 
 <script>
-// ════════════════════════════════════════════════════════════════
-//  ÉTAT GLOBAL
-// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+//  ÉTAT
+// ════════════════════════════════════════════════════════
 let reportData        = [];
 let currentPhotoBase64 = null;
 let cropperInstance   = null;
 
-let snDetecte  = null;   // Numéro de série capturé
-let pnDetecte  = null;   // P/N capturé (ex: ZT23143-T1E000FZ)
-let modeleAffiche = null; // Nom lisible (ex: ZT231 - 8dots)
+let snDetecte     = null;
+let pnBrutDetecte = null;
+let modeleAffiche = null;
+let scanMode      = 'SN';   // 'SN' | 'PN'
 
-let scanMode = 'SN';     // 'SN' ou 'PN'
-
-// ZXing reader — instancié une seule fois, réutilisé
-let zxingReader  = null;
-let videoStream  = null;
-let scanInterval = null;
-let flashActive  = false;
-let videoTrack   = null;
-
-// Canvas de décodage (offscreen)
-const decodeCanvas  = document.createElement('canvas');
-const decodeCtx     = decodeCanvas.getContext('2d');
+let videoStream   = null;
+let videoTrack    = null;
+let scanRafId     = null;
+let flashActive   = false;
+let detector      = null;   // BarcodeDetector natif
 
 // Debounce
-let lastDecoded = '';
+let lastDecoded   = '';
 let lastDecodedAt = 0;
-const DEBOUNCE_MS = 1200;
+const DEBOUNCE    = 1200;
 
-// ════════════════════════════════════════════════════════════════
-//  IDENTIFICATION MODÈLE ZEBRA depuis P/N brut
-//  Ex: "ZT23143-T1E000FZ" → "ZT231 - 8dots"
-// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+//  IDENTIFICATION MODÈLE depuis P/N Zebra
+//  Ex: "ZT23143-T1E000FZ" → { affichage:"ZT231 - 8dots" }
+// ════════════════════════════════════════════════════════
 function identifierModele(pnBrut) {
     let t = pnBrut.toUpperCase().trim();
-
-    // Retirer préfixes GS1 éventuels
     if (t.startsWith('1P')) t = t.substring(2);
     else if (/^P(ZT|ZD|ZM)/.test(t)) t = t.substring(1);
 
-    // Format Zebra : ZTxxyy-SUFFIX  (ex: ZT23143-T1E000FZ)
-    //   famille : ZT / ZD / ZM
-    //   xx      : code modèle (23→ZT231, 41→ZT411, 42→ZT421…)
-    //   yy      : code résolution (03→12dots/300dpi, 06→24dots/600dpi, sinon 8dots)
+    // ZTxxyy-... : xx=modèle, yy=résolution
     const m = t.match(/^(ZT|ZD|ZM)(\d{2})(\d{2})/);
     if (m) {
-        const famille = m[1];
-        const modCode = m[2];   // ex: "23"
-        const resCode = m[3];   // ex: "14" ou "03"
-
-        const TABLE_MODELES = {
-            ZT: { '23':'ZT231','41':'ZT411','42':'ZT421','61':'ZT610','62':'ZT620','63':'ZT630' },
-            ZD: { '42':'ZD421','62':'ZD621','22':'ZD220','23':'ZD230' },
-            ZM: { '40':'ZM400','60':'ZM600' }
+        const fam = m[1], mod = m[2], res = m[3];
+        const MODELES = {
+            ZT:{ '23':'ZT231','41':'ZT411','42':'ZT421','61':'ZT610','62':'ZT620','63':'ZT630' },
+            ZD:{ '42':'ZD421','62':'ZD621','22':'ZD220','23':'ZD230' },
+            ZM:{ '40':'ZM400','60':'ZM600' }
         };
-        const nomModele = (TABLE_MODELES[famille] && TABLE_MODELES[famille][modCode])
-            ? TABLE_MODELES[famille][modCode]
-            : `${famille}${modCode}x`;
-
-        // La résolution est encodée dans le 2e chiffre du code résolution
-        const resDig = resCode.charAt(1);  // ex: "14"→'4', "03"→'3', "06"→'6'
-        const dots = resDig === '3' ? '12dots' : resDig === '6' ? '24dots' : '8dots';
-
-        return { modele: nomModele, resolution: dots, affichage: `${nomModele} - ${dots}` };
+        const nom  = (MODELES[fam]||{})[mod] || `${fam}${mod}x`;
+        const dig  = res.charAt(1);
+        const dots = dig==='3'?'12dots':dig==='6'?'24dots':'8dots';
+        return `${nom} - ${dots}`;
     }
-
-    // Prefixes courts sans tiret (anciens firmwares)
-    const PREFIXES = {
-        'ZT231':'ZT231','ZT411':'ZT411','ZT421':'ZT421','ZD421':'ZD421',
-        'ZT410':'ZT410','ZT420':'ZT420','ZM400':'ZM400'
-    };
-    for (const [k,v] of Object.entries(PREFIXES)) {
+    // Anciens modèles sans tiret
+    const COURTS = ['ZT231','ZT411','ZT421','ZD421','ZT410','ZT420','ZM400'];
+    for (const k of COURTS) {
         if (t.startsWith(k)) {
-            const resDig = t.charAt(6);
-            const dots = resDig === '3' ? '12dots' : resDig === '6' ? '24dots' : '8dots';
-            return { modele: v, resolution: dots, affichage: `${v} - ${dots}` };
+            const d = t.charAt(6);
+            return `${k} - ${d==='3'?'12dots':d==='6'?'24dots':'8dots'}`;
         }
     }
-
-    // Si on n'a pas reconnu mais que ça ressemble à un P/N avec tiret → retourner brut
-    if (t.includes('-')) return { modele: t, resolution: '', affichage: t };
-
-    return null;
+    // Préfixes courts S/N → modèle
+    if (t.startsWith('41J')) return 'ZT411 - 8dots';
+    if (t.startsWith('42J')) return 'ZT421 - 8dots';
+    if (t.startsWith('23J')||t.startsWith('23C')) return 'ZT231 - 8dots';
+    if (t.startsWith('33J')||t.startsWith('34J')) return 'ZD421 - 8dots';
+    if (t.startsWith('41A')) return 'ZT410 - 8dots';
+    if (t.startsWith('42A')) return 'ZT420 - 8dots';
+    if (t.startsWith('12C')) return 'ZM400 - 8dots';
+    // Fallback : retourner brut
+    return t.includes('-') ? t : null;
 }
 
-// ════════════════════════════════════════════════════════════════
-//  OUVERTURE DU SCANNER
-// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+//  OUVERTURE SCANNER
+// ════════════════════════════════════════════════════════
 window.ouvrirScanner = async function() {
-    snDetecte     = null;
-    pnDetecte     = null;
-    modeleAffiche = null;
-    scanMode      = 'SN';
-    lastDecoded   = '';
-    lastDecodedAt = 0;
-    flashActive   = false;
+    // Vérifier support BarcodeDetector
+    if (!('BarcodeDetector' in window)) {
+        alert("Votre navigateur ne supporte pas BarcodeDetector (requis : Chrome Android 83+). Mettez à jour Chrome.");
+        return;
+    }
 
+    // Vérifier que code_128 est supporté
+    const formats = await BarcodeDetector.getSupportedFormats();
+    if (!formats.includes('code_128')) {
+        alert("Le format Code 128 n'est pas supporté par ce navigateur. Essayez Chrome Android récent.");
+        return;
+    }
+
+    // Créer le détecteur UNIQUEMENT Code 128 → Datamatrix ignoré nativement
+    detector = new BarcodeDetector({ formats: ['code_128'] });
+
+    // Reset état
+    snDetecte = null; pnBrutDetecte = null; modeleAffiche = null;
+    scanMode = 'SN'; lastDecoded = ''; lastDecodedAt = 0; flashActive = false;
     resetUI();
     document.getElementById('scannerModal').classList.remove('hidden');
 
-    // Instancier ZXing une seule fois
-    if (!zxingReader) {
-        // ZXing — on force CODE_128 uniquement (ignore Datamatrix, QR, EAN…)
-        const hints = new Map();
-        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.CODE_128]);
-        hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-        zxingReader = new ZXing.BrowserMultiFormatReader(hints);
-    }
-
     try {
-        // Demander la caméra arrière avec résolution maximale pour lire les codes fins
         videoStream = await navigator.mediaDevices.getUserMedia({
             video: {
                 facingMode: { ideal: 'environment' },
                 width:  { ideal: 1920 },
-                height: { ideal: 1080 },
-                focusMode: { ideal: 'continuous' }
+                height: { ideal: 1080 }
             }
         });
-
         const video = document.getElementById('scanVideo');
         video.srcObject = videoStream;
         await video.play();
-
-        // Récupérer le track pour la torche
         videoTrack = videoStream.getVideoTracks()[0];
 
-        // Allumer le flash automatiquement si disponible
-        setTimeout(() => allumerFlash(), 800);
+        // Flash auto
+        setTimeout(allumerFlash, 800);
 
-        // Démarrer la boucle de décodage
-        demarrerBoucle();
+        // Lancer la boucle RAF
+        boucleDetection();
 
     } catch(err) {
-        console.error(err);
-        alert("Impossible d'activer la caméra : " + err.message);
+        alert("Caméra inaccessible : " + err.message);
         fermerScanner();
     }
 };
 
-// ════════════════════════════════════════════════════════════════
-//  BOUCLE DE DÉCODAGE — capture frame vidéo → ZXing CODE_128
-// ════════════════════════════════════════════════════════════════
-function demarrerBoucle() {
-    const video = document.getElementById('scanVideo');
+// ════════════════════════════════════════════════════════
+//  BOUCLE DE DÉTECTION (requestAnimationFrame)
+//  On ne décode que la bande centrale de la vidéo
+//  pour exclure physiquement le Datamatrix (coin haut-droit)
+// ════════════════════════════════════════════════════════
+async function boucleDetection() {
+    const video  = document.getElementById('scanVideo');
+    const canvas = document.getElementById('decodeCanvas');
+    const ctx    = canvas.getContext('2d');
 
-    scanInterval = setInterval(() => {
-        if (video.readyState < 2 || video.paused) return;
+    if (!videoStream || video.readyState < 2) {
+        scanRafId = requestAnimationFrame(boucleDetection);
+        return;
+    }
 
-        const vw = video.videoWidth;
-        const vh = video.videoHeight;
-        if (!vw || !vh) return;
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
 
-        // On ne décode que la bande centrale (40% de la hauteur) pour éviter
-        // de capturer le Datamatrix qui est dans le coin haut-droit
-        const cropH = Math.floor(vh * 0.40);
-        const cropY = Math.floor(vh * 0.30);  // commence à 30% du haut
+    // Zone de crop : bande horizontale centrale (38%→62% en hauteur)
+    // Le Datamatrix Zebra est en haut à droite → hors de cette zone
+    const cropY = Math.floor(vh * 0.30);
+    const cropH = Math.floor(vh * 0.40);
 
-        decodeCanvas.width  = vw;
-        decodeCanvas.height = cropH;
-        decodeCtx.drawImage(video, 0, cropY, vw, cropH, 0, 0, vw, cropH);
+    canvas.width  = vw;
+    canvas.height = cropH;
+    ctx.drawImage(video, 0, cropY, vw, cropH, 0, 0, vw, cropH);
 
-        // Conversion en luminance pour ZXing
-        const imageData = decodeCtx.getImageData(0, 0, vw, cropH);
-        const lumi      = new Uint8ClampedArray(vw * cropH);
-        for (let i = 0; i < vw * cropH; i++) {
-            const r = imageData.data[i*4], g = imageData.data[i*4+1], b = imageData.data[i*4+2];
-            lumi[i] = Math.round(0.299*r + 0.587*g + 0.114*b);
+    try {
+        const results = await detector.detect(canvas);
+        if (results && results.length > 0) {
+            // Prendre le code le plus large (le plus proche de la caméra)
+            const best = results.reduce((a,b) =>
+                (b.boundingBox.width > a.boundingBox.width) ? b : a
+            );
+            const texte = best.rawValue || best.rawValue;
+            if (texte) traiterCode(texte);
         }
+    } catch(e) { /* frame sans code → normal */ }
 
-        try {
-            const luminanceSource = new ZXing.RGBLuminanceSource(lumi, vw, cropH);
-            const bitmap          = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
-            const result          = zxingReader.decode(bitmap);
-
-            if (result) {
-                const texte = result.getText();
-                const now   = Date.now();
-                if (texte === lastDecoded && (now - lastDecodedAt) < DEBOUNCE_MS) return;
-                lastDecoded   = texte;
-                lastDecodedAt = now;
-                traiterCode(texte);
-            }
-        } catch(e) {
-            // NotFoundException normale quand aucun code dans le frame — ignorée
-        }
-    }, 80); // ~12 fps, léger
+    scanRafId = requestAnimationFrame(boucleDetection);
 }
 
-// ════════════════════════════════════════════════════════════════
-//  TRAITEMENT D'UN CODE DÉCODÉ
-// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+//  TRAITEMENT DU CODE DÉCODÉ
+// ════════════════════════════════════════════════════════
 function traiterCode(texte) {
     const brut = texte.trim();
-    document.getElementById('rawResult').textContent = brut;
-    document.getElementById('rawResult').className   = 'text-[11px] text-green-400 font-mono font-bold break-all';
+    const now  = Date.now();
+    if (brut === lastDecoded && (now - lastDecodedAt) < DEBOUNCE) return;
+    lastDecoded   = brut;
+    lastDecodedAt = now;
+
+    // Afficher brut
+    const rawEl = document.getElementById('rawResult');
+    rawEl.textContent = brut;
+    rawEl.className   = 'text-[11px] text-green-400 font-mono font-bold break-all';
 
     if (scanMode === 'SN') {
         const sn = extraireSN(brut);
@@ -439,110 +415,105 @@ function traiterCode(texte) {
             document.getElementById('resultSN').textContent = '✅ ' + sn;
             document.getElementById('resultSN').className   = 'text-green-400 font-bold text-xs break-all';
             passerModePN();
+        } else {
+            // Peut-être c'est déjà un P/N ? On essaie quand même
+            const m = identifierModele(brut);
+            if (m) {
+                // Cas où on scanne d'abord le P/N par erreur → on l'accepte en étape 2
+                modeleAffiche = m;
+                pnBrutDetecte = brut;
+                document.getElementById('resultPN').textContent = '✅ ' + m;
+                document.getElementById('resultPN').className   = 'text-green-400 font-bold text-xs break-all';
+                // On reste en mode SN pour capter le S/N
+            }
         }
-    } else {
-        const info = extrairePN(brut);
-        if (info) {
-            pnDetecte     = brut;
-            modeleAffiche = info.affichage;
-            document.getElementById('resultPN').textContent = '✅ ' + info.affichage;
+        return;
+    }
+
+    if (scanMode === 'PN') {
+        // Ignorer si c'est le même S/N qu'on vient de scanner
+        if (brut === snDetecte || brut === 'S' + snDetecte) return;
+
+        const m = identifierModele(brut);
+        if (m) {
+            modeleAffiche = m;
+            pnBrutDetecte = brut;
+            document.getElementById('resultPN').textContent = '✅ ' + m;
             document.getElementById('resultPN').className   = 'text-green-400 font-bold text-xs break-all';
             document.getElementById('btnValider').disabled  = false;
-            // Auto-validation après 600ms
             setTimeout(validerEtFermer, 600);
+        } else {
+            // Code non reconnu en mode PN → afficher sans bloquer
+            rawEl.textContent = '⚠️ Non reconnu : ' + brut;
+            rawEl.className   = 'text-[11px] text-yellow-400 font-mono break-all';
         }
     }
 }
 
-// ─── Extraction S/N ──────────────────────────────────────────
-// Le code barre S/N Zebra encode : "ST3J231701883" (préfixe S)
-// ou directement "T3J231701883"
+// ─── Extraction S/N ──────────────────────────────────
 function extraireSN(brut) {
     let t = brut.trim();
     let u = t.toUpperCase();
 
-    // Préfixe S suivi d'alphanumériques (format standard Zebra)
+    // Préfixe S standard Zebra (ex: ST3J231701883)
     if (u.startsWith('S') && t.length >= 7 && t.length <= 22) {
         const cand = t.substring(1);
         if (/^[A-Z0-9]{5,20}$/i.test(cand)) return cand;
     }
-
-    // Code interne Zebra direct : T3J, 41J, 42J, 23J, etc.
+    // Codes internes Zebra (T3J…, 41J…, 42J…)
     if (/^[A-Z][0-9][A-Z][0-9]{6,}/i.test(u) && t.length <= 20) return t;
     if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/i.test(u)) return t;
-
-    // Alphanumérique pur sans tiret (fallback S/N)
+    // Alphanumérique pur sans tiret
     if (/^[A-Z0-9]{8,20}$/i.test(t) && !t.includes('-')) return t;
 
     return null;
 }
 
-// ─── Extraction P/N ──────────────────────────────────────────
-// Le code barre P/N Zebra encode : "ZT23143-T1E000FZ" (ou avec préfixe 1P)
-function extrairePN(brut) {
-    let t = brut.trim();
-    let u = t.toUpperCase();
-
-    // Retirer préfixes GS1
-    if (u.startsWith('1P')) { t = t.substring(2); u = u.substring(2); }
-    else if (/^P(ZT|ZD|ZM)/.test(u)) { t = t.substring(1); u = u.substring(1); }
-
-    // Vérifier que ça commence par ZT/ZD/ZM
-    if (/^(ZT|ZD|ZM)\d{4}/i.test(u)) {
-        return identifierModele(t);
-    }
-
-    // Contient un tiret + ressemble à P/N
-    if (t.includes('-') && t.length >= 8 && /^[A-Z0-9-]+$/i.test(t)) {
-        return identifierModele(t);
-    }
-
-    return null;
-}
-
-// ════════════════════════════════════════════════════════════════
-//  PASSAGE MODE S/N → MODE P/N
-// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+//  PASSAGE MODE S/N → P/N
+// ════════════════════════════════════════════════════════
 function passerModePN() {
-    scanMode = 'PN';
+    scanMode      = 'PN';
     lastDecoded   = '';
     lastDecodedAt = 0;
 
-    document.getElementById('stepLabel').textContent  = 'ÉTAPE 2 / 2 — Pointez sur le code P/N';
-    document.getElementById('modeBadge').textContent  = 'P/N';
-    document.getElementById('modeBadge').className    = 'absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-blue-500 text-white text-[11px] font-extrabold px-4 py-1 rounded-full uppercase tracking-widest';
-    document.getElementById('scanWindow').style.borderColor = '#3b82f6';
+    document.getElementById('stepLabel').textContent = 'ÉTAPE 2 / 2 — Pointez sur le code P/N';
+    document.getElementById('modeBadge').textContent = 'P/N';
+    document.getElementById('modeBadge').className   = 'absolute top-3 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-[11px] font-extrabold px-4 py-1 rounded-full uppercase tracking-widest';
+
+    // Bordure bleue sur le SVG
+    document.getElementById('scanBorder').setAttribute('stroke','#3b82f6');
 
     document.getElementById('cardSN').className = 'bg-gray-800 rounded p-2 text-center border border-gray-700 opacity-60';
     document.getElementById('cardPN').className = 'bg-gray-800 rounded p-2 text-center border-2 border-blue-500 opacity-100';
-    document.getElementById('cardPN').querySelector('div').className = 'text-[10px] text-blue-400 font-bold uppercase mb-1';
+    document.getElementById('cardPNLabel').className = 'text-[10px] text-blue-400 font-bold uppercase mb-1';
 
     document.getElementById('rawResult').textContent = 'Pointez maintenant sur le code P/N...';
     document.getElementById('rawResult').className   = 'text-[11px] text-blue-400 font-mono italic break-all';
+
+    // Si P/N déjà capturé (scan dans l'autre sens), activer valider
+    if (modeleAffiche) {
+        document.getElementById('btnValider').disabled = false;
+        setTimeout(validerEtFermer, 600);
+    }
 }
 
-// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 //  FLASH
-// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 async function allumerFlash() {
     if (!videoTrack) return;
-    try {
-        await videoTrack.applyConstraints({ advanced: [{ torch: true }] });
-        flashActive = true;
-    } catch(e) {}
+    try { await videoTrack.applyConstraints({ advanced:[{torch:true}] }); flashActive = true; } catch(e){}
 }
-
 window.toggleFlash = async function() {
     if (!videoTrack) return;
     flashActive = !flashActive;
-    try {
-        await videoTrack.applyConstraints({ advanced: [{ torch: flashActive }] });
-    } catch(e) {}
+    try { await videoTrack.applyConstraints({ advanced:[{torch:flashActive}] }); } catch(e){}
 };
 
-// ════════════════════════════════════════════════════════════════
-//  VALIDER ET FERMER
-// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+//  VALIDER / FERMER
+// ════════════════════════════════════════════════════════
 window.validerEtFermer = function() {
     if (snDetecte)     document.getElementById('serial').value = snDetecte;
     if (modeleAffiche) document.getElementById('modele').value = modeleAffiche;
@@ -551,39 +522,39 @@ window.validerEtFermer = function() {
 
 window.fermerScanner = function() {
     document.getElementById('scannerModal').classList.add('hidden');
-    if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
-    if (videoStream)  { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
-    videoTrack = null;
+    if (scanRafId)    { cancelAnimationFrame(scanRafId); scanRafId = null; }
+    if (videoStream)  { videoStream.getTracks().forEach(t=>t.stop()); videoStream = null; }
+    videoTrack = null; detector = null;
 };
 
-// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 //  RESET UI
-// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 function resetUI() {
-    document.getElementById('stepLabel').textContent   = 'ÉTAPE 1 / 2 — Pointez sur le code S/N';
-    document.getElementById('modeBadge').textContent   = 'S/N';
-    document.getElementById('modeBadge').className     = 'absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-amber-500 text-gray-900 text-[11px] font-extrabold px-4 py-1 rounded-full uppercase tracking-widest';
-    document.getElementById('scanWindow').style.borderColor = '#f59e0b';
-    document.getElementById('cardSN').className        = 'bg-gray-800 rounded p-2 text-center border-2 border-amber-500';
-    document.getElementById('cardPN').className        = 'bg-gray-800 rounded p-2 text-center border border-gray-700 opacity-50';
-    document.getElementById('cardPN').querySelector('div').className = 'text-[10px] text-gray-400 font-bold uppercase mb-1';
-    document.getElementById('resultSN').textContent    = '❌ En attente';
-    document.getElementById('resultSN').className      = 'text-red-400 font-bold text-xs break-all';
-    document.getElementById('resultPN').textContent    = '❌ En attente';
-    document.getElementById('resultPN').className      = 'text-red-400 font-bold text-xs break-all';
-    document.getElementById('rawResult').textContent   = 'Aucune lecture...';
-    document.getElementById('rawResult').className     = 'text-[11px] text-gray-500 font-mono break-all';
-    document.getElementById('btnValider').disabled     = true;
+    document.getElementById('stepLabel').textContent  = 'ÉTAPE 1 / 2 — Pointez sur le code S/N';
+    document.getElementById('modeBadge').textContent  = 'S/N';
+    document.getElementById('modeBadge').className    = 'absolute top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-gray-900 text-[11px] font-extrabold px-4 py-1 rounded-full uppercase tracking-widest';
+    document.getElementById('scanBorder').setAttribute('stroke','#f59e0b');
+    document.getElementById('cardSN').className       = 'bg-gray-800 rounded p-2 text-center border-2 border-amber-500';
+    document.getElementById('cardPN').className       = 'bg-gray-800 rounded p-2 text-center border border-gray-700 opacity-50';
+    document.getElementById('cardPNLabel').className  = 'text-[10px] text-gray-400 font-bold uppercase mb-1';
+    document.getElementById('resultSN').textContent   = '❌ En attente';
+    document.getElementById('resultSN').className     = 'text-red-400 font-bold text-xs break-all';
+    document.getElementById('resultPN').textContent   = '❌ En attente';
+    document.getElementById('resultPN').className     = 'text-red-400 font-bold text-xs break-all';
+    document.getElementById('rawResult').textContent  = 'Aucune lecture...';
+    document.getElementById('rawResult').className    = 'text-[11px] text-gray-500 font-mono break-all';
+    document.getElementById('btnValider').disabled    = true;
 }
 
-// ════════════════════════════════════════════════════════════════
-//  FORMULAIRE & TABLEAU
-// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+//  FORMULAIRE + TABLEAU
+// ════════════════════════════════════════════════════════
 window.addEventListener('load', function() {
     document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
 
-    document.getElementById('capturePhotoBtn').addEventListener('click', () =>
-        document.getElementById('cameraInput').click());
+    document.getElementById('capturePhotoBtn').addEventListener('click',
+        () => document.getElementById('cameraInput').click());
 
     document.getElementById('cameraInput').addEventListener('change', function(e) {
         const file = e.target.files[0];
@@ -594,7 +565,7 @@ window.addEventListener('load', function() {
             if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
             img.onload = function() {
                 document.getElementById('cropperModal').classList.remove('hidden');
-                cropperInstance = new Cropper(img, { aspectRatio: 10/4, viewMode: 1, autoCropArea: 0.9, responsive: true });
+                cropperInstance = new Cropper(img, { aspectRatio:10/4, viewMode:1, autoCropArea:0.9, responsive:true });
                 img.onload = null;
             };
             img.src = ev.target.result;
@@ -604,7 +575,7 @@ window.addEventListener('load', function() {
 
     document.getElementById('saveCropBtn').addEventListener('click', function() {
         if (!cropperInstance) return;
-        const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 800, maxHeight: 320 });
+        const canvas = cropperInstance.getCroppedCanvas({ maxWidth:800, maxHeight:320 });
         currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
         document.getElementById('photoPreview').src = currentPhotoBase64;
         document.getElementById('photoPreviewContainer').classList.remove('hidden');
@@ -615,22 +586,22 @@ window.addEventListener('load', function() {
     document.getElementById('machineForm').addEventListener('submit', function(e) {
         e.preventDefault();
         reportData.push({
-            idKey:     Date.now(),
-            zone:      document.getElementById('zone').value.trim(),
-            modele:    document.getElementById('modele').value.trim(),
-            lieuId:    document.getElementById('lieuId').value.trim(),
-            serial:    document.getElementById('serial').value.trim(),
-            ip:        document.getElementById('ip').value.trim(),
+            idKey: Date.now(),
+            zone:  document.getElementById('zone').value.trim(),
+            modele:document.getElementById('modele').value.trim(),
+            lieuId:document.getElementById('lieuId').value.trim(),
+            serial:document.getElementById('serial').value.trim(),
+            ip:    document.getElementById('ip').value.trim(),
             cellules:  document.getElementById('cellules').value,
             etatDot:   document.getElementById('etatDot').value,
             roller:    document.getElementById('roller').value,
             impression:document.getElementById('impression').value,
             general:   document.getElementById('general').value,
             remarque:  document.getElementById('remarque').value.trim(),
-            photos:    currentPhotoBase64 ? [currentPhotoBase64] : []
+            photos: currentPhotoBase64 ? [currentPhotoBase64] : []
         });
         updateTable();
-        ['modele','serial','lieuId','ip','remarque'].forEach(id => document.getElementById(id).value = '');
+        ['modele','serial','lieuId','ip','remarque'].forEach(id => document.getElementById(id).value='');
         document.getElementById('photoPreviewContainer').classList.add('hidden');
         currentPhotoBase64 = null;
     });
@@ -655,7 +626,7 @@ function updateTable() {
         row.innerHTML = `
             <td class="px-3 py-3 text-left">
                 <div class="font-bold text-gray-900">${d.modele}</div>
-                <div class="text-gray-500 italic text-[11px]">${d.lieuId || '-'}</div>
+                <div class="text-gray-500 italic text-[11px]">${d.lieuId||'-'}</div>
             </td>
             <td class="px-3 py-3 font-bold text-gray-800 text-sm tracking-wider">${d.serial}</td>
             <td class="px-3 py-3">
