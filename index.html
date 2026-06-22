@@ -7,11 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-    <!--
-        On utilise l'API native BarcodeDetector (Chrome Android 83+)
-        qui accepte formats:['code_128'] pour ignorer le Datamatrix.
-        Pas de bibliothèque externe pour le scanner — juste la caméra + canvas.
-    -->
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen p-4 md:p-8">
 
@@ -55,8 +50,8 @@
             <input type="text" id="zone" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ex: Expédition">
         </div>
         <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">Modèle (P/N détecté)</label>
-            <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm bg-yellow-50 font-semibold" placeholder="Détecté automatiquement" required>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Modèle (P/N)</label>
+            <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm bg-yellow-50 font-semibold" placeholder="Scanné ou saisi manuellement" required>
         </div>
         <div>
             <label class="block text-xs font-medium text-gray-700 mb-1">Machine ID / Lieu précis</label>
@@ -159,44 +154,85 @@
         <button onclick="fermerScanner()" class="bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded">✕ Fermer</button>
     </div>
 
-    <!-- Vidéo + visée -->
-    <div class="relative flex-1 bg-black overflow-hidden">
+    <!-- Vidéo + visée — masqué en mode saisie manuelle -->
+    <div id="videoZone" class="relative flex-1 bg-black overflow-hidden">
         <video id="scanVideo" class="absolute inset-0 w-full h-full object-cover" playsinline muted autoplay></video>
-
-        <!-- Canvas de décodage (invisible) -->
         <canvas id="decodeCanvas" class="hidden"></canvas>
 
-        <!-- Overlay sombre + fenêtre de visée -->
-        <div class="absolute inset-0 pointer-events-none" id="overlay">
-            <!-- SVG overlay avec découpe transparente au centre -->
+        <div class="absolute inset-0 pointer-events-none">
             <svg class="absolute inset-0 w-full h-full">
                 <defs>
                     <mask id="scanMask">
                         <rect width="100%" height="100%" fill="white"/>
-                        <rect id="cutout" x="6%" y="38%" width="88%" height="24%" rx="4" fill="black"/>
+                        <rect x="6%" y="38%" width="88%" height="24%" rx="4" fill="black"/>
                     </mask>
                 </defs>
                 <rect width="100%" height="100%" fill="rgba(0,0,0,0.55)" mask="url(#scanMask)"/>
-                <!-- Bordure de la zone de scan -->
                 <rect id="scanBorder" x="6%" y="38%" width="88%" height="24%" rx="4"
                       fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="8,4"/>
-                <!-- Ligne laser -->
-                <line id="laserLine" x1="6%" y1="50%" x2="94%" y2="50%"
+                <line x1="6%" y1="50%" x2="94%" y2="50%"
                       stroke="#ef4444" stroke-width="1.5" opacity="0.85">
                     <animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite"/>
                 </line>
             </svg>
-            <!-- Badge mode -->
             <div id="modeBadge" class="absolute top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-gray-900 text-[11px] font-extrabold px-4 py-1 rounded-full uppercase tracking-widest">S/N</div>
         </div>
     </div>
 
-    <!-- Panneau contrôles -->
-    <div class="bg-gray-900 px-4 py-3 flex flex-col gap-2 flex-shrink-0">
-        <button onclick="toggleFlash()" class="w-full bg-amber-500 hover:bg-amber-400 text-gray-900 font-bold text-xs py-2 rounded uppercase tracking-wider">
+    <!-- Zone saisie manuelle P/N — cachée par défaut -->
+    <div id="manualZone" class="hidden flex-1 bg-gray-950 flex flex-col items-center justify-center px-6 gap-5">
+        <div class="text-center">
+            <div class="text-2xl mb-2">⌨️</div>
+            <div class="text-white font-bold text-base">Saisie manuelle du modèle</div>
+            <div class="text-gray-400 text-xs mt-1">Le P/N n'a pas été reconnu automatiquement.<br>Saisissez le modèle ou le P/N complet.</div>
+        </div>
+
+        <!-- S/N déjà capturé — affiché en rappel -->
+        <div class="w-full bg-gray-800 rounded-lg px-4 py-3 flex items-center gap-3">
+            <span class="text-green-400 text-lg">✅</span>
+            <div>
+                <div class="text-[10px] text-gray-400 uppercase font-bold">S/N capturé</div>
+                <div id="snRappel" class="text-green-300 font-bold text-sm tracking-wider"></div>
+            </div>
+        </div>
+
+        <!-- Champ saisie modèle -->
+        <div class="w-full">
+            <label class="block text-xs text-gray-400 font-bold uppercase mb-2">Modèle / P/N</label>
+            <input type="text" id="manualModele"
+                class="w-full bg-gray-800 border-2 border-blue-500 text-white font-bold text-lg rounded-lg px-4 py-3 text-center tracking-widest focus:outline-none focus:border-blue-400"
+                placeholder="Ex: ZT411 - 8dots"
+                autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+        </div>
+
+        <!-- Suggestions rapides -->
+        <div class="w-full">
+            <div class="text-[10px] text-gray-500 uppercase font-bold mb-2">Modèles courants</div>
+            <div class="grid grid-cols-3 gap-2" id="suggestions">
+                <!-- Généré par JS -->
+            </div>
+        </div>
+
+        <!-- Boutons action -->
+        <div class="w-full flex gap-2">
+            <button onclick="retourScanPN()" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2.5 rounded text-sm">
+                ← Rescanner P/N
+            </button>
+            <button onclick="validerManuel()" class="flex-1 bg-green-600 hover:bg-green-500 text-white font-bold py-2.5 rounded text-sm">
+                ✅ Valider
+            </button>
+        </div>
+    </div>
+
+    <!-- Panneau contrôles bas -->
+    <div id="controlPanel" class="bg-gray-900 px-4 py-3 flex flex-col gap-2 flex-shrink-0">
+
+        <!-- Flash (masqué en mode manuel) -->
+        <button id="flashBtn" onclick="toggleFlash()" class="w-full bg-amber-500 hover:bg-amber-400 text-gray-900 font-bold text-xs py-2 rounded uppercase tracking-wider">
             ⚡ Flash ON / OFF
         </button>
 
+        <!-- Cartes S/N + P/N -->
         <div class="grid grid-cols-2 gap-2">
             <div id="cardSN" class="bg-gray-800 rounded p-2 text-center border-2 border-amber-500">
                 <div class="text-[10px] text-amber-400 font-bold uppercase mb-1">Étape 1 — S/N</div>
@@ -208,10 +244,17 @@
             </div>
         </div>
 
-        <div class="bg-black rounded px-2 py-1.5 text-center border border-gray-800">
+        <!-- Brut reçu -->
+        <div id="rawBlock" class="bg-black rounded px-2 py-1.5 text-center border border-gray-800">
             <span id="rawResult" class="text-[11px] text-gray-500 font-mono break-all">Aucune lecture...</span>
         </div>
 
+        <!-- Bouton saisie manuelle (visible en mode PN seulement) -->
+        <button id="btnManuel" onclick="basculerSaisieManuelle()" class="hidden w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 rounded text-sm">
+            ⌨️ Saisir le modèle manuellement
+        </button>
+
+        <!-- Valider -->
         <button id="btnValider" onclick="validerEtFermer()" disabled
             class="w-full bg-green-600 disabled:bg-gray-700 disabled:opacity-40 text-white font-bold py-2.5 rounded text-sm">
             ✅ Valider et remplir le formulaire
@@ -235,116 +278,161 @@
 
 <script>
 // ════════════════════════════════════════════════════════
-//  ÉTAT
+//  SUGGESTIONS DE MODÈLES
 // ════════════════════════════════════════════════════════
-let reportData        = [];
+const MODELES_SUGGESTIONS = [
+    // ZT200
+    'ZT230 - 8dots','ZT230 - 12dots',
+    'ZT231 - 8dots','ZT231 - 12dots',
+    // ZT400
+    'ZT410 - 8dots','ZT410 - 12dots','ZT410 - 24dots',
+    'ZT411 - 8dots','ZT411 - 12dots','ZT411 - 24dots',
+    'ZT420 - 8dots','ZT420 - 12dots',
+    'ZT421 - 8dots','ZT421 - 12dots',
+    // ZT600
+    'ZT610 - 8dots','ZT610 - 12dots','ZT610 - 24dots',
+    'ZT620 - 8dots','ZT620 - 12dots',
+    'ZT630 - 8dots',
+    // ZD
+    'ZD220 - 8dots','ZD230 - 8dots',
+    'ZD421 - 8dots','ZD421 - 12dots',
+    'ZD621 - 8dots','ZD621 - 12dots',
+    // ZM
+    'ZM400 - 8dots','ZM600 - 8dots',
+    // Honeywell
+    'PM42 - 8dots','PM43 - 8dots','PM43c - 8dots',
+    'PD43 - 8dots','PC43t - 8dots',
+    // Toshiba
+    'B-EX4T1 - 8dots','B-EX4T2 - 8dots','B-FV4T - 8dots','B-SA4TM - 8dots',
+    // Intermec
+    'PX4ie - 8dots','PX6ie - 8dots','PC4 - 8dots',
+];
+
+// ════════════════════════════════════════════════════════
+//  ÉTAT GLOBAL
+// ════════════════════════════════════════════════════════
+let reportData         = [];
 let currentPhotoBase64 = null;
-let cropperInstance   = null;
+let cropperInstance    = null;
 
-let snDetecte     = null;
-let pnBrutDetecte = null;
-let modeleAffiche = null;
-let scanMode      = 'SN';   // 'SN' | 'PN'
+let snDetecte      = null;
+let modeleAffiche  = null;
+let scanMode       = 'SN';   // 'SN' | 'PN'
+let modeManuel     = false;
 
-let videoStream   = null;
-let videoTrack    = null;
-let scanRafId     = null;
-let flashActive   = false;
-let detector      = null;   // BarcodeDetector natif
+let videoStream    = null;
+let videoTrack     = null;
+let scanRafId      = null;
+let flashActive    = false;
+let detector       = null;
 
-// Debounce
-let lastDecoded   = '';
-let lastDecodedAt = 0;
-const DEBOUNCE    = 1200;
+let lastDecoded    = '';
+let lastDecodedAt  = 0;
+const DEBOUNCE     = 1200;
 
 // ════════════════════════════════════════════════════════
-//  IDENTIFICATION MODÈLE depuis P/N Zebra
-//  Ex: "ZT23143-T1E000FZ" → { affichage:"ZT231 - 8dots" }
+//  IDENTIFICATION MODÈLE depuis P/N Zebra brut
 // ════════════════════════════════════════════════════════
 function identifierModele(pnBrut) {
     let t = pnBrut.toUpperCase().trim();
     if (t.startsWith('1P')) t = t.substring(2);
     else if (/^P(ZT|ZD|ZM)/.test(t)) t = t.substring(1);
 
-    // ZTxxyy-... : xx=modèle, yy=résolution
+    // Format ZTxxyy-... (ex: ZT23143-T1E000FZ)
     const m = t.match(/^(ZT|ZD|ZM)(\d{2})(\d{2})/);
     if (m) {
         const fam = m[1], mod = m[2], res = m[3];
-        const MODELES = {
-            ZT:{ '23':'ZT231','41':'ZT411','42':'ZT421','61':'ZT610','62':'ZT620','63':'ZT630' },
-            ZD:{ '42':'ZD421','62':'ZD621','22':'ZD220','23':'ZD230' },
-            ZM:{ '40':'ZM400','60':'ZM600' }
+        const TBL = {
+            ZT:{'23':'ZT231','41':'ZT411','42':'ZT421','61':'ZT610','62':'ZT620','63':'ZT630','30':'ZT230'},
+            ZD:{'42':'ZD421','62':'ZD621','22':'ZD220','23':'ZD230'},
+            ZM:{'40':'ZM400','60':'ZM600'}
         };
-        const nom  = (MODELES[fam]||{})[mod] || `${fam}${mod}x`;
+        const nom  = (TBL[fam]||{})[mod] || `${fam}${mod}x`;
         const dig  = res.charAt(1);
         const dots = dig==='3'?'12dots':dig==='6'?'24dots':'8dots';
         return `${nom} - ${dots}`;
     }
-    // Anciens modèles sans tiret
-    const COURTS = ['ZT231','ZT411','ZT421','ZD421','ZT410','ZT420','ZM400'];
-    for (const k of COURTS) {
+    // Préfixes courts
+    const COURTS = {
+        'ZT231':'ZT231','ZT230':'ZT230','ZT411':'ZT411','ZT421':'ZT421',
+        'ZD421':'ZD421','ZD221':'ZD221','ZT410':'ZT410','ZT420':'ZT420',
+        'ZT610':'ZT610','ZT620':'ZT620','ZT630':'ZT630','ZM400':'ZM400','ZM600':'ZM600'
+    };
+    for (const [k,v] of Object.entries(COURTS)) {
         if (t.startsWith(k)) {
             const d = t.charAt(6);
-            return `${k} - ${d==='3'?'12dots':d==='6'?'24dots':'8dots'}`;
+            return `${v} - ${d==='3'?'12dots':d==='6'?'24dots':'8dots'}`;
         }
     }
-    // Préfixes courts S/N → modèle
-    if (t.startsWith('41J')) return 'ZT411 - 8dots';
-    if (t.startsWith('42J')) return 'ZT421 - 8dots';
-    if (t.startsWith('23J')||t.startsWith('23C')) return 'ZT231 - 8dots';
-    if (t.startsWith('33J')||t.startsWith('34J')) return 'ZD421 - 8dots';
-    if (t.startsWith('41A')) return 'ZT410 - 8dots';
-    if (t.startsWith('42A')) return 'ZT420 - 8dots';
-    if (t.startsWith('12C')) return 'ZM400 - 8dots';
-    // Fallback : retourner brut
-    return t.includes('-') ? t : null;
+    // Préfixes S/N court → modèle
+    const SN_MAP = {
+        '41J':'ZT411 - 8dots','42J':'ZT421 - 8dots',
+        '23J':'ZT231 - 8dots','23C':'ZT231 - 8dots',
+        '33J':'ZD421 - 8dots','34J':'ZD421 - 8dots',
+        '41A':'ZT410 - 8dots','42A':'ZT420 - 8dots','12C':'ZM400 - 8dots'
+    };
+    for (const [k,v] of Object.entries(SN_MAP)) {
+        if (t.startsWith(k)) return v;
+    }
+    // Si contient un tiret → retourner brut (P/N inconnu mais présent)
+    if (t.includes('-') && t.length >= 8) return t;
+    return null;
+}
+
+// ════════════════════════════════════════════════════════
+//  SUGGESTIONS — filtrage en temps réel
+// ════════════════════════════════════════════════════════
+function afficherSuggestions(filtre) {
+    const container = document.getElementById('suggestions');
+    const f = (filtre||'').toUpperCase().trim();
+    const liste = f
+        ? MODELES_SUGGESTIONS.filter(s => s.toUpperCase().includes(f))
+        : MODELES_SUGGESTIONS.slice(0, 12);
+    container.innerHTML = liste.slice(0, 12).map(s =>
+        `<button type="button" onclick="choisirSuggestion('${s}')"
+            class="bg-gray-700 hover:bg-blue-600 text-white text-[11px] font-bold px-2 py-2 rounded text-center transition-colors">${s}</button>`
+    ).join('');
+}
+
+function choisirSuggestion(modele) {
+    document.getElementById('manualModele').value = modele;
+    afficherSuggestions(modele);
 }
 
 // ════════════════════════════════════════════════════════
 //  OUVERTURE SCANNER
 // ════════════════════════════════════════════════════════
 window.ouvrirScanner = async function() {
-    // Vérifier support BarcodeDetector
     if (!('BarcodeDetector' in window)) {
-        alert("Votre navigateur ne supporte pas BarcodeDetector (requis : Chrome Android 83+). Mettez à jour Chrome.");
+        alert("BarcodeDetector non supporté. Requis : Chrome Android 83+.");
         return;
     }
-
-    // Vérifier que code_128 est supporté
     const formats = await BarcodeDetector.getSupportedFormats();
     if (!formats.includes('code_128')) {
-        alert("Le format Code 128 n'est pas supporté par ce navigateur. Essayez Chrome Android récent.");
+        alert("Le format Code 128 n'est pas supporté par ce navigateur.");
         return;
     }
 
-    // Créer le détecteur UNIQUEMENT Code 128 → Datamatrix ignoré nativement
     detector = new BarcodeDetector({ formats: ['code_128'] });
 
-    // Reset état
-    snDetecte = null; pnBrutDetecte = null; modeleAffiche = null;
-    scanMode = 'SN'; lastDecoded = ''; lastDecodedAt = 0; flashActive = false;
+    snDetecte = null; modeleAffiche = null;
+    scanMode = 'SN'; modeManuel = false;
+    lastDecoded = ''; lastDecodedAt = 0; flashActive = false;
+
     resetUI();
+    afficherModeCamera();
     document.getElementById('scannerModal').classList.remove('hidden');
 
     try {
         videoStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                facingMode: { ideal: 'environment' },
-                width:  { ideal: 1920 },
-                height: { ideal: 1080 }
-            }
+            video: { facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080} }
         });
         const video = document.getElementById('scanVideo');
         video.srcObject = videoStream;
         await video.play();
         videoTrack = videoStream.getVideoTracks()[0];
-
-        // Flash auto
         setTimeout(allumerFlash, 800);
-
-        // Lancer la boucle RAF
         boucleDetection();
-
     } catch(err) {
         alert("Caméra inaccessible : " + err.message);
         fermerScanner();
@@ -352,11 +440,11 @@ window.ouvrirScanner = async function() {
 };
 
 // ════════════════════════════════════════════════════════
-//  BOUCLE DE DÉTECTION (requestAnimationFrame)
-//  On ne décode que la bande centrale de la vidéo
-//  pour exclure physiquement le Datamatrix (coin haut-droit)
+//  BOUCLE DÉTECTION
 // ════════════════════════════════════════════════════════
 async function boucleDetection() {
+    if (modeManuel) return; // pause pendant la saisie manuelle
+
     const video  = document.getElementById('scanVideo');
     const canvas = document.getElementById('decodeCanvas');
     const ctx    = canvas.getContext('2d');
@@ -368,9 +456,6 @@ async function boucleDetection() {
 
     const vw = video.videoWidth;
     const vh = video.videoHeight;
-
-    // Zone de crop : bande horizontale centrale (38%→62% en hauteur)
-    // Le Datamatrix Zebra est en haut à droite → hors de cette zone
     const cropY = Math.floor(vh * 0.30);
     const cropH = Math.floor(vh * 0.40);
 
@@ -381,32 +466,26 @@ async function boucleDetection() {
     try {
         const results = await detector.detect(canvas);
         if (results && results.length > 0) {
-            // Prendre le code le plus large (le plus proche de la caméra)
-            const best = results.reduce((a,b) =>
-                (b.boundingBox.width > a.boundingBox.width) ? b : a
-            );
-            const texte = best.rawValue || best.rawValue;
+            const best = results.reduce((a,b) => b.boundingBox.width > a.boundingBox.width ? b : a);
+            const texte = best.rawValue;
             if (texte) traiterCode(texte);
         }
-    } catch(e) { /* frame sans code → normal */ }
+    } catch(e) {}
 
     scanRafId = requestAnimationFrame(boucleDetection);
 }
 
 // ════════════════════════════════════════════════════════
-//  TRAITEMENT DU CODE DÉCODÉ
+//  TRAITEMENT CODE
 // ════════════════════════════════════════════════════════
 function traiterCode(texte) {
     const brut = texte.trim();
     const now  = Date.now();
     if (brut === lastDecoded && (now - lastDecodedAt) < DEBOUNCE) return;
-    lastDecoded   = brut;
-    lastDecodedAt = now;
+    lastDecoded = brut; lastDecodedAt = now;
 
-    // Afficher brut
-    const rawEl = document.getElementById('rawResult');
-    rawEl.textContent = brut;
-    rawEl.className   = 'text-[11px] text-green-400 font-mono font-bold break-all';
+    document.getElementById('rawResult').textContent = brut;
+    document.getElementById('rawResult').className   = 'text-[11px] text-green-400 font-mono font-bold break-all';
 
     if (scanMode === 'SN') {
         const sn = extraireSN(brut);
@@ -416,56 +495,41 @@ function traiterCode(texte) {
             document.getElementById('resultSN').className   = 'text-green-400 font-bold text-xs break-all';
             passerModePN();
         } else {
-            // Peut-être c'est déjà un P/N ? On essaie quand même
+            // Peut-être un P/N scanné en premier ?
             const m = identifierModele(brut);
-            if (m) {
-                // Cas où on scanne d'abord le P/N par erreur → on l'accepte en étape 2
-                modeleAffiche = m;
-                pnBrutDetecte = brut;
-                document.getElementById('resultPN').textContent = '✅ ' + m;
-                document.getElementById('resultPN').className   = 'text-green-400 font-bold text-xs break-all';
-                // On reste en mode SN pour capter le S/N
-            }
+            if (m) { modeleAffiche = m; }
         }
         return;
     }
 
     if (scanMode === 'PN') {
-        // Ignorer si c'est le même S/N qu'on vient de scanner
-        if (brut === snDetecte || brut === 'S' + snDetecte) return;
-
+        if (brut === snDetecte || brut === 'S'+snDetecte) return;
         const m = identifierModele(brut);
         if (m) {
             modeleAffiche = m;
-            pnBrutDetecte = brut;
             document.getElementById('resultPN').textContent = '✅ ' + m;
             document.getElementById('resultPN').className   = 'text-green-400 font-bold text-xs break-all';
             document.getElementById('btnValider').disabled  = false;
             setTimeout(validerEtFermer, 600);
         } else {
-            // Code non reconnu en mode PN → afficher sans bloquer
-            rawEl.textContent = '⚠️ Non reconnu : ' + brut;
-            rawEl.className   = 'text-[11px] text-yellow-400 font-mono break-all';
+            // Code non reconnu → indiquer et proposer saisie manuelle
+            document.getElementById('rawResult').textContent = '⚠️ P/N non reconnu : ' + brut;
+            document.getElementById('rawResult').className   = 'text-[11px] text-yellow-400 font-mono break-all';
+            document.getElementById('btnManuel').classList.remove('hidden');
         }
     }
 }
 
-// ─── Extraction S/N ──────────────────────────────────
+// ─── Extraction S/N ───────────────────────────────────
 function extraireSN(brut) {
-    let t = brut.trim();
-    let u = t.toUpperCase();
-
-    // Préfixe S standard Zebra (ex: ST3J231701883)
+    let t = brut.trim(), u = t.toUpperCase();
     if (u.startsWith('S') && t.length >= 7 && t.length <= 22) {
-        const cand = t.substring(1);
-        if (/^[A-Z0-9]{5,20}$/i.test(cand)) return cand;
+        const c = t.substring(1);
+        if (/^[A-Z0-9]{5,20}$/i.test(c)) return c;
     }
-    // Codes internes Zebra (T3J…, 41J…, 42J…)
     if (/^[A-Z][0-9][A-Z][0-9]{6,}/i.test(u) && t.length <= 20) return t;
     if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/i.test(u)) return t;
-    // Alphanumérique pur sans tiret
     if (/^[A-Z0-9]{8,20}$/i.test(t) && !t.includes('-')) return t;
-
     return null;
 }
 
@@ -473,15 +537,11 @@ function extraireSN(brut) {
 //  PASSAGE MODE S/N → P/N
 // ════════════════════════════════════════════════════════
 function passerModePN() {
-    scanMode      = 'PN';
-    lastDecoded   = '';
-    lastDecodedAt = 0;
+    scanMode = 'PN'; lastDecoded = ''; lastDecodedAt = 0;
 
     document.getElementById('stepLabel').textContent = 'ÉTAPE 2 / 2 — Pointez sur le code P/N';
     document.getElementById('modeBadge').textContent = 'P/N';
     document.getElementById('modeBadge').className   = 'absolute top-3 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-[11px] font-extrabold px-4 py-1 rounded-full uppercase tracking-widest';
-
-    // Bordure bleue sur le SVG
     document.getElementById('scanBorder').setAttribute('stroke','#3b82f6');
 
     document.getElementById('cardSN').className = 'bg-gray-800 rounded p-2 text-center border border-gray-700 opacity-60';
@@ -491,11 +551,68 @@ function passerModePN() {
     document.getElementById('rawResult').textContent = 'Pointez maintenant sur le code P/N...';
     document.getElementById('rawResult').className   = 'text-[11px] text-blue-400 font-mono italic break-all';
 
-    // Si P/N déjà capturé (scan dans l'autre sens), activer valider
+    // Bouton saisie manuelle disponible dès l'étape P/N
+    document.getElementById('btnManuel').classList.remove('hidden');
+
+    // Si P/N déjà capturé (scan inversé)
     if (modeleAffiche) {
-        document.getElementById('btnValider').disabled = false;
+        document.getElementById('resultPN').textContent = '✅ ' + modeleAffiche;
+        document.getElementById('resultPN').className   = 'text-green-400 font-bold text-xs break-all';
+        document.getElementById('btnValider').disabled  = false;
         setTimeout(validerEtFermer, 600);
     }
+}
+
+// ════════════════════════════════════════════════════════
+//  MODE SAISIE MANUELLE
+// ════════════════════════════════════════════════════════
+function basculerSaisieManuelle() {
+    modeManuel = true;
+
+    // Afficher le S/N capturé en rappel
+    document.getElementById('snRappel').textContent = snDetecte || '—';
+
+    // Initialiser les suggestions
+    afficherSuggestions('');
+
+    // Passer à l'affichage manuel
+    document.getElementById('videoZone').classList.add('hidden');
+    document.getElementById('flashBtn').classList.add('hidden');
+    document.getElementById('rawBlock').classList.add('hidden');
+    document.getElementById('btnManuel').classList.add('hidden');
+    document.getElementById('manualZone').classList.remove('hidden');
+    document.getElementById('manualZone').classList.add('flex');
+
+    // Écouter la saisie pour filtrer les suggestions
+    const input = document.getElementById('manualModele');
+    input.value = '';
+    input.oninput = () => afficherSuggestions(input.value);
+    setTimeout(() => input.focus(), 100);
+}
+
+function retourScanPN() {
+    modeManuel = false;
+    lastDecoded = ''; lastDecodedAt = 0;
+    afficherModeCamera();
+    boucleDetection();
+}
+
+function validerManuel() {
+    const val = document.getElementById('manualModele').value.trim();
+    if (!val) { alert("Veuillez saisir ou choisir un modèle."); return; }
+    modeleAffiche = val;
+    document.getElementById('resultPN').textContent = '✅ ' + val;
+    document.getElementById('resultPN').className   = 'text-green-400 font-bold text-xs break-all';
+    document.getElementById('btnValider').disabled  = false;
+    validerEtFermer();
+}
+
+function afficherModeCamera() {
+    document.getElementById('videoZone').classList.remove('hidden');
+    document.getElementById('flashBtn').classList.remove('hidden');
+    document.getElementById('rawBlock').classList.remove('hidden');
+    document.getElementById('manualZone').classList.add('hidden');
+    document.getElementById('manualZone').classList.remove('flex');
 }
 
 // ════════════════════════════════════════════════════════
@@ -503,12 +620,12 @@ function passerModePN() {
 // ════════════════════════════════════════════════════════
 async function allumerFlash() {
     if (!videoTrack) return;
-    try { await videoTrack.applyConstraints({ advanced:[{torch:true}] }); flashActive = true; } catch(e){}
+    try { await videoTrack.applyConstraints({advanced:[{torch:true}]}); flashActive=true; } catch(e){}
 }
 window.toggleFlash = async function() {
     if (!videoTrack) return;
     flashActive = !flashActive;
-    try { await videoTrack.applyConstraints({ advanced:[{torch:flashActive}] }); } catch(e){}
+    try { await videoTrack.applyConstraints({advanced:[{torch:flashActive}]}); } catch(e){}
 };
 
 // ════════════════════════════════════════════════════════
@@ -522,9 +639,9 @@ window.validerEtFermer = function() {
 
 window.fermerScanner = function() {
     document.getElementById('scannerModal').classList.add('hidden');
-    if (scanRafId)    { cancelAnimationFrame(scanRafId); scanRafId = null; }
-    if (videoStream)  { videoStream.getTracks().forEach(t=>t.stop()); videoStream = null; }
-    videoTrack = null; detector = null;
+    if (scanRafId)   { cancelAnimationFrame(scanRafId); scanRafId = null; }
+    if (videoStream) { videoStream.getTracks().forEach(t=>t.stop()); videoStream = null; }
+    videoTrack = null; detector = null; modeManuel = false;
 };
 
 // ════════════════════════════════════════════════════════
@@ -545,6 +662,7 @@ function resetUI() {
     document.getElementById('rawResult').textContent  = 'Aucune lecture...';
     document.getElementById('rawResult').className    = 'text-[11px] text-gray-500 font-mono break-all';
     document.getElementById('btnValider').disabled    = true;
+    document.getElementById('btnManuel').classList.add('hidden');
 }
 
 // ════════════════════════════════════════════════════════
@@ -565,7 +683,7 @@ window.addEventListener('load', function() {
             if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
             img.onload = function() {
                 document.getElementById('cropperModal').classList.remove('hidden');
-                cropperInstance = new Cropper(img, { aspectRatio:10/4, viewMode:1, autoCropArea:0.9, responsive:true });
+                cropperInstance = new Cropper(img,{aspectRatio:10/4,viewMode:1,autoCropArea:0.9,responsive:true});
                 img.onload = null;
             };
             img.src = ev.target.result;
@@ -575,8 +693,8 @@ window.addEventListener('load', function() {
 
     document.getElementById('saveCropBtn').addEventListener('click', function() {
         if (!cropperInstance) return;
-        const canvas = cropperInstance.getCroppedCanvas({ maxWidth:800, maxHeight:320 });
-        currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+        const canvas = cropperInstance.getCroppedCanvas({maxWidth:800,maxHeight:320});
+        currentPhotoBase64 = canvas.toDataURL('image/jpeg',0.85);
         document.getElementById('photoPreview').src = currentPhotoBase64;
         document.getElementById('photoPreviewContainer').classList.remove('hidden');
         closeCropper();
@@ -586,44 +704,44 @@ window.addEventListener('load', function() {
     document.getElementById('machineForm').addEventListener('submit', function(e) {
         e.preventDefault();
         reportData.push({
-            idKey: Date.now(),
-            zone:  document.getElementById('zone').value.trim(),
+            idKey:Date.now(),
+            zone:document.getElementById('zone').value.trim(),
             modele:document.getElementById('modele').value.trim(),
             lieuId:document.getElementById('lieuId').value.trim(),
             serial:document.getElementById('serial').value.trim(),
-            ip:    document.getElementById('ip').value.trim(),
-            cellules:  document.getElementById('cellules').value,
-            etatDot:   document.getElementById('etatDot').value,
-            roller:    document.getElementById('roller').value,
+            ip:document.getElementById('ip').value.trim(),
+            cellules:document.getElementById('cellules').value,
+            etatDot:document.getElementById('etatDot').value,
+            roller:document.getElementById('roller').value,
             impression:document.getElementById('impression').value,
-            general:   document.getElementById('general').value,
-            remarque:  document.getElementById('remarque').value.trim(),
-            photos: currentPhotoBase64 ? [currentPhotoBase64] : []
+            general:document.getElementById('general').value,
+            remarque:document.getElementById('remarque').value.trim(),
+            photos:currentPhotoBase64?[currentPhotoBase64]:[]
         });
         updateTable();
-        ['modele','serial','lieuId','ip','remarque'].forEach(id => document.getElementById(id).value='');
+        ['modele','serial','lieuId','ip','remarque'].forEach(id=>document.getElementById(id).value='');
         document.getElementById('photoPreviewContainer').classList.add('hidden');
-        currentPhotoBase64 = null;
+        currentPhotoBase64=null;
     });
 });
 
 function closeCropper() {
     document.getElementById('cropperModal').classList.add('hidden');
-    if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
-    document.getElementById('cameraInput').value = '';
+    if (cropperInstance){cropperInstance.destroy();cropperInstance=null;}
+    document.getElementById('cameraInput').value='';
 }
 
 function updateTable() {
     const tbody = document.getElementById('reportTableBody');
-    tbody.innerHTML = '';
-    if (!reportData.length) {
-        tbody.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport.</td></tr>';
+    tbody.innerHTML='';
+    if(!reportData.length){
+        tbody.innerHTML='<tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport.</td></tr>';
         return;
     }
-    reportData.forEach(d => {
-        const row = document.createElement('tr');
-        row.className = 'hover:bg-gray-50 text-xs text-gray-700';
-        row.innerHTML = `
+    reportData.forEach(d=>{
+        const row=document.createElement('tr');
+        row.className='hover:bg-gray-50 text-xs text-gray-700';
+        row.innerHTML=`
             <td class="px-3 py-3 text-left">
                 <div class="font-bold text-gray-900">${d.modele}</div>
                 <div class="text-gray-500 italic text-[11px]">${d.lieuId||'-'}</div>
@@ -635,11 +753,7 @@ function updateTable() {
         tbody.appendChild(row);
     });
 }
-
-window.deleteRow = function(id) {
-    reportData = reportData.filter(i => i.idKey !== id);
-    updateTable();
-};
+window.deleteRow=function(id){reportData=reportData.filter(i=>i.idKey!==id);updateTable();};
 </script>
 </body>
 </html>
