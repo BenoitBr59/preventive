@@ -3,550 +3,738 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rapport de Maintenance Préventive</title>
-    <style>
-        :root {
-            --primary: #1a1a1a;
-            --accent: #c5a059;
-            --bg: #f5f5f7;
-            --card-bg: #ffffff;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg);
-            color: var(--primary);
-            margin: 0;
-            padding: 15px;
-        }
-
-        header {
-            background: var(--primary);
-            color: white;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-        }
-
-        header h1 { 
-            margin: 0 0 15px 0; 
-            font-size: 1.4rem; 
-            color: var(--accent); 
-        }
-
-        .header-inputs {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .header-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .header-group label {
-            font-size: 0.9rem;
-            opacity: 0.9;
-            min-width: 110px;
-            font-weight: normal;
-            margin: 0;
-        }
-
-        .header-group input {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-size: 0.9rem;
-            height: auto;
-            flex: 1;
-        }
-
-        .card {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 5px;
-            font-size: 0.9rem;
-        }
-
-        .input-scan-group {
-            display: flex;
-            gap: 8px;
-        }
-
-        input, select, textarea {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            box-sizing: border-box;
-            font-size: 1rem;
-            background-color: #fff;
-            height: 45px;
-        }
-
-        textarea { height: auto; }
-
-        .btn-scan {
-            width: auto;
-            padding: 0 15px;
-            background: #1a1a1a;
-            color: var(--accent);
-            border: 1px solid var(--accent);
-            border-radius: 6px;
-            font-weight: bold;
-            cursor: pointer;
-            white-space: nowrap;
-            height: 45px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.9rem;
-        }
-
-        /* Zone vidéo du scanner */
-        #scanner-zone {
-            display: none;
-            margin: 15px 0;
-            background: #000;
-            border-radius: 8px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        video {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        .btn-close-scanner {
-            background: #dc3545;
-            color: white;
-            padding: 10px;
-            text-align: center;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .grid-status {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-
-        .status-box {
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 6px;
-            border: 1px solid #eee;
-        }
-
-        button {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 6px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .btn-add { background: var(--accent); color: white; margin-top: 10px; }
-        .btn-export { background: #2b579a; color: white; margin-top: 20px; }
-
-        .photo-container {
-            margin-top: 10px;
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .photo-wrapper {
-            position: relative;
-            display: inline-block;
-        }
-
-        .photo-preview {
-            width: 70px;
-            height: 70px;
-            object-fit: cover;
-            border-radius: 6px;
-            border: 2px solid var(--accent);
-        }
-
-        .btn-delete-photo {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: #dc3545;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: bold;
-            line-height: 18px;
-            text-align: center;
-            padding: 0;
-        }
-
-        .table-container {
-            overflow-x: auto;
-            margin-top: 20px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.85rem;
-        }
-
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-
-        th { background: #eee; }
-    </style>
+    <title>RAPPORT DE MAINTENANCE PREVENTIVE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 </head>
-<body>
-
-    <header>
-        <h1>Visite de Maintenance Préventive</h1>
-        <div class="header-inputs">
-            <div class="header-group">
-                <label for="headerSite">Site :</label>
-                <input type="text" id="headerSite" placeholder="Saisir le site...">
-            </div>
-            <div class="header-group">
-                <label for="headerZone">Zone :</label>
-                <input type="text" id="headerZone" placeholder="Saisir la zone...">
-            </div>
-            <div class="header-group">
-                <label for="headerIntervenant">Intervenant(s) :</label>
-                <input type="text" id="headerIntervenant" placeholder="Nom des intervenants...">
-            </div>
-            <div class="header-group">
-                <label for="headerDate">Date de visite :</label>
-                <input type="date" id="headerDate">
+<body class="bg-gray-50 text-gray-800 min-h-screen p-4 md:p-8">
+<div class="max-w-7xl mx-auto bg-white rounded-xl shadow-md p-6">
+    <div class="flex items-center justify-between border-b pb-3 mb-4">
+        <h1 class="text-2xl font-bold text-blue-950 tracking-wide">RAPPORT DE MAINTENANCE PREVENTIVE</h1>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div>
+            <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Client / Site</label>
+            <input type="text" id="headerSite" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm" placeholder="Ex: Site Paris">
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Intervenant / Technicien</label>
+            <select id="headerIntervenant" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
+                <option value="">-- Choisir l'intervenant --</option>
+                <option>Pascal CARTON</option>
+                <option>Benoît BRACKMAN</option>
+                <option>Pascal CARTON / Benoît BRACKMAN</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Parc d'imprimante</label>
+            <select id="headerBrand" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
+                <option>ZEBRA</option><option>HONEYWELL</option><option>TOSHIBA</option><option>INTERMEC</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Date d'intervention</label>
+            <input type="date" id="headerDate" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
+        </div>
+    </div>
+    <form id="machineForm" class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="md:col-span-4">
+            <h3 class="text-sm font-bold text-blue-950 uppercase border-b pb-1 mb-2">Ajouter un équipement au rapport</h3>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Zone / Emplacement</label>
+            <input type="text" id="zone" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ex: Expédition">
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Modèle (P/N)</label>
+            <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm bg-yellow-50 font-semibold" placeholder="Scanné ou saisi manuellement" required>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Machine ID / Lieu précis</label>
+            <input type="text" id="lieuId" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="ID Interne">
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Numéro de Série (S/N)</label>
+            <div class="flex">
+                <input type="text" id="serial" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm font-bold" placeholder="S/N" required>
+                <button type="button" onclick="ouvrirScanner()" class="bg-blue-600 hover:bg-blue-700 text-white rounded-r px-4 text-xs font-bold cursor-pointer whitespace-nowrap">
+                    📷 SCANNER
+                </button>
             </div>
         </div>
-    </header>
-
-    <div id="scanner-zone">
-        <video id="video" autoplay playsinline></video>
-        <div class="btn-close-scanner" onclick="stopScanner()">Fermer le scanner</div>
-    </div>
-
-    <div class="card">
-        <h3>Saisie Machine</h3>
-        <form id="maintenanceForm" onsubmit="return false;">
-            
-            <div class="form-group">
-                <label for="printerType">Machine Type & ID</label>
-                <div class="input-scan-group">
-                    <input type="text" id="printerType" placeholder="Saisir ou flasher...">
-                    <button type="button" class="btn-scan" onclick="startScanner('printerType')">📷 Scan</button>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="option">Option</label>
-                <input type="text" id="option" style="background-color: #f0f2f5; border: 1px solid #ced4da;" placeholder="">
-            </div>
-
-            <div class="form-group">
-                <label for="serial">S/N (Numéro de série)</label>
-                <div class="input-scan-group">
-                    <input type="text" id="serial" placeholder="Saisir ou flasher...">
-                    <button type="button" class="btn-scan" onclick="startScanner('serial')">📷 Scan</button>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label>Vérifications</label>
-                <div class="grid-status">
-                    <div class="status-box">
-                        <label style="font-size:0.8rem;">Cellules</label>
-                        <select id="cellules">
-                            <option value=""></option>
-                            <option value="OK">OK</option>
-                            <option value="NOK">NOK</option>
-                        </select>
-                    </div>
-                    <div class="status-box">
-                        <label style="font-size:0.8rem;">Etat dot</label>
-                        <select id="etatDot">
-                            <option value=""></option>
-                            <option value="OK">OK</option>
-                            <option value="NOK">NOK</option>
-                        </select>
-                    </div>
-                    <div class="status-box">
-                        <label style="font-size:0.8rem;">Pressing roller</label>
-                        <select id="roller">
-                            <option value=""></option>
-                            <option value="OK">OK</option>
-                            <option value="NOK">NOK</option>
-                        </select>
-                    </div>
-                    <div class="status-box">
-                        <label style="font-size:0.8rem;">Impression</label>
-                        <select id="impression">
-                            <option value=""></option>
-                            <option value="OK">OK</option>
-                            <option value="NOK">NOK</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="etatGeneral">Etat Général</label>
-                <select id="etatGeneral">
-                    <option value=""></option>
-                    <option value="OK">OK</option>
-                    <option value="VOIR REM">VOIR REM</option>
+        <div class="md:col-span-2 grid grid-cols-2 gap-4 bg-white p-3 rounded border border-gray-200">
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Cellules / Capteurs</label>
+                <select id="cellules" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
+                    <option>OK</option><option>NOK</option><option>-</option>
                 </select>
             </div>
-
-            <div class="form-group">
-                <label for="remarque">Remarque</label>
-                <textarea id="remarque" rows="2" placeholder=""></textarea>
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">État Dot (Tête)</label>
+                <select id="etatDot" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
+                    <option>OK</option>
+                    <option>Dots HS</option>
+                    <option>Surchauffe</option>
+                    <option>Dots Usées</option>
+                </select>
             </div>
-
-            <div class="form-group">
-                <label for="photo">Ajouter des photos de panne (Optionnel)</label>
-                <input type="file" id="photo" accept="image/*" capture="environment" style="padding:5px; height:auto;">
-                <div class="photo-container" id="previewContainer"></div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Platen Roller</label>
+                <select id="roller" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
+                    <option>OK</option>
+                    <option>Manque matière</option>
+                    <option>Cutter</option>
+                </select>
             </div>
-
-            <button type="button" class="btn-add" id="addBtn">Ajouter la ligne</button>
-        </form>
-    </div>
-
-    <div class="card">
-        <h3>Lignes enregistrées (<span id="count">0</span>)</h3>
-        <div class="table-container">
-            <table id="summaryTable">
-                <thead>
-                    <tr>
-                        <th>Machine Type & ID</th>
-                        <th>Option</th>
-                        <th>S/N</th>
-                        <th>Cellules</th>
-                        <th>Etat dot</th>
-                        <th>Pressing roller</th>
-                        <th>Impression</th>
-                        <th>Etat Général</th>
-                        <th>Remarque</th>
-                        <th>Photos</th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
-            </table>
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Test Impression</label>
+                <select id="impression" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
+                    <option>OK</option><option>NOK</option>
+                </select>
+            </div>
         </div>
-        <button type="button" class="btn-export" id="exportBtn">Exporter le rapport en Word (.doc)</button>
+        <div class="md:col-span-2 grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Adresse IP</label>
+                <input type="text" id="ip" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="192.168.x.x">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">État Général</label>
+                <select id="general" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm">
+                    <option>OK</option><option>A surveiller</option><option>Critique</option>
+                </select>
+            </div>
+            <div class="col-span-2">
+                <label class="block text-xs font-medium text-gray-700 mb-1">Remarques / Actions menées</label>
+                <textarea id="remarque" rows="2" class="w-full bg-white border border-gray-300 rounded px-3 py-1 text-sm" placeholder="Nettoyage, changement de pièce..."></textarea>
+            </div>
+        </div>
+        <div class="md:col-span-4 bg-blue-50 p-4 rounded border border-blue-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <span class="text-sm font-bold text-blue-900">Pièce-jointe (Photo)</span>
+            <button type="button" id="capturePhotoBtn" class="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs px-5 py-3 rounded-lg shadow cursor-pointer">📷 Appareil photo</button>
+            <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+            <div id="photoPreviewContainer" class="hidden border-l pl-4 border-blue-200">
+                <img id="photoPreview" src="" class="h-12 w-auto rounded border bg-white" style="aspect-ratio:10/4;object-fit:cover;">
+            </div>
+        </div>
+        <div class="md:col-span-4 flex justify-end mt-2">
+            <button type="submit" class="bg-blue-950 hover:bg-blue-900 text-white font-bold text-sm px-6 py-2 rounded shadow">Ajouter au tableau</button>
+        </div>
+    </form>
+    <div class="overflow-x-auto border border-gray-200 rounded-lg">
+        <table class="min-w-full divide-y divide-gray-200 text-sm text-center">
+            <thead class="bg-blue-950 text-white text-xs uppercase font-bold">
+                <tr>
+                    <th class="px-3 py-3 text-left">Imprimante / Lieu ID</th>
+                    <th class="px-3 py-3">Numéro de Série (S/N)</th>
+                    <th class="px-3 py-3">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="reportTableBody" class="bg-white divide-y divide-gray-200">
+                <tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport.</td></tr>
+            </tbody>
+        </table>
     </div>
+    
+    <!-- Bouton d'exportation au format Paysage -->
+    <div class="flex justify-end mt-4">
+        <button type="button" onclick="exporterRapportPaysage()" class="bg-blue-800 hover:bg-blue-700 text-white font-bold text-sm px-6 py-2.5 rounded shadow cursor-pointer flex items-center gap-2">
+            💾 EXPORTER EN WORD (.DOC) - PAYSAGE
+        </button>
+    </div>
+</div>
 
-    <script>
-        const reportData = [];
-        const previewContainer = document.getElementById('previewContainer');
-        let currentPhotos = [];
-        
-        let videoStream = null;
-        let scanInterval = null;
-        let activeTargetId = null;
+<!-- ═══════════════════ MODAL SCANNER ═══════════════════ -->
+<div id="scannerModal" class="hidden fixed inset-0 bg-black flex flex-col z-50" style="touch-action:none;">
+    <!-- En-tête -->
+    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-800 flex-shrink-0">
+        <div>
+            <div class="text-amber-400 font-bold text-sm">⚡ SCANNER CODE 128 — ZEBRA</div>
+            <div id="stepLabel" class="text-blue-300 text-xs mt-0.5">ÉTAPE 1 / 2 — Pointez sur le code S/N</div>
+        </div>
+        <button onclick="fermerScanner()" class="bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded">✕ Fermer</button>
+    </div>
+    <!-- Vidéo + visée -->
+    <div id="videoZone" class="relative flex-1 bg-black overflow-hidden">
+        <video id="scanVideo" class="absolute inset-0 w-full h-full object-cover" playsinline muted autoplay></video>
+        <canvas id="decodeCanvas" class="hidden"></canvas>
+        <div class="absolute inset-0 pointer-events-none">
+            <svg class="absolute inset-0 w-full h-full">
+                <defs>
+                    <mask id="scanMask">
+                        <rect width="100%" height="100%" fill="white"/>
+                        <rect x="6%" y="38%" width="88%" height="24%" rx="4" fill="black"/>
+                    </mask>
+                </defs>
+                <rect width="100%" height="100%" fill="rgba(0,0,0,0.55)" mask="url(#scanMask)"/>
+                <rect id="scanBorder" x="6%" y="38%" width="88%" height="24%" rx="4"
+                      fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="8,4"/>
+                <line x1="6%" y1="50%" x2="94%" y2="50%"
+                      stroke="#ef4444" stroke-width="1.5" opacity="0.85">
+                    <animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+            </svg>
+            <div id="modeBadge" class="absolute top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-gray-900 text-[11px] font-extrabold px-4 py-1 rounded-full uppercase tracking-widest">S/N</div>
+        </div>
+    </div>
+    <!-- Zone Saisie Manuelle -->
+    <div id="manualZone" class="hidden flex-1 bg-gray-950 flex flex-col items-center justify-center px-6 gap-5">
+        <div class="text-center">
+            <div class="text-2xl mb-2">⌨️</div>
+            <div class="text-white font-bold text-base">Saisie manuelle du modèle</div>
+            <div class="text-gray-400 text-xs mt-1">Le P/N n'a pas été reconnu automatiquement.<br>Saisissez le modèle ou le P/N complet.</div>
+        </div>
+        <div class="w-full bg-gray-800 rounded-lg px-4 py-3 flex items-center gap-3">
+            <span class="text-green-400 text-lg">✅</span>
+            <div>
+                <div class="text-[10px] text-gray-400 uppercase font-bold">S/N capturé</div>
+                <div id="snRappel" class="text-green-300 font-bold text-sm tracking-wider"></div>
+            </div>
+        </div>
+        <div class="w-full">
+            <label class="block text-xs text-gray-400 font-bold uppercase mb-2">Modèle / P/N</label>
+            <input type="text" id="manualModele"
+                class="w-full bg-gray-800 border-2 border-blue-500 text-white font-bold text-lg rounded-lg px-4 py-3 text-center tracking-widest focus:outline-none focus:border-blue-400"
+                placeholder="Ex: ZT411 - 8dots"
+                autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+        </div>
+        <div class="w-full">
+            <div class="text-[10px] text-gray-500 uppercase font-bold mb-2">Modèles courants</div>
+            <div class="grid grid-cols-3 gap-2" id="suggestions"></div>
+        </div>
+        <div class="w-full flex gap-2">
+            <button onclick="retourScanPN()" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2.5 rounded text-sm">
+                ← Rescanner P/N
+            </button>
+            <button onclick="validerManuel()" class="flex-1 bg-green-600 hover:bg-green-500 text-white font-bold py-2.5 rounded text-sm">
+                ✅ Valider
+            </button>
+        </div>
+    </div>
+    <!-- Contrôles bas -->
+    <div id="controlPanel" class="bg-gray-900 px-4 py-3 flex flex-col gap-2 flex-shrink-0">
+        <button id="flashBtn" onclick="toggleFlash()" class="w-full bg-amber-500 hover:bg-amber-400 text-gray-900 font-bold text-xs py-2 rounded uppercase tracking-wider">
+            ⚡ Flash ON / OFF
+        </button>
+        <div class="grid grid-cols-2 gap-2">
+            <div id="cardSN" class="bg-gray-800 rounded p-2 text-center border-2 border-amber-500">
+                <div class="text-[10px] text-amber-400 font-bold uppercase mb-1">Étape 1 — S/N</div>
+                <div id="resultSN" class="text-red-400 font-bold text-xs break-all">❌ En attente</div>
+            </div>
+            <div id="cardPN" class="bg-gray-800 rounded p-2 text-center border border-gray-700 opacity-50">
+                <div class="text-[10px] text-gray-400 font-bold uppercase mb-1" id="cardPNLabel">Étape 2 — P/N</div>
+                <div id="resultPN" class="text-red-400 font-bold text-xs break-all">❌ En attente</div>
+            </div>
+        </div>
+        <div id="rawBlock" class="bg-black rounded px-2 py-1.5 text-center border border-gray-800">
+            <span id="rawResult" class="text-[11px] text-gray-500 font-mono break-all">Aucune lecture...</span>
+        </div>
+        <button id="btnManuel" onclick="basculerSaisieManuelle()" class="hidden w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 rounded text-sm">
+            ⌨️ Saisir le modèle manuellement
+        </button>
+        <button id="btnValider" onclick="validerEtFermer()" disabled
+            class="w-full bg-green-600 disabled:bg-gray-700 disabled:opacity-40 text-white font-bold py-2.5 rounded text-sm">
+            ✅ Valider et remplir le formulaire
+        </button>
+    </div>
+</div>
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('headerDate').value = today;
-        });
+<!-- Modal recadrage photo -->
+<div id="cropperModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg p-4 max-w-xl w-full flex flex-col max-h-[90vh]">
+        <h3 class="text-sm font-bold text-gray-900 mb-2 uppercase">Recadrage (10x4)</h3>
+        <div class="overflow-hidden flex-1 bg-gray-100 rounded" style="min-height:300px;max-height:55vh;">
+            <img id="imageToCrop" src="" style="max-width:100%;display:block;">
+        </div>
+        <div class="flex justify-end gap-2 mt-4">
+            <button id="cancelCropBtn" class="bg-gray-300 text-gray-800 text-xs font-bold px-4 py-2 rounded cursor-pointer">Annuler</button>
+            <button id="saveCropBtn" class="bg-blue-600 text-white font-bold text-xs px-4 py-2 rounded cursor-pointer">Valider</button>
+        </div>
+    </div>
+</div>
 
-        // Déclenche le scanner natif du navigateur Chrome de manière robuste
-        async function startScanner(targetId) {
-            stopScanner(); // Nettoyer tout flux précédent
-            activeTargetId = targetId;
-            const video = document.getElementById('video');
-            const scannerZone = document.getElementById('scanner-zone');
+<script>
+const MODELES_SUGGESTIONS = [
+    'ZT111 - 8dots','ZT111 - 12dots','ZT220 - 8dots','ZT220 - 12dots',
+    'ZT230 - 8dots','ZT230 - 12dots','ZT231 - 8dots','ZT231 - 12dots',
+    'ZT410 - 8dots','ZT410 - 12dots','ZT410 - 24dots','ZT411 - 8dots',
+    'ZT411 - 12dots','ZT411 - 24dots','ZT420 - 8dots','ZT420 - 12dots',
+    'ZT421 - 8dots','ZT421 - 12dots','ZT610 - 8dots','ZT610 - 12dots',
+    'ZT610 - 24dots','ZT620 - 8dots','ZT620 - 12dots','ZT630 - 8dots',
+    'ZD220 - 8dots','ZD230 - 8dots','ZD421 - 8dots','ZD421 - 12dots',
+    'ZD621 - 8dots','ZD621 - 12dots','ZM400 - 8dots','ZM600 - 8dots',
+    'ZQ230 - 8dots','ZQ300 - 8dots','ZQ600 - 8dots','ZQ600 - 12dots',
+    'S4M+ - 8dots','S4M+ - 12dots','S4M+ - 24dots','PM42 - 8dots',
+    'PM43 - 8dots','PM43c - 8dots','PM45 - 8dots','PM45c - 8dots',
+    'PD43 - 8dots','PD45 - 8dots','PC43t - 8dots','PF4i - 8dots',
+    'PF4i - 12dots','B-EX4T1 - 8dots','B-EX4T2 - 8dots','B-FV4T - 8dots',
+    'B-SA4TM - 8dots','PX4ie - 8dots','PX6ie - 8dots','PC4 - 8dots'
+];
 
-            try {
-                videoStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
-                });
-                video.srcObject = videoStream;
-                scannerZone.style.display = 'block';
-                
-                // Forcer la lecture pour éviter le gel d'écran sur iOS/Android
-                await video.play();
+let reportData         = [];
+let currentPhotoBase64 = null;
+let cropperInstance    = null;
+let snDetecte      = null;
+let modeleAffiche  = null;
+let scanMode       = 'SN'; 
+let modeManuel     = false;
+let videoStream    = null;
+let videoTrack     = null;
+let scanRafId      = null;
+let flashActive    = false;
+let detector       = null;
+let lastDecoded    = '';
+let lastDecodedAt  = 0;
+const DEBOUNCE     = 1200;
 
-                if ('BarcodeDetector' in window) {
-                    // Spécification explicite des formats standards pour optimiser et stabiliser l'API mobile
-                    const detector = new BarcodeDetector({ 
-                        formats: ['code_128', 'qr_code', 'ean_13', 'code_39', 'upc_a', 'upc_e', 'codabar', 'data_matrix', 'itf'] 
-                    });
-                    
-                    scanInterval = setInterval(async () => {
-                        try {
-                            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                                const barcodes = await detector.detect(video);
-                                if (barcodes.length > 0) {
-                                    document.getElementById(activeTargetId).value = barcodes[0].rawValue;
-                                    if (navigator.vibrate) navigator.vibrate(80);
-                                    stopScanner();
-                                }
-                            }
-                        } catch (err) {
-                            console.error("Erreur de détection :", err);
-                        }
-                    }, 150);
-                } else {
-                    alert("Votre navigateur ne prend pas en charge la détection native de codes-barres. Saisie manuelle requise.");
-                }
-
-            } catch (err) {
-                alert("Impossible d'accéder à la caméra : " + err.message);
-            }
+function identifierModele(pnBrut) {
+    let t = pnBrut.toUpperCase().trim();
+    if (t.startsWith('1P')) t = t.substring(2);
+    else if (/^P(ZT|ZD|ZM)/.test(t)) t = t.substring(1);
+    const m = t.match(/^(ZT|ZD|ZM)(\d{2})(\d{2})/);
+    if (m) {
+        const fam = m[1], mod = m[2], res = m[3];
+        const TBL = {
+            ZT:{'23':'ZT231','41':'ZT411','42':'ZT421','61':'ZT610','62':'ZT620','63':'ZT630','30':'ZT230'},
+            ZD:{'42':'ZD421','62':'ZD621','22':'ZD220','23':'ZD230'},
+            ZM:{'40':'ZM400','60':'ZM600'}
+        };
+        const nom  = (TBL[fam]||{})[mod] || `${fam}${mod}x`;
+        const dig  = res.charAt(1);
+        const dots = dig==='3'?'12dots':dig==='6'?'24dots':'8dots';
+        return `${nom} - ${dots}`;
+    }
+    const COURTS = {
+        'ZT231':'ZT231','ZT230':'ZT230','ZT411':'ZT411','ZT421':'ZT421',
+        'ZD421':'ZD421','ZD221':'ZD221','ZT410':'ZT410','ZT420':'ZT420',
+        'ZT610':'ZT610','ZT620':'ZT620','ZT630':'ZT630','ZM400':'ZM400','ZM600':'ZM600'
+    };
+    for (const [k,v] of Object.entries(COURTS)) {
+        if (t.startsWith(k)) {
+            const d = t.charAt(6);
+            return `${v} - ${d==='3'?'12dots':d==='6'?'24dots':'8dots'}`;
         }
+    }
+    const SN_MAP = {
+        '41J':'ZT411 - 8dots','42J':'ZT421 - 8dots',
+        '23J':'ZT231 - 8dots','23C':'ZT231 - 8dots',
+        '33J':'ZD421 - 8dots','34J':'ZD421 - 8dots',
+        '41A':'ZT410 - 8dots','42A':'ZT420 - 8dots','12C':'ZM400 - 8dots'
+    };
+    for (const [k,v] of Object.entries(SN_MAP)) {
+        if (t.startsWith(k)) return v;
+    }
+    if (t.includes('-') && t.length >= 8) return t;
+    return null;
+}
 
-        function stopScanner() {
-            if (scanInterval) clearInterval(scanInterval);
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
-                videoStream = null;
-            }
-            document.getElementById('scanner-zone').style.display = 'none';
-        }
+function afficherSuggestions(filtre) {
+    const container = document.getElementById('suggestions');
+    const f = (filtre||'').toUpperCase().trim();
+    const liste = f
+        ? MODELES_SUGGESTIONS.filter(s => s.toUpperCase().includes(f))
+        : MODELES_SUGGESTIONS.slice(0, 12);
+    container.innerHTML = liste.slice(0, 12).map(s =>
+        `<button type="button" onclick="choisirSuggestion('${s}')"
+            class="bg-gray-700 hover:bg-blue-600 text-white text-[11px] font-bold px-2 py-2 rounded text-center transition-colors">${s}</button>`
+    ).join('');
+}
 
-        // Gestion cumulée de l'appareil photo sans écrasement
-        document.getElementById('photo').addEventListener('change', function(e) {
-            const files = e.target.files;
-            if(!files || files.length === 0) return;
+function choisirSuggestion(modele) {
+    document.getElementById('manualModele').value = modele;
+    afficherSuggestions(modele);
+}
 
-            for(let file of files) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const base64Data = event.target.result;
-                    
-                    // Création de l'élément d'aperçu individuel
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'photo-wrapper';
-                    
-                    const img = document.createElement('img');
-                    img.src = base64Data;
-                    img.classList.add('photo-preview');
-                    
-                    const delBtn = document.createElement('button');
-                    delBtn.className = 'btn-delete-photo';
-                    delBtn.innerHTML = '×';
-                    delBtn.type = 'button';
-                    
-                    delBtn.onclick = function() {
-                        wrapper.remove();
-                        const index = currentPhotos.indexOf(base64Data);
-                        if (index > -1) {
-                            currentPhotos.splice(index, 1);
-                        }
-                    };
-                    
-                    wrapper.appendChild(img);
-                    wrapper.appendChild(delBtn);
-                    previewContainer.appendChild(wrapper);
-                    
-                    // Ajouter au tableau des photos en cours
-                    currentPhotos.push(base64Data);
-                }
-                reader.readAsDataURL(file);
-            }
-            // Réinitialiser le champ pour permettre de reprendre un cliché immédiatement
-            e.target.value = '';
+window.ouvrirScanner = async function() {
+    if (!('BarcodeDetector' in window)) {
+        alert("BarcodeDetector non supporté. Requis : Chrome Android 83+.");
+        return;
+    }
+    const formats = await BarcodeDetector.getSupportedFormats();
+    if (!formats.includes('code_128')) {
+        alert("Le format Code 128 n'est pas supporté par ce navigateur.");
+        return;
+    }
+    detector = new BarcodeDetector({ formats: ['code_128'] });
+    snDetecte = null; modeleAffiche = null;
+    scanMode = 'SN'; modeManuel = false;
+    lastDecoded = ''; lastDecodedAt = 0; flashActive = false;
+    resetUI();
+    afficherModeCamera();
+    document.getElementById('scannerModal').classList.remove('hidden');
+    try {
+        videoStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080} }
         });
+        const video = document.getElementById('scanVideo');
+        video.srcObject = videoStream;
+        await video.play();
+        videoTrack = videoStream.getVideoTracks()[0];
+        setTimeout(allumerFlash, 800);
+        boucleDetection();
+    } catch(err) {
+        alert("Caméra inaccessible : " + err.message);
+        fermerScanner();
+    }
+};
 
-        document.getElementById('addBtn').addEventListener('click', function(e) {
-            e.preventDefault();
-            const entry = {
-                type: document.getElementById('printerType').value,
-                option: document.getElementById('option').value,
-                serial: document.getElementById('serial').value,
-                cellules: document.getElementById('cellules').value,
-                etatDot: document.getElementById('etatDot').value,
-                roller: document.getElementById('roller').value,
-                impression: document.getElementById('impression').value,
-                general: document.getElementById('etatGeneral').value,
-                remarque: document.getElementById('remarque').value,
-                photos: [...currentPhotos]
+async function boucleDetection() {
+    if (modeManuel) return;
+    const video  = document.getElementById('scanVideo');
+    const canvas = document.getElementById('decodeCanvas');
+    const ctx    = canvas.getContext('2d');
+    if (!videoStream || video.readyState < 2) {
+        scanRafId = requestAnimationFrame(boucleDetection);
+        return;
+    }
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    const cropY = Math.floor(vh * 0.30);
+    const cropH = Math.floor(vh * 0.40);
+    canvas.width  = vw;
+    canvas.height = cropH;
+    ctx.drawImage(video, 0, cropY, vw, cropH, 0, 0, vw, cropH);
+    try {
+        const results = await detector.detect(canvas);
+        if (results && results.length > 0) {
+            const best = results.reduce((a,b) => b.boundingBox.width > a.boundingBox.width ? b : a);
+            const texte = best.rawValue;
+            if (texte) traiterCode(texte);
+        }
+    } catch(e) {}
+    scanRafId = requestAnimationFrame(boucleDetection);
+}
+
+function traiterCode(texte) {
+    const brut = texte.trim();
+    const now  = Date.now();
+    if (brut === lastDecoded && (now - lastDecodedAt) < DEBOUNCE) return;
+    lastDecoded = brut; lastDecodedAt = now;
+    document.getElementById('rawResult').textContent = brut;
+    document.getElementById('rawResult').className   = 'text-[11px] text-green-400 font-mono font-bold break-all';
+    if (scanMode === 'SN') {
+        const sn = extraireSN(brut);
+        if (sn) {
+            snDetecte = sn;
+            document.getElementById('resultSN').textContent = '✅ ' + sn;
+            document.getElementById('resultSN').className   = 'text-green-400 font-bold text-xs break-all';
+            passerModePN();
+        } else {
+            const m = identifierModele(brut);
+            if (m) { modeleAffiche = m; }
+        }
+        return;
+    }
+    if (scanMode === 'PN') {
+        if (brut === snDetecte || brut === 'S'+snDetecte) return;
+        const m = identifierModele(brut);
+        if (m) {
+            modeleAffiche = m;
+            document.getElementById('resultPN').textContent = '✅ ' + m;
+            document.getElementById('resultPN').className   = 'text-green-400 font-bold text-xs break-all';
+            document.getElementById('btnValider').disabled  = false;
+            setTimeout(validerEtFermer, 600);
+        } else {
+            document.getElementById('rawResult').textContent = '⚠️ P/N non reconnu : ' + brut;
+            document.getElementById('rawResult').className   = 'text-[11px] text-yellow-400 font-mono break-all';
+            document.getElementById('btnManuel').classList.remove('hidden');
+        }
+    }
+}
+
+function extraireSN(brut) {
+    let t = brut.trim(), u = t.toUpperCase();
+    if (u.startsWith('S') && t.length >= 7 && t.length <= 22) {
+        const c = t.substring(1);
+        if (/^[A-Z0-9]{5,20}$/i.test(c)) return c;
+    }
+    if (/^[A-Z][0-9][A-Z][0-9]{6,}/i.test(u) && t.length <= 20) return t;
+    if (/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/i.test(u)) return t;
+    if (/^[A-Z0-9]{8,20}$/i.test(t) && !t.includes('-')) return t;
+    return null;
+}
+
+function passerModePN() {
+    scanMode = 'PN'; lastDecoded = ''; lastDecodedAt = 0;
+    document.getElementById('stepLabel').textContent = 'ÉTAPE 2 / 2 — Pointez sur le code P/N';
+    document.getElementById('modeBadge').textContent = 'P/N';
+    document.getElementById('modeBadge').className   = 'absolute top-3 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-[11px] font-extrabold px-4 py-1 rounded-full uppercase tracking-widest';
+    document.getElementById('scanBorder').setAttribute('stroke','#3b82f6');
+    document.getElementById('cardSN').className = 'bg-gray-800 rounded p-2 text-center border border-gray-700 opacity-60';
+    document.getElementById('cardPN').className = 'bg-gray-800 rounded p-2 text-center border-2 border-blue-500 opacity-100';
+    document.getElementById('cardPNLabel').className = 'text-[10px] text-blue-400 font-bold uppercase mb-1';
+    document.getElementById('rawResult').textContent = 'Pointez maintenant sur le code P/N...';
+    document.getElementById('rawResult').className   = 'text-[11px] text-blue-400 font-mono italic break-all';
+    document.getElementById('btnManuel').classList.remove('hidden');
+    if (modeleAffiche) {
+        document.getElementById('resultPN').textContent = '✅ ' + modeleAffiche;
+        document.getElementById('resultPN').className   = 'text-green-400 font-bold text-xs break-all';
+        document.getElementById('btnValider').disabled  = false;
+        setTimeout(validerEtFermer, 600);
+    }
+}
+
+function basculerSaisieManuelle() {
+    modeManuel = true;
+    document.getElementById('snRappel').textContent = snDetecte || '—';
+    afficherSuggestions('');
+    document.getElementById('videoZone').classList.add('hidden');
+    document.getElementById('flashBtn').classList.add('hidden');
+    document.getElementById('rawBlock').classList.add('hidden');
+    document.getElementById('btnManuel').classList.add('hidden');
+    document.getElementById('manualZone').classList.remove('hidden');
+    document.getElementById('manualZone').classList.add('flex');
+    const input = document.getElementById('manualModele');
+    input.value = '';
+    input.oninput = () => afficherSuggestions(input.value);
+    setTimeout(() => input.focus(), 100);
+}
+
+function retourScanPN() {
+    modeManuel = false;
+    lastDecoded = ''; lastDecodedAt = 0;
+    afficherModeCamera();
+    boucleDetection();
+}
+
+function validerManuel() {
+    const val = document.getElementById('manualModele').value.trim();
+    if (!val) { alert("Veuillez saisir ou choisir un modèle."); return; }
+    modeleAffiche = val;
+    document.getElementById('resultPN').textContent = '✅ ' + val;
+    document.getElementById('resultPN').className   = 'text-green-400 font-bold text-xs break-all';
+    document.getElementById('btnValider').disabled  = false;
+    validerEtFermer();
+}
+
+function afficherModeCamera() {
+    document.getElementById('videoZone').classList.remove('hidden');
+    document.getElementById('flashBtn').classList.remove('hidden');
+    document.getElementById('rawBlock').classList.remove('hidden');
+    document.getElementById('manualZone').classList.add('hidden');
+    document.getElementById('manualZone').classList.remove('flex');
+}
+
+async function allumerFlash() {
+    if (!videoTrack) return;
+    try { await videoTrack.applyConstraints({advanced:[{torch:true}]}); flashActive=true; } catch(e){}
+}
+
+window.toggleFlash = async function() {
+    if (!videoTrack) return;
+    flashActive = !flashActive;
+    try { await videoTrack.applyConstraints({advanced:[{torch:flashActive}]}); } catch(e){}
+};
+
+window.validerEtFermer = function() {
+    if (snDetecte)     document.getElementById('serial').value = snDetecte;
+    if (modeleAffiche) document.getElementById('modele').value = modeleAffiche;
+    fermerScanner();
+};
+
+window.fermerScanner = function() {
+    document.getElementById('scannerModal').classList.add('hidden');
+    if (scanRafId)   { cancelAnimationFrame(scanRafId); scanRafId = null; }
+    if (videoStream) { videoStream.getTracks().forEach(t=>t.stop()); videoStream = null; }
+    videoTrack = null; detector = null; modeManuel = false;
+};
+
+function resetUI() {
+    document.getElementById('stepLabel').textContent  = 'ÉTAPE 1 / 2 — Pointez sur le code S/N';
+    document.getElementById('modeBadge').textContent  = 'S/N';
+    document.getElementById('modeBadge').className    = 'absolute top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-gray-900 text-[11px] font-extrabold px-4 py-1 rounded-full uppercase tracking-widest';
+    document.getElementById('scanBorder').setAttribute('stroke','#f59e0b');
+    document.getElementById('cardSN').className       = 'bg-gray-800 rounded p-2 text-center border-2 border-amber-500';
+    document.getElementById('cardPN').className       = 'bg-gray-800 rounded p-2 text-center border border-gray-700 opacity-50';
+    document.getElementById('cardPNLabel').className  = 'text-[10px] text-gray-400 font-bold uppercase mb-1';
+    document.getElementById('resultSN').textContent   = '❌ En attente';
+    document.getElementById('resultSN').className     = 'text-red-400 font-bold text-xs break-all';
+    document.getElementById('resultPN').textContent   = '❌ En attente';
+    document.getElementById('resultPN').className     = 'text-red-400 font-bold text-xs break-all';
+    document.getElementById('rawResult').textContent  = 'Aucune lecture...';
+    document.getElementById('rawResult').className    = 'text-[11px] text-gray-500 font-mono break-all';
+    document.getElementById('btnValider').disabled    = true;
+    document.getElementById('btnManuel').classList.add('hidden');
+}
+
+window.addEventListener('load', function() {
+    document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('capturePhotoBtn').addEventListener('click',
+        () => document.getElementById('cameraInput').click());
+    document.getElementById('cameraInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+            const img = document.getElementById('imageToCrop');
+            if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+            img.onload = function() {
+                document.getElementById('cropperModal').classList.remove('hidden');
+                cropperInstance = new Cropper(img,{aspectRatio:10/4,viewMode:1,autoCropArea:0.9,responsive:true});
+                img.onload = null;
             };
-            reportData.push(entry);
-            const tbody = document.querySelector('#summaryTable tbody');
-            tbody.innerHTML = '';
-            document.getElementById('count').innerText = reportData.length;
-            reportData.forEach(data => {
-                const photoIcon = (data.photos && data.photos.length > 0) ? `${data.photos.length} 📸` : '';
-                tbody.innerHTML += `<tr>
-                    <td>${data.type}</td><td>${data.option}</td><td>${data.serial}</td>
-                    <td>${data.cellules}</td><td>${data.etatDot}</td><td>${data.roller}</td>
-                    <td>${data.impression}</td><td>${data.general}</td><td>${data.remarque}</td><td>${photoIcon}</td>
-                </tr>`;
-            });
-            document.getElementById('maintenanceForm').reset();
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('headerDate').value = today;
-            previewContainer.innerHTML = '';
-            currentPhotos = [];
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+    document.getElementById('saveCropBtn').addEventListener('click', function() {
+        if (!cropperInstance) return;
+        const canvas = cropperInstance.getCroppedCanvas({maxWidth:800,maxHeight:320});
+        currentPhotoBase64 = canvas.toDataURL('image/jpeg',0.85);
+        document.getElementById('photoPreview').src = currentPhotoBase64;
+        document.getElementById('photoPreviewContainer').classList.remove('hidden');
+        closeCropper();
+    });
+    document.getElementById('cancelCropBtn').addEventListener('click', closeCropper);
+    document.getElementById('machineForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        reportData.push({
+            idKey:Date.now(),
+            zone:document.getElementById('zone').value.trim(),
+            modele:document.getElementById('modele').value.trim(),
+            lieuId:document.getElementById('lieuId').value.trim(),
+            serial:document.getElementById('serial').value.trim(),
+            ip:document.getElementById('ip').value.trim(),
+            cellules:document.getElementById('cellules').value,
+            etatDot:document.getElementById('etatDot').value,
+            roller:document.getElementById('roller').value,
+            impression:document.getElementById('impression').value,
+            general:document.getElementById('general').value,
+            remarque:document.getElementById('remarque').value.trim(),
+            photos:currentPhotoBase64?[currentPhotoBase64]:[]
         });
+        updateTable();
+        ['modele','serial','lieuId','ip','remarque'].forEach(id=>document.getElementById(id).value='');
+        document.getElementById('photoPreviewContainer').classList.add('hidden');
+        currentPhotoBase64=null;
+    });
+});
 
-        document.getElementById('exportBtn').addEventListener('click', function(e) {
-            e.preventDefault();
-            if(reportData.length === 0) return alert('Aucune donnée à exporter');
-            const site = document.getElementById('headerSite').value || 'N/A';
-            const zone = document.getElementById('headerZone').value || 'N/A';
-            const intervenant = document.getElementById('headerIntervenant').value || 'N/A';
-            const dateVisite = document.getElementById('headerDate').value || 'N/A';
+function closeCropper() {
+    document.getElementById('cropperModal').classList.add('hidden');
+    if (cropperInstance){cropperInstance.destroy();cropperInstance=null;}
+    document.getElementById('cameraInput').value='';
+}
 
-            let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>body { font-family: Arial, sans-serif; } h1 { color: #1a1a1a; border-bottom: 2px solid #c5a059; } .main-table { width: 100%; border-collapse: collapse; } .main-table th { background: #f2f2f2; border: 1px solid #ccc; padding: 8px; } .main-table td { border: 1px solid #ccc; padding: 8px; } .word-img { max-width: 280px; height: auto; margin: 5px; }</style></head><body><h1>Rapport Visite de Maintenance Préventive</h1><p><b>Site :</b> ${site} | <b>Zone :</b> ${zone} | <b>Intervenant :</b> ${intervenant} | <b>Date :</b> ${dateVisite}</p><table class="main-table"><thead><tr><th>Machine Type & ID</th><th>Option</th><th>S/N</th><th>Cellules</th><th>Etat dot</th><th>Pressing roller</th><th>Impression</th><th>Etat Général</th><th>Remarque</th></tr></thead><tbody>`;
-            let photosHtml = "<h2>Photos Jointes</h2>";
-            let hasPhotos = false;
+function updateTable() {
+    const tbody = document.getElementById('reportTableBody');
+    tbody.innerHTML='';
+    if(!reportData.length){
+        tbody.innerHTML='<tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport.</td></tr>';
+        return;
+    }
+    reportData.forEach(d=>{
+        const row=document.createElement('tr');
+        row.className='hover:bg-gray-50 text-xs text-gray-700';
+        row.innerHTML=`
+            <td class="px-3 py-3 text-left">
+                <div class="font-bold text-gray-900">${d.modele}</div>
+                <div class="text-gray-500 italic text-[11px]">${d.lieuId||'-'}</div>
+            </td>
+            <td class="px-3 py-3 font-bold text-gray-800 text-sm tracking-wider">${d.serial}</td>
+            <td class="px-3 py-3">
+                <button onclick="deleteRow(${d.idKey})" class="text-red-600 font-bold cursor-pointer">Supprimer</button>
+            </td>`;
+        tbody.appendChild(row);
+    });
+}
 
-            reportData.forEach(r => {
-                wordHtml += `<tr><td>${r.type}</td><td>${r.option}</td><td>${r.serial}</td><td>${r.cellules}</td><td>${r.etatDot}</td><td>${r.roller}</td><td>${r.impression}</td><td>${r.general}</td><td>${r.remarque}</td></tr>`;
-                if(r.photos.length > 0) {
-                    hasPhotos = true;
-                    photosHtml += `<p><b>Photos pour S/N ${r.serial} :</b></p>`;
-                    r.photos.forEach(img => { photosHtml += `<img class="word-img" src="${img}" />`; });
-                }
-            });
-            wordHtml += "</tbody></table>";
-            if(hasPhotos) wordHtml += "<br>" + photosHtml;
-            wordHtml += "</body></html>";
+window.deleteRow=function(id){reportData=reportData.filter(i=>i.idKey!==id);updateTable();};
 
-            const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.setAttribute("download", `Rapport_Maintenance_${site}.doc`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        });
-    </script>
+// Fonction d'exportation Word (.doc) en mode Paysage
+window.exporterRapportPaysage = function() {
+    if(reportData.length === 0) return alert('Aucune donnée à exporter');
+    const site = document.getElementById('headerSite').value || 'N/A';
+    const brand = document.getElementById('headerBrand').value || 'N/A';
+    const intervenant = document.getElementById('headerIntervenant').value || 'N/A';
+    const dateVisite = document.getElementById('headerDate').value || 'N/A';
+
+    let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+    <meta charset="utf-8">
+    <style>
+        @page SectionPaysage {
+            size: 11in 8.5in;
+            margin: 0.5in 0.5in 0.5in 0.5in;
+            mso-page-orientation: landscape;
+        }
+        div.SectionPaysage {
+            page: SectionPaysage;
+        }
+        body { font-family: Arial, sans-serif; font-size: 11px; } 
+        h1 { color: #1e3a8a; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; font-size: 18px; text-transform: uppercase; } 
+        .meta-box { background: #f1f5f9; padding: 10px; border: 1px solid #cbd5e1; margin-bottom: 15px; }
+        .main-table { width: 100%; border-collapse: collapse; margin-top: 15px; } 
+        .main-table th { background: #1e293b; color: #ffffff; border: 1px solid #cbd5e1; padding: 6px; font-size: 11px; text-transform: uppercase; } 
+        .main-table td { border: 1px solid #cbd5e1; padding: 6px; text-align: center; font-size: 11px; } 
+        .text-left { text-align: left !important; }
+        .word-img { max-width: 260px; height: auto; margin: 5px; border: 1px solid #94a3b8; }
+    </style>
+    </head>
+    <body>
+    <div class="SectionPaysage">
+    <h1>Rapport de Maintenance Préventive — Parc ${brand}</h1>
+    <div class="meta-box">
+        <b>Client / Site :</b> ${site} &nbsp;|&nbsp; 
+        <b>Technicien :</b> ${intervenant} &nbsp;|&nbsp; 
+        <b>Date :</b> ${dateVisite}
+    </div>
+    <table class="main-table">
+    <thead>
+        <tr>
+            <th class="text-left">Zone</th>
+            <th class="text-left">Modèle (P/N)</th>
+            <th class="text-left">Lieu / ID</th>
+            <th>Numéro de Série (S/N)</th>
+            <th>IP</th>
+            <th>Cellules</th>
+            <th>État Dot</th>
+            <th>Platen Roller</th>
+            <th>Impression</th>
+            <th>État Général</th>
+            <th class="text-left">Remarques / Actions</th>
+        </tr>
+    </thead>
+    <tbody>`;
+    
+    let photosHtml = "<h2>Photos Jointes</h2>";
+    let hasPhotos = false;
+
+    reportData.forEach(r => {
+        wordHtml += `<tr>
+            <td class="text-left">${r.zone || '-'}</td>
+            <td class="text-left"><b>${r.modele || '-'}</b></td>
+            <td class="text-left">${r.lieuId || '-'}</td>
+            <td><b>${r.serial || '-'}</b></td>
+            <td>${r.ip || '-'}</td>
+            <td>${r.cellules || '-'}</td>
+            <td>${r.etatDot || '-'}</td>
+            <td>${r.roller || '-'}</td>
+            <td>${r.impression || '-'}</td>
+            <td><b>${r.general || '-'}</b></td>
+            <td class="text-left">${r.remarque || '-'}</td>
+        </tr>`;
+        
+        if(r.photos && r.photos.length > 0) {
+            hasPhotos = true;
+            photosHtml += `<p style="margin-top:15px;"><b>Photos pour S/N ${r.serial} (${r.modele} — ${r.zone || 'Sans zone'}) :</b></p>`;
+            r.photos.forEach(img => { photosHtml += `<img class="word-img" src="${img}" />`; });
+        }
+    });
+    
+    wordHtml += "</tbody></table>";
+    if(hasPhotos) wordHtml += "<br><br><br>" + photosHtml;
+    wordHtml += "</div></body></html>";
+
+    const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `Rapport_Maintenance_${site.replace(/[^a-z0-9]/gi, '_')}_Paysage.doc`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+</script>
 </body>
 </html>
