@@ -584,4 +584,187 @@ window.addEventListener('load', function() {
         e.preventDefault();
         reportData.push({
             idKey:Date.now(),
-            zone:document.getElementById('zone
+            zone:document.getElementById('zone').value.trim(),
+            modele:document.getElementById('modele').value.trim(),
+            lieuId:document.getElementById('lieuId').value.trim(),
+            serial:document.getElementById('serial').value.trim(),
+            ip:document.getElementById('ip').value.trim(),
+            cellules:document.getElementById('cellules').value,
+            etatDot:document.getElementById('etatDot').value,
+            roller:document.getElementById('roller').value,
+            impression:document.getElementById('impression').value,
+            general:document.getElementById('general').value,
+            remarque:document.getElementById('remarque').value.trim(),
+            photos:currentPhotoBase64?[currentPhotoBase64]:[]
+        });
+        updateTable();
+        ['modele','serial','lieuId','ip','remarque'].forEach(id=>document.getElementById(id).value='');
+        document.getElementById('photoPreviewContainer').classList.add('hidden');
+        currentPhotoBase64=null;
+    });
+});
+
+function closeCropper() {
+    document.getElementById('cropperModal').classList.add('hidden');
+    if (cropperInstance){cropperInstance.destroy();cropperInstance=null;}
+    document.getElementById('cameraInput').value='';
+}
+
+function updateTable() {
+    const tbody = document.getElementById('reportTableBody');
+    tbody.innerHTML='';
+    if(!reportData.length){
+        tbody.innerHTML='<tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport.</td></tr>';
+        return;
+    }
+    reportData.forEach(d=>{
+        const row=document.createElement('tr');
+        row.className='hover:bg-gray-50 text-xs text-gray-700';
+        row.innerHTML=`
+            <td class="px-3 py-3 text-left">
+                <div class="font-bold text-gray-900">${d.modele}</div>
+                <div class="text-gray-500 italic text-[11px]">${d.lieuId||'-'}</div>
+            </td>
+            <td class="px-3 py-3 font-bold text-gray-800 text-sm tracking-wider">${d.serial}</td>
+            <td class="px-3 py-3">
+                <button onclick="deleteRow(${d.idKey})" class="text-red-600 font-bold cursor-pointer">Supprimer</button>
+            </td>`;
+        tbody.appendChild(row);
+    });
+}
+window.deleteRow=function(id){reportData=reportData.filter(i=>i.idKey!==id);updateTable();};
+
+// Fonction d'exportation Word (.doc) ajustée pour la fluidité du tableau et l'affichage des photos sur 2 colonnes
+window.exporterRapportPaysage = function() {
+    if(reportData.length === 0) return alert('Aucune donnée à exporter');
+    const site = document.getElementById('headerSite').value || 'N/A';
+    const brand = document.getElementById('headerBrand').value || 'N/A';
+    const intervenant = document.getElementById('headerIntervenant').value || 'N/A';
+    const dateVisite = document.getElementById('headerDate').value || 'N/A';
+    
+    let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+    <meta charset="utf-8">
+    <style>
+        @page SectionPaysage {
+            size: 11in 8.5in;
+            margin: 0.5in 0.5in 0.5in 0.5in;
+            mso-page-orientation: landscape;
+        }
+        div.SectionPaysage {
+            page: SectionPaysage;
+        }
+        body { font-family: Arial, sans-serif; font-size: 11px; color: #334155; } 
+        h1 { color: #1e3a8a; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; font-size: 18px; text-transform: uppercase; } 
+        h2 { color: #1e3a8a; font-size: 14px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-top: 30px; }
+        .meta-box { background: #f1f5f9; padding: 10px; border: 1px solid #cbd5e1; margin-bottom: 15px; }
+        .main-table { width: 100%; border-collapse: collapse; margin-top: 15px; table-layout: fixed; } 
+        .main-table th { background: #1e293b; color: #ffffff; border: 1px solid #cbd5e1; padding: 10px 6px; font-size: 11px; text-transform: uppercase; line-height: 1.4; } 
+        .main-table td { border: 1px solid #cbd5e1; padding: 12px 6px; text-align: center; font-size: 11px; vertical-align: middle; line-height: 1.4; } 
+        .text-left { text-align: left !important; }
+        .zone-title { background: #e2e8f0; color: #0f172a; font-weight: bold; font-size: 12px; text-transform: uppercase; padding: 8px; border: 1px solid #cbd5e1; }
+        .photo-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        .photo-cell { width: 50%; padding: 6px; text-align: center; border: none; vertical-align: top; }
+        .word-img { width: 96%; max-width: 440px; height: auto; border: 1px solid #94a3b8; }
+    </style>
+    </head>
+    <body>
+    <div class="SectionPaysage">
+    <h1>Rapport de Maintenance Préventive — Parc ${brand}</h1>
+    <div class="meta-box">
+        <b>Client / Site :</b> ${site} &nbsp;|&nbsp; 
+        <b>Technicien :</b> ${intervenant} &nbsp;|&nbsp; 
+        <b>Date :</b> ${dateVisite}
+    </div>
+    <table class="main-table">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 22%;">Modèle (P/N)<br><span style="font-size:9px; font-weight:normal; text-transform:none; color:#94a3b8;">Lieu / ID</span></th>
+            <th style="width: 17%;">S/N<br><span style="font-size:9px; font-weight:normal; text-transform:none; color:#94a3b8;">Adresse IP</span></th>
+            <th style="width: 8%;">Cellules</th>
+            <th style="width: 9%;">État Dot</th>
+            <th style="width: 9%;">Platen Roller</th>
+            <th style="width: 8%;">Impression</th>
+            <th style="width: 9%;">État Général</th>
+            <th class="text-left" style="width: 18%;">Remarques / Actions</th>
+        </tr>
+    </thead>
+    <tbody>`;
+    
+    let photosHtml = "<h2>Photos Jointes</h2>";
+    let hasPhotos = false;
+    
+    // Regroupement dynamique par zone
+    const zonesGroupées = {};
+    reportData.forEach(r => {
+        const nomZone = (r.zone && r.zone.trim()) ? r.zone.trim() : 'Non spécifié';
+        if (!zonesGroupées[nomZone]) {
+            zonesGroupées[nomZone] = [];
+        }
+        zonesGroupées[nomZone].push(r);
+    });
+    
+    // Rendu des imprimantes regroupées par zone
+    for (const zoneName in zonesGroupées) {
+        wordHtml += `<tr>
+            <td colspan="8" class="zone-title text-left">${zoneName}</td>
+        </tr>`;
+        
+        zonesGroupées[zoneName].forEach(r => {
+            wordHtml += `<tr>
+                <td class="text-left">
+                    <b>${r.modele || '-'}</b><br>
+                    <span style="color:#64748b; font-style:italic; font-size:10px;">${r.lieuId || '-'}</span>
+                </td>
+                <td>
+                    <b>${r.serial || '-'}</b><br>
+                    <span style="color:#64748b; font-size:10px;">${r.ip || '-'}</span>
+                </td>
+                <td>${r.cellules || '-'}</td>
+                <td>${r.etatDot || '-'}</td>
+                <td>${r.roller || '-'}</td>
+                <td>${r.impression || '-'}</td>
+                <td><b>${r.general || '-'}</b></td>
+                <td class="text-left">${r.remarque || '-'}</td>
+            </tr>`;
+            
+            if(r.photos && r.photos.length > 0) {
+                hasPhotos = true;
+                photosHtml += `<p style="margin-top:16px; margin-bottom:4px; font-size:11px; color:#1e293b;"><b>Photos pour S/N ${r.serial} (${r.modele} — ${zoneName}) :</b></p>`;
+                photosHtml += `<table class="photo-table"><tr>`;
+                
+                r.photos.forEach((img, idx) => {
+                    // Création d'une nouvelle ligne toutes les 2 images
+                    if (idx > 0 && idx % 2 === 0) {
+                        photosHtml += `</tr><tr>`;
+                    }
+                    photosHtml += `<td class="photo-cell">
+                        <img class="word-img" src="${img}" />
+                    </td>`;
+                });
+                
+                // Remplissage de la cellule manquante si le nombre d'images est impair
+                if (r.photos.length % 2 !== 0) {
+                    photosHtml += `<td class="photo-cell"></td>`;
+                }
+                
+                photosHtml += `</tr></table>`;
+            }
+        });
+    }
+    
+    wordHtml += "</tbody></table>";
+    if(hasPhotos) wordHtml += "<br>" + photosHtml;
+    wordHtml += "</div></body></html>";
+    
+    const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `Rapport_Maintenance_${site.replace(/[^a-z0-9]/gi, '_')}_Paysage.doc`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+</script>
+</body>
+</html>
