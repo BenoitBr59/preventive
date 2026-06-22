@@ -102,7 +102,8 @@
             <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">État Général</label>
                 <select id="general" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm">
-                    <option>OK</option><option>A surveiller</option><option>Critique</option>
+                    <option>OK</option>
+                    <option>Voir Rem</option>
                 </select>
             </div>
             <div class="col-span-2">
@@ -144,7 +145,6 @@
         </button>
     </div>
 </div>
-
 <!-- ═══════════════════ MODAL SCANNER ═══════════════════ -->
 <div id="scannerModal" class="hidden fixed inset-0 bg-black flex flex-col z-50" style="touch-action:none;">
     <!-- En-tête -->
@@ -239,7 +239,6 @@
         </button>
     </div>
 </div>
-
 <!-- Modal recadrage photo -->
 <div id="cropperModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-4 max-w-xl w-full flex flex-col max-h-[90vh]">
@@ -253,7 +252,6 @@
         </div>
     </div>
 </div>
-
 <script>
 const MODELES_SUGGESTIONS = [
     'ZT111 - 8dots','ZT111 - 12dots','ZT220 - 8dots','ZT220 - 12dots',
@@ -271,7 +269,6 @@ const MODELES_SUGGESTIONS = [
     'PF4i - 12dots','B-EX4T1 - 8dots','B-EX4T2 - 8dots','B-FV4T - 8dots',
     'B-SA4TM - 8dots','PX4ie - 8dots','PX6ie - 8dots','PC4 - 8dots'
 ];
-
 let reportData         = [];
 let currentPhotoBase64 = null;
 let cropperInstance    = null;
@@ -287,7 +284,6 @@ let detector       = null;
 let lastDecoded    = '';
 let lastDecodedAt  = 0;
 const DEBOUNCE     = 1200;
-
 function identifierModele(pnBrut) {
     let t = pnBrut.toUpperCase().trim();
     if (t.startsWith('1P')) t = t.substring(2);
@@ -328,7 +324,6 @@ function identifierModele(pnBrut) {
     if (t.includes('-') && t.length >= 8) return t;
     return null;
 }
-
 function afficherSuggestions(filtre) {
     const container = document.getElementById('suggestions');
     const f = (filtre||'').toUpperCase().trim();
@@ -340,12 +335,10 @@ function afficherSuggestions(filtre) {
             class="bg-gray-700 hover:bg-blue-600 text-white text-[11px] font-bold px-2 py-2 rounded text-center transition-colors">${s}</button>`
     ).join('');
 }
-
 function choisirSuggestion(modele) {
     document.getElementById('manualModele').value = modele;
     afficherSuggestions(modele);
 }
-
 window.ouvrirScanner = async function() {
     if (!('BarcodeDetector' in window)) {
         alert("BarcodeDetector non supporté. Requis : Chrome Android 83+.");
@@ -378,7 +371,6 @@ window.ouvrirScanner = async function() {
         fermerScanner();
     }
 };
-
 async function boucleDetection() {
     if (modeManuel) return;
     const video  = document.getElementById('scanVideo');
@@ -405,7 +397,6 @@ async function boucleDetection() {
     } catch(e) {}
     scanRafId = requestAnimationFrame(boucleDetection);
 }
-
 function traiterCode(texte) {
     const brut = texte.trim();
     const now  = Date.now();
@@ -442,7 +433,6 @@ function traiterCode(texte) {
         }
     }
 }
-
 function extraireSN(brut) {
     let t = brut.trim(), u = t.toUpperCase();
     if (u.startsWith('S') && t.length >= 7 && t.length <= 22) {
@@ -454,7 +444,6 @@ function extraireSN(brut) {
     if (/^[A-Z0-9]{8,20}$/i.test(t) && !t.includes('-')) return t;
     return null;
 }
-
 function passerModePN() {
     scanMode = 'PN'; lastDecoded = ''; lastDecodedAt = 0;
     document.getElementById('stepLabel').textContent = 'ÉTAPE 2 / 2 — Pointez sur le code P/N';
@@ -474,7 +463,6 @@ function passerModePN() {
         setTimeout(validerEtFermer, 600);
     }
 }
-
 function basculerSaisieManuelle() {
     modeManuel = true;
     document.getElementById('snRappel').textContent = snDetecte || '—';
@@ -490,14 +478,12 @@ function basculerSaisieManuelle() {
     input.oninput = () => afficherSuggestions(input.value);
     setTimeout(() => input.focus(), 100);
 }
-
 function retourScanPN() {
     modeManuel = false;
     lastDecoded = ''; lastDecodedAt = 0;
     afficherModeCamera();
     boucleDetection();
 }
-
 function validerManuel() {
     const val = document.getElementById('manualModele').value.trim();
     if (!val) { alert("Veuillez saisir ou choisir un modèle."); return; }
@@ -507,7 +493,6 @@ function validerManuel() {
     document.getElementById('btnValider').disabled  = false;
     validerEtFermer();
 }
-
 function afficherModeCamera() {
     document.getElementById('videoZone').classList.remove('hidden');
     document.getElementById('flashBtn').classList.remove('hidden');
@@ -515,31 +500,26 @@ function afficherModeCamera() {
     document.getElementById('manualZone').classList.add('hidden');
     document.getElementById('manualZone').classList.remove('flex');
 }
-
 async function allumerFlash() {
     if (!videoTrack) return;
     try { await videoTrack.applyConstraints({advanced:[{torch:true}]}); flashActive=true; } catch(e){}
 }
-
 window.toggleFlash = async function() {
     if (!videoTrack) return;
     flashActive = !flashActive;
     try { await videoTrack.applyConstraints({advanced:[{torch:flashActive}]}); } catch(e){}
 };
-
 window.validerEtFermer = function() {
     if (snDetecte)     document.getElementById('serial').value = snDetecte;
     if (modeleAffiche) document.getElementById('modele').value = modeleAffiche;
     fermerScanner();
 };
-
 window.fermerScanner = function() {
     document.getElementById('scannerModal').classList.add('hidden');
     if (scanRafId)   { cancelAnimationFrame(scanRafId); scanRafId = null; }
     if (videoStream) { videoStream.getTracks().forEach(t=>t.stop()); videoStream = null; }
     videoTrack = null; detector = null; modeManuel = false;
 };
-
 function resetUI() {
     document.getElementById('stepLabel').textContent  = 'ÉTAPE 1 / 2 — Pointez sur le code S/N';
     document.getElementById('modeBadge').textContent  = 'S/N';
@@ -557,7 +537,6 @@ function resetUI() {
     document.getElementById('btnValider').disabled    = true;
     document.getElementById('btnManuel').classList.add('hidden');
 }
-
 window.addEventListener('load', function() {
     document.getElementById('headerDate').value = new Date().toISOString().split('T')[0];
     document.getElementById('capturePhotoBtn').addEventListener('click',
@@ -610,13 +589,11 @@ window.addEventListener('load', function() {
         currentPhotoBase64=null;
     });
 });
-
 function closeCropper() {
     document.getElementById('cropperModal').classList.add('hidden');
     if (cropperInstance){cropperInstance.destroy();cropperInstance=null;}
     document.getElementById('cameraInput').value='';
 }
-
 function updateTable() {
     const tbody = document.getElementById('reportTableBody');
     tbody.innerHTML='';
@@ -639,17 +616,16 @@ function updateTable() {
         tbody.appendChild(row);
     });
 }
-
 window.deleteRow=function(id){reportData=reportData.filter(i=>i.idKey!==id);updateTable();};
 
-// Fonction d'exportation Word (.doc) en mode Paysage
+// Fonction d'exportation Word (.doc) révisée avec en-têtes imbriqués et ligne globale Zone
 window.exporterRapportPaysage = function() {
     if(reportData.length === 0) return alert('Aucune donnée à exporter');
     const site = document.getElementById('headerSite').value || 'N/A';
     const brand = document.getElementById('headerBrand').value || 'N/A';
     const intervenant = document.getElementById('headerIntervenant').value || 'N/A';
     const dateVisite = document.getElementById('headerDate').value || 'N/A';
-
+    
     let wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
     <head>
     <meta charset="utf-8">
@@ -667,8 +643,9 @@ window.exporterRapportPaysage = function() {
         .meta-box { background: #f1f5f9; padding: 10px; border: 1px solid #cbd5e1; margin-bottom: 15px; }
         .main-table { width: 100%; border-collapse: collapse; margin-top: 15px; } 
         .main-table th { background: #1e293b; color: #ffffff; border: 1px solid #cbd5e1; padding: 6px; font-size: 11px; text-transform: uppercase; } 
-        .main-table td { border: 1px solid #cbd5e1; padding: 6px; text-align: center; font-size: 11px; } 
+        .main-table td { border: 1px solid #cbd5e1; padding: 6px; text-align: center; font-size: 11px; vertical-align: top; } 
         .text-left { text-align: left !important; }
+        .zone-title { background: #cbd5e1; color: #0f172a; font-weight: bold; font-size: 12px; text-transform: uppercase; padding: 6px; border: 1px solid #94a3b8; }
         .word-img { max-width: 260px; height: auto; margin: 5px; border: 1px solid #94a3b8; }
     </style>
     </head>
@@ -683,11 +660,8 @@ window.exporterRapportPaysage = function() {
     <table class="main-table">
     <thead>
         <tr>
-            <th class="text-left">Zone</th>
-            <th class="text-left">Modèle (P/N)</th>
-            <th class="text-left">Lieu / ID</th>
-            <th>Numéro de Série (S/N)</th>
-            <th>IP</th>
+            <th class="text-left">Modèle (P/N)<br><span style="font-size:9px; font-weight:normal; text-transform:none;">Lieu / ID précis</span></th>
+            <th>Numéro de Série (S/N)<br><span style="font-size:9px; font-weight:normal; text-transform:none;">Adresse IP</span></th>
             <th>Cellules</th>
             <th>État Dot</th>
             <th>Platen Roller</th>
@@ -700,14 +674,23 @@ window.exporterRapportPaysage = function() {
     
     let photosHtml = "<h2>Photos Jointes</h2>";
     let hasPhotos = false;
-
+    
     reportData.forEach(r => {
+        // Ajout de la ligne globale pour la zone au-dessus du bloc d'équipement
         wordHtml += `<tr>
-            <td class="text-left">${r.zone || '-'}</td>
-            <td class="text-left"><b>${r.modele || '-'}</b></td>
-            <td class="text-left">${r.lieuId || '-'}</td>
-            <td><b>${r.serial || '-'}</b></td>
-            <td>${r.ip || '-'}</td>
+            <td colspan="8" class="zone-title text-left">Zone / Emplacement : ${r.zone || 'Non spécifié'}</td>
+        </tr>`;
+        
+        // Ajout de l'équipement avec les fusions de données demandées (l'un sous l'autre via <br>)
+        wordHtml += `<tr>
+            <td class="text-left">
+                <b>${r.modele || '-'}</b><br>
+                <span style="color:#475569; font-style:italic;">${r.lieuId || '-'}</span>
+            </td>
+            <td>
+                <b>${r.serial || '-'}</b><br>
+                <span style="color:#475569;">${r.ip || '-'}</span>
+            </td>
             <td>${r.cellules || '-'}</td>
             <td>${r.etatDot || '-'}</td>
             <td>${r.roller || '-'}</td>
@@ -726,7 +709,7 @@ window.exporterRapportPaysage = function() {
     wordHtml += "</tbody></table>";
     if(hasPhotos) wordHtml += "<br><br><br>" + photosHtml;
     wordHtml += "</div></body></html>";
-
+    
     const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
