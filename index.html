@@ -8,197 +8,206 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <style>
-        :root {
-            --mds-bleu:   #0d1f8c;
-            --mds-orange: #f5a11c;
-        }
-        .mds-header-bar   { background-color: var(--mds-bleu) !important; }
-        .mds-btn-primary  { background-color: var(--mds-bleu) !important; }
-        .mds-btn-primary:hover { background-color: #091570 !important; }
-        .mds-btn-scan     { background-color: var(--mds-orange) !important; color: #1a1a1a !important; }
-        .mds-btn-scan:hover { background-color: #d98d15 !important; }
-        .mds-accent       { color: var(--mds-orange) !important; }
-        .mds-title        { color: var(--mds-bleu) !important; }
-        .mds-border-top   { border-top: 4px solid var(--mds-orange); }
-        .mds-thead        { background-color: var(--mds-bleu) !important; }
-        .mds-section-bg   { background-color: #eef0fb !important; border-color: #c7cef5 !important; }
-        .mds-photo-bg     { background-color: #fff7ed !important; border-color: #fed7aa !important; }
-        ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-thumb { background: var(--mds-bleu); border-radius: 4px; }
-
-        /* Badge hors-ligne */
-        #offlineBanner {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            background: #f5a11c;
-            color: #1a1a1a;
-            font-weight: bold;
-            font-size: 12px;
-            text-align: center;
-            padding: 6px;
-            z-index: 9999;
-        }
-        #offlineBanner.show { display: block; }
+        :root { --mds-bleu:#0d1f8c; --mds-orange:#f5a11c; }
+        .mds-btn-primary  { background-color:var(--mds-bleu)!important; }
+        .mds-btn-primary:hover { background-color:#091570!important; }
+        .mds-btn-scan     { background-color:var(--mds-orange)!important; color:#1a1a1a!important; }
+        .mds-btn-scan:hover { background-color:#d98d15!important; }
+        .mds-accent       { color:var(--mds-orange)!important; }
+        .mds-title        { color:var(--mds-bleu)!important; }
+        .mds-border-top   { border-top:4px solid var(--mds-orange); }
+        .mds-thead        { background-color:var(--mds-bleu)!important; }
+        .mds-section-bg   { background-color:#eef0fb!important; border-color:#c7cef5!important; }
+        .mds-photo-bg     { background-color:#fff7ed!important; border-color:#fed7aa!important; }
+        ::-webkit-scrollbar { width:5px; height:5px; }
+        ::-webkit-scrollbar-thumb { background:var(--mds-bleu); border-radius:4px; }
+        #offlineBanner { display:none; position:fixed; top:0; left:0; right:0;
+            background:#f5a11c; color:#1a1a1a; font-weight:bold; font-size:12px;
+            text-align:center; padding:6px; z-index:9999; }
+        #offlineBanner.show { display:block; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen p-4 md:p-8">
 
-<!-- Bannière hors-ligne -->
-<div id="offlineBanner">⚠️ Vous êtes hors connexion — L'application fonctionne normalement en mode local.</div>
+<div id="offlineBanner">⚠️ Hors connexion — L'application fonctionne en mode local.</div>
 
 <div class="max-w-7xl mx-auto bg-white rounded-xl shadow-md p-6">
-    <div class="flex items-center justify-between border-b-2 pb-3 mb-4 mds-border-top pt-3" style="border-bottom-color:#0d1f8c;">
-        <div class="flex items-center gap-4">
-            <img src="data:image/jpeg;base64,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" alt="Logo MDS" class="h-14 w-auto object-contain">
-            <div>
-                <h1 class="text-xl font-extrabold tracking-wide mds-title uppercase">Rapport de Maintenance Préventive</h1>
-                <p class="text-xs text-gray-500 mt-0.5 font-medium">Identification Automatique — Parc Imprimantes</p>
-            </div>
-        </div>
-        <div class="text-right hidden md:block">
-            <div class="text-xs text-gray-400 uppercase font-bold tracking-widest">MDS</div>
-            <div class="text-[10px] text-gray-400">identification automatique</div>
-        </div>
+
+  <!-- EN-TÊTE -->
+  <div class="flex items-center justify-between border-b-2 pb-3 mb-4 mds-border-top pt-3" style="border-bottom-color:#0d1f8c;">
+    <div class="flex items-center gap-4">
+      <img id="logoMDS" src="data:image/jpeg;base64,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" alt="Logo MDS" class="h-14 w-auto object-contain">
+      <div>
+        <h1 class="text-xl font-extrabold tracking-wide mds-title uppercase">Rapport de Maintenance Préventive</h1>
+        <p class="text-xs text-gray-500 mt-0.5 font-medium">Identification Automatique — Parc Imprimantes</p>
+      </div>
     </div>
-
-    <!-- EN-TÊTE -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 rounded-lg border mds-section-bg">
-        <div>
-            <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Client / Site</label>
-            <input type="text" id="headerSite" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm" placeholder="Ex: Site Paris">
-        </div>
-        <div>
-            <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Intervenant / Technicien</label>
-            <select id="headerIntervenant" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
-                <option value="">-- Choisir l'intervenant --</option>
-                <option>Pascal CARTON</option>
-                <option>Benoît BRACKMAN</option>
-                <option>Pascal CARTON / Benoît BRACKMAN</option>
-            </select>
-        </div>
-        <div>
-            <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Parc d'imprimante</label>
-            <select id="headerBrand" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
-                <option>ZEBRA</option><option>HONEYWELL</option><option>TOSHIBA</option><option>INTERMEC</option>
-            </select>
-        </div>
-        <div>
-            <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Date d'intervention</label>
-            <input type="date" id="headerDate" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
-        </div>
+    <div class="text-right hidden md:block">
+      <div class="text-xs text-gray-400 uppercase font-bold tracking-widest">MDS</div>
+      <div class="text-[10px] text-gray-400">identification automatique</div>
     </div>
+  </div>
 
-    <!-- FORMULAIRE AJOUT -->
-    <form id="machineForm" class="p-4 rounded-lg border mb-6 grid grid-cols-1 md:grid-cols-4 gap-4 mds-section-bg">
-        <div class="md:col-span-4">
-            <h3 class="text-sm font-bold text-blue-950 uppercase border-b pb-1 mb-2">Ajouter un équipement au rapport</h3>
-        </div>
-        <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">Zone / Emplacement</label>
-            <input type="text" id="zone" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ex: Expédition">
-        </div>
-        <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">Modèle (P/N)</label>
-            <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm bg-yellow-50 font-semibold" placeholder="Scanné ou saisi manuellement" required>
-        </div>
-        <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">Machine ID / Lieu précis</label>
-            <input type="text" id="lieuId" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="ID Interne">
-        </div>
-        <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">Numéro de Série (S/N)</label>
-            <div class="flex">
-                <input type="text" id="serial" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm font-bold" placeholder="S/N" required>
-                <button type="button" onclick="ouvrirScanner()" class="mds-btn-scan rounded-r px-4 text-xs font-bold cursor-pointer whitespace-nowrap flex items-center gap-1.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 5h2M7 5h1M3 5v2M21 5h-2M17 5h-1M21 5v2M3 19h2M7 19h1M3 19v-2M21 19h-2M17 19h-1M21 19v-2"/>
-                        <rect x="7" y="8" width="10" height="8" rx="1"/>
-                        <line x1="5" y1="12" x2="7" y2="12"/>
-                        <line x1="17" y1="12" x2="19" y2="12"/>
-                    </svg>
-                    SCANNER
-                </button>
-            </div>
-        </div>
-        <div class="md:col-span-2 grid grid-cols-2 gap-4 bg-white p-3 rounded border border-gray-200">
-            <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Cellules / Capteurs</label>
-                <select id="cellules" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
-                    <option>OK</option><option>NOK</option><option>-</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">État Dot (Tête)</label>
-                <select id="etatDot" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
-                    <option>OK</option><option>1 Dot HS</option><option>2 Dots HS</option>
-                    <option>Plusieurs Dots HS</option><option>Tête HS</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Pressing Roller</label>
-                <select id="roller" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
-                    <option>OK</option><option>Marqué</option><option>À remplacer</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Test Impression</label>
-                <select id="impression" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
-                    <option>OK</option><option>NOK</option>
-                </select>
-            </div>
-        </div>
-        <div class="md:col-span-2 grid grid-cols-2 gap-4">
-            <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">Adresse IP</label>
-                <input type="text" id="ip" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="192.168.x.x">
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">État Général</label>
-                <select id="general" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm">
-                    <option>OK</option><option>A surveiller</option><option>Critique</option>
-                </select>
-            </div>
-            <div class="col-span-2">
-                <label class="block text-xs font-medium text-gray-700 mb-1">Remarques / Actions menées</label>
-                <textarea id="remarque" rows="2" class="w-full bg-white border border-gray-300 rounded px-3 py-1 text-sm" placeholder="Nettoyage, changement de pièce..."></textarea>
-            </div>
-        </div>
-        <div class="md:col-span-4 p-4 rounded border flex flex-col sm:flex-row items-center justify-between gap-4 mds-photo-bg">
-            <span class="text-sm font-bold mds-title">Pièce-jointe</span>
-            <button type="button" id="capturePhotoBtn" class="mds-btn-scan font-bold text-xs px-5 py-3 rounded-lg shadow cursor-pointer flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                    <circle cx="12" cy="13" r="4"/>
-                </svg>
-                Appareil photo
-            </button>
-            <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
-            <div id="photoPreviewContainer" class="hidden border-l pl-4 border-blue-200">
-                <img id="photoPreview" src="" class="h-12 w-auto rounded border bg-white" style="aspect-ratio:10/4;object-fit:cover;">
-            </div>
-        </div>
-        <div class="md:col-span-4 flex justify-end mt-2">
-            <button type="submit" class="mds-btn-primary text-white font-bold text-sm px-6 py-2 rounded shadow">Ajouter au tableau</button>
-        </div>
-    </form>
-
-    <!-- TABLEAU -->
-    <div class="overflow-x-auto border border-gray-200 rounded-lg">
-        <table class="min-w-full divide-y divide-gray-200 text-sm text-center">
-            <thead class="mds-thead text-white text-xs uppercase font-bold">
-                <tr>
-                    <th class="px-3 py-3 text-left">Imprimante / Lieu ID</th>
-                    <th class="px-3 py-3">Numéro de Série (S/N)</th>
-                    <th class="px-3 py-3">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="reportTableBody" class="bg-white divide-y divide-gray-200">
-                <tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport.</td></tr>
-            </tbody>
-        </table>
+  <!-- INFOS RAPPORT -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 rounded-lg border mds-section-bg">
+    <div>
+      <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Client / Site</label>
+      <input type="text" id="headerSite" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm" placeholder="Ex: Site Paris">
     </div>
+    <div>
+      <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Intervenant / Technicien</label>
+      <select id="headerIntervenant" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
+        <option value="">-- Choisir l'intervenant --</option>
+        <option>Pascal CARTON</option>
+        <option>Benoît BRACKMAN</option>
+        <option>Pascal CARTON / Benoît BRACKMAN</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Parc d'imprimante</label>
+      <select id="headerBrand" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
+        <option>ZEBRA</option><option>HONEYWELL</option><option>TOSHIBA</option><option>INTERMEC</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Date d'intervention</label>
+      <input type="date" id="headerDate" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
+    </div>
+  </div>
 
-    <div class="flex justify-between items-center mt-4">
-        <button type="button" onclick="viderRapport()" class="bg-red-100 hover:bg-red-200 text-red-700 font-bold text-sm px-4 py-2.5 rounded shadow">
-            🗑 Vider 
+  <!-- FORMULAIRE -->
+  <form id="machineForm" class="p-4 rounded-lg border mb-6 grid grid-cols-1 md:grid-cols-4 gap-4 mds-section-bg">
+    <div class="md:col-span-4">
+      <h3 class="text-sm font-bold text-blue-950 uppercase border-b pb-1 mb-2">Ajouter un équipement au rapport</h3>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-gray-700 mb-1">Zone / Emplacement</label>
+      <input type="text" id="zone" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ex: Expédition">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-gray-700 mb-1">Modèle (P/N)</label>
+      <input type="text" id="modele" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm bg-yellow-50 font-semibold" placeholder="Scanné ou saisi manuellement" required>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-gray-700 mb-1">Machine ID / Lieu précis</label>
+      <input type="text" id="lieuId" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="ID Interne">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-gray-700 mb-1">Numéro de Série (S/N)</label>
+      <div class="flex">
+        <input type="text" id="serial" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm font-bold" placeholder="S/N" required>
+        <button type="button" id="btnOuvrirScanner" class="mds-btn-scan rounded-r px-4 text-xs font-bold cursor-pointer whitespace-nowrap flex items-center gap-1.5">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 5h2M7 5h1M3 5v2M21 5h-2M17 5h-1M21 5v2M3 19h2M7 19h1M3 19v-2M21 19h-2M17 19h-1M21 19v-2"/>
+            <rect x="7" y="8" width="10" height="8" rx="1"/>
+            <line x1="5" y1="12" x2="7" y2="12"/>
+            <line x1="17" y1="12" x2="19" y2="12"/>
+          </svg>
+          SCANNER
+        </button>
+      </div>
+    </div>
+    <div class="md:col-span-2 grid grid-cols-2 gap-4 bg-white p-3 rounded border border-gray-200">
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Cellules / Capteurs</label>
+        <select id="cellules" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
+          <option>OK</option><option>NOK</option><option>-</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">État Dot (Tête)</label>
+        <select id="etatDot" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
+          <option>OK</option><option>1 Dot HS</option><option>2 Dots HS</option>
+          <option>Plusieurs Dots HS</option><option>Tête HS</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Pressing Roller</label>
+        <select id="roller" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
+          <option>OK</option><option>Marqué</option><option>À remplacer</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Test Impression</label>
+        <select id="impression" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm">
+          <option>OK</option><option>NOK</option>
+        </select>
+      </div>
+    </div>
+    <div class="md:col-span-2 grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Adresse IP</label>
+        <input type="text" id="ip" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="192.168.x.x">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">État Général</label>
+        <select id="general" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm">
+          <option>OK</option><option>A surveiller</option><option>Critique</option>
+        </select>
+      </div>
+      <div class="col-span-2">
+        <label class="block text-xs font-medium text-gray-700 mb-1">Remarques / Actions menées</label>
+        <textarea id="remarque" rows="2" class="w-full bg-white border border-gray-300 rounded px-3 py-1 text-sm" placeholder="Nettoyage, changement de pièce..."></textarea>
+      </div>
+    </div>
+    <!-- PHOTO -->
+    <div class="md:col-span-4 p-4 rounded border flex flex-col sm:flex-row items-center justify-between gap-4 mds-photo-bg">
+      <span class="text-sm font-bold mds-title">Pièce-jointe photo</span>
+      <button type="button" id="capturePhotoBtn" class="mds-btn-scan font-bold text-xs px-5 py-3 rounded-lg shadow cursor-pointer flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        Appareil photo / Galerie
+      </button>
+      <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+      <div id="photoPreviewContainer" class="hidden border-l pl-4 border-blue-200">
+        <img id="photoPreview" src="" class="h-12 w-auto rounded border bg-white" style="aspect-ratio:10/4;object-fit:cover;">
+        <button type="button" id="supprimerPhotoBtn" class="mt-1 text-xs text-red-500 font-bold">✕ Supprimer</button>
+      </div>
+    </div>
+    <div class="md:col-span-4 flex justify-end mt-2">
+      <button type="submit" class="mds-btn-primary text-white font-bold text-sm px-6 py-2 rounded shadow">Ajouter au tableau</button>
+    </div>
+  </form>
+
+  <!-- TABLEAU -->
+  <div class="overflow-x-auto border border-gray-200 rounded-lg mb-4">
+    <table class="min-w-full divide-y divide-gray-200 text-sm text-center">
+      <thead class="mds-thead text-white text-xs uppercase font-bold">
+        <tr>
+          <th class="px-3 py-3 text-left">Imprimante / Lieu ID</th>
+          <th class="px-3 py-3">Numéro de Série (S/N)</th>
+          <th class="px-3 py-3">Zone</th>
+          <th class="px-3 py-3">État</th>
+          <th class="px-3 py-3">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="reportTableBody" class="bg-white divide-y divide-gray-200">
+        <tr><td colspan="5" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine dans le rapport.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- BOUTON EXPORT -->
+  <div class="flex justify-end mt-4">
+    <button type="button" id="btnExportWord" class="mds-btn-primary text-white font-bold text-sm px-6 py-2.5 rounded shadow flex items-center gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+      </svg>
+      Exporter Word (.doc) — Paysage
+    </button>
+  </div>
+</div>
+
+<!-- ═══ MODAL SCANNER ═══ -->
+<div id="scannerModal" class="hidden fixed inset-0 bg-black flex flex-col z-50" style="touch-action:none;">
+  <div class="flex items-center justify-between px-4 py-3 border-b border-gray-800 flex-shrink-0">
+    <div>
+      <div class="font-bold text-sm mds-accent">⚡ SCANNER CODE 128</div>
+      <div id="stepLabel" class="text-blue-300 text-xs mt-0.5">ÉTAPE 1 / 2 — Pointez sur le code S/N</div>
+    </div>
+    <button id="btnFermerScanner" class="bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded">✕ Fermer</button>
+  </div>
+  <div id="videoZone" class="relative flex-1 bg-black overflow-hidden">
+    <video id="scanVideo
