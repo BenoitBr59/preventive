@@ -410,57 +410,78 @@ var stream=null, track=null, raf=null, det=null;
 var flash=false, lastCode='', lastAt=0;
 
 function ouvrirScanner() {
-  if (!('BarcodeDetector' in window)) {
-    alert('BarcodeDetector non supporté. Requis : Chrome 83+ Android.');
-    return;
-  }
-  BarcodeDetector.getSupportedFormats().then(function(fmts) {
-    if (!fmts.includes('code_128')) {
-      alert('Code 128 non supporté sur ce navigateur.');
-      return;
-    }
-    det = new BarcodeDetector({formats:['code_128']});
-    snOk=null; pnOk=null; mode='SN'; manuel=false;
-    lastCode=''; lastAt=0; flash=false;
-    resetScanUI();
-    g('scanModal').style.cssText = 'display:flex;flex-direction:column;position:fixed;inset:0;background:#000;z-index:100;';
-    g('vidZone').style.display = 'block';
-    g('ctrlPanel').style.cssText = 'background:#111827;padding:12px 16px;display:flex;flex-direction:column;gap:8px;flex-shrink:0;';
-    g('manZone').style.display = 'none';
-    navigator.mediaDevices.getUserMedia({
-      video: {facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080}}
-    }).then(function(s) {
-      stream = s;
-      var v = g('scanVid');
-      v.srcObject = s;
-      v.play().then(function() {
-        track = s.getVideoTracks()[0];
-        setTimeout(flashOn, 800);
-        boucle();
-      });
-    }).catch(function(err) {
-      alert('Caméra inaccessible : ' + err.message);
-      fermerScanner();
+  snOk=null; pnOk=null; mode='SN'; manuel=false;
+  lastCode=''; lastAt=0; flash=false;
+  resetScanUI();
+  g('scanModal').style.cssText = 'display:flex;flex-direction:column;position:fixed;inset:0;background:#000;z-index:100;';
+  g('vidZone').style.display = 'block';
+  g('ctrlPanel').style.cssText = 'background:#111827;padding:12px 16px;display:flex;flex-direction:column;gap:8px;flex-shrink:0;';
+  g('manZone').style.display = 'none';
+  navigator.mediaDevices.getUserMedia({
+    video: {facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720}}
+  }).then(function(s) {
+    stream = s;
+    var v = g('scanVid');
+    v.srcObject = s;
+    v.play().then(function() {
+      track = s.getVideoTracks()[0];
+      setTimeout(flashOn, 800);
+      if ('BarcodeDetector' in window) {
+        useBD = true;
+        det = new BarcodeDetector({formats:['code_128','code_39','ean_13']});
+      } else {
+        useBD = false;
+        chargerZXing();
+      }
+      boucle();
     });
+  }).catch(function(err) {
+    alert('Camera inaccessible : ' + err.message);
+    fermerScanner();
   });
+}
+
+var useBD = false;
+
+function chargerZXing() {
+  if (window.ZXing) return;
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js';
+  document.head.appendChild(s);
 }
 
 function boucle() {
   if (manuel || !stream) return;
-  var v=g('scanVid'), c=g('scanCvs'), ctx=c.getContext('2d');
+  var v = g('scanVid');
   if (v.readyState < 2) { raf=requestAnimationFrame(boucle); return; }
+  var cvs=g('scanCvs'), ctx=cvs.getContext('2d');
   var vw=v.videoWidth, vh=v.videoHeight;
   var cy=Math.floor(vh*0.3), ch=Math.floor(vh*0.4);
-  c.width=vw; c.height=ch;
+  cvs.width=vw; cvs.height=ch;
   ctx.drawImage(v, 0,cy,vw,ch, 0,0,vw,ch);
-  det.detect(c).then(function(res) {
-    if (res && res.length) {
-      var best=res.reduce(function(a,b){return b.boundingBox.width>a.boundingBox.width?b:a;});
-      if (best.rawValue) traiter(best.rawValue);
-    }
-  }).catch(function(){}).finally(function(){ raf=requestAnimationFrame(boucle); });
+  if (useBD) {
+    det.detect(cvs).then(function(res) {
+      if (res && res.length) {
+        var best=res.reduce(function(a,b){return b.boundingBox.width>a.boundingBox.width?b:a;});
+        if (best.rawValue) traiter(best.rawValue);
+      }
+    }).catch(function(){}).finally(function(){ raf=requestAnimationFrame(boucle); });
+  } else {
+    if (!window.ZXing) { raf=requestAnimationFrame(boucle); return; }
+    try {
+      var hints = new Map();
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.CODE_39]);
+      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+      var reader = new ZXing.MultiFormatReader();
+      reader.setHints(hints);
+      var lum = new ZXing.HTMLCanvasElementLuminanceSource(cvs);
+      var bmp = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
+      var result = reader.decode(bmp);
+      if (result) traiter(result.getText());
+    } catch(e) {}
+    raf = requestAnimationFrame(boucle);
+  }
 }
-
 function traiter(txt) {
   var brut=txt.trim(), now=Date.now();
   if (brut===lastCode && now-lastAt<1200) return;
