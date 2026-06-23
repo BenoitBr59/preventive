@@ -138,7 +138,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
       Appareil photo / Galerie
     </button>
-    <input type="file" id="camInput" accept="image/*" capture="environment" style="position:absolute;left:-9999px;opacity:0;">
+    <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none;">
     <div id="photoBox" style="display:none;" class="flex flex-col items-center gap-1 border-l pl-4 border-blue-200">
       <img id="photoPreview" src="" class="h-16 rounded border bg-white" style="aspect-ratio:10/4;object-fit:cover;">
       <button type="button" onclick="supprimerPhoto()" class="text-xs text-red-500 font-bold">✕ Supprimer</button>
@@ -177,7 +177,7 @@
 </div>
 
 <!-- MODAL SCANNER -->
-<div id="scanModal" style="display:none;position:fixed;inset:0;background:#000;flex-direction:column;z-index:100;">
+<div id="scanModal" style="display:none;position:fixed;inset:0;background:#000;flex-direction:column;z-index:100;flex-direction:column;">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #374151;flex-shrink:0;">
     <div>
       <div style="font-weight:bold;font-size:14px;color:#f5a11c;">&#9889; SCANNER CODE 128</div>
@@ -195,4 +195,478 @@
         <rect id="scanBdr" x="6%" y="38%" width="88%" height="24%" rx="4" fill="none" stroke="#f5a11c" stroke-width="2" stroke-dasharray="8,4"/>
         <line x1="6%" y1="50%" x2="94%" y2="50%" stroke="#ef4444" stroke-width="1.5"><animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite"/></line>
       </svg>
-      <div id="scanBadge" style="position:absolute;top:12px;left:50%;transform:translateX(-50%);background:#f5a11c;color:#1a1a1a;font-size:11px;font-weight:900;padding:3px 1
+      <div id="scanBadge" style="position:absolute;top:12px;left:50%;transform:translateX(-50%);background:#f5a11c;color:#1a1a1a;font-size:11px;font-weight:900;padding:3px 14px;border-radius:999px;letter-spacing:.1em;">S/N</div>
+    </div>
+  </div>
+  <!-- Zone manuelle -->
+  <div id="manZone" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;background:#030712;padding:24px;gap:16px;">
+    <div style="text-align:center;">
+      <div style="font-size:28px;margin-bottom:8px;">&#9000;&#65039;</div>
+      <div style="color:#fff;font-weight:bold;font-size:16px;">Saisie manuelle du modèle</div>
+    </div>
+    <div style="width:100%;background:#1f2937;border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:12px;">
+      <span style="color:#4ade80;font-size:18px;">&#10003;</span>
+      <div>
+        <div style="font-size:10px;color:#9ca3af;font-weight:bold;text-transform:uppercase;">S/N capturé</div>
+        <div id="snRappel" style="color:#86efac;font-weight:bold;font-size:14px;letter-spacing:.05em;">—</div>
+      </div>
+    </div>
+    <div style="width:100%;">
+      <div style="font-size:10px;color:#9ca3af;font-weight:bold;text-transform:uppercase;margin-bottom:8px;">Modèle / P/N</div>
+      <input type="text" id="manInput" oninput="filtreSugg(this.value)" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
+        style="width:100%;background:#1f2937;border:2px solid #3b82f6;color:#fff;font-weight:bold;font-size:18px;border-radius:8px;padding:12px 16px;text-align:center;box-sizing:border-box;"
+        placeholder="Ex: ZT411 - 8dots">
+    </div>
+    <div style="width:100%;">
+      <div style="font-size:10px;color:#6b7280;font-weight:bold;text-transform:uppercase;margin-bottom:8px;">Modèles courants</div>
+      <div id="suggBox" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>
+    </div>
+    <div style="width:100%;display:flex;gap:8px;">
+      <button type="button" onclick="retourScan()" style="flex:1;background:#374151;color:#fff;font-weight:bold;padding:10px;border-radius:4px;border:none;font-size:14px;">← Rescanner P/N</button>
+      <button type="button" onclick="validerManuel()" style="flex:1;background:#16a34a;color:#fff;font-weight:bold;padding:10px;border-radius:4px;border:none;font-size:14px;">&#10003; Valider</button>
+    </div>
+  </div>
+  <!-- Panneau de contrôle -->
+  <div id="ctrlPanel" style="background:#111827;padding:12px 16px;display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+    <button type="button" onclick="toggleFlash()" class="bs" style="width:100%;font-weight:bold;font-size:12px;padding:8px;border-radius:4px;border:none;text-transform:uppercase;letter-spacing:.05em;">&#9889; Flash ON / OFF</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div id="cSN" style="background:#1f2937;border-radius:4px;padding:8px;text-align:center;border:2px solid #f5a11c;">
+        <div style="font-size:10px;font-weight:bold;text-transform:uppercase;color:#f5a11c;margin-bottom:4px;">&#201;tape 1 — S/N</div>
+        <div id="rSN" style="color:#f87171;font-weight:bold;font-size:12px;word-break:break-all;">&#10060; En attente</div>
+      </div>
+      <div id="cPN" style="background:#1f2937;border-radius:4px;padding:8px;text-align:center;border:1px solid #374151;opacity:0.5;">
+        <div id="lblPN" style="font-size:10px;font-weight:bold;text-transform:uppercase;color:#9ca3af;margin-bottom:4px;">&#201;tape 2 — P/N</div>
+        <div id="rPN" style="color:#f87171;font-weight:bold;font-size:12px;word-break:break-all;">&#10060; En attente</div>
+      </div>
+    </div>
+    <div style="background:#000;border-radius:4px;padding:6px 8px;text-align:center;border:1px solid #1f2937;">
+      <span id="rawTxt" style="font-size:11px;color:#6b7280;font-family:monospace;word-break:break-all;">Aucune lecture...</span>
+    </div>
+    <button type="button" id="btnMan" onclick="ouvrirManuel()" style="display:none;width:100%;background:#4b5563;color:#fff;font-weight:bold;padding:8px;border-radius:4px;border:none;font-size:14px;">&#9000;&#65039; Saisir manuellement</button>
+    <button type="button" id="btnVal" onclick="validerScan()" disabled style="width:100%;background:#16a34a;color:#fff;font-weight:bold;padding:10px;border-radius:4px;border:none;font-size:14px;opacity:0.4;">&#10003; Valider et remplir le formulaire</button>
+  </div>
+</div>
+
+<!-- MODAL CROPPER -->
+<div id="cropModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:8px;padding:16px;width:100%;max-width:580px;display:flex;flex-direction:column;max-height:90vh;">
+    <h3 style="font-size:13px;font-weight:bold;text-transform:uppercase;margin:0 0 10px;">Recadrage photo (10×4)</h3>
+    <div style="overflow:hidden;flex:1;background:#f3f4f6;border-radius:4px;min-height:280px;max-height:55vh;">
+      <img id="cropImg" src="" style="max-width:100%;display:block;">
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
+      <button type="button" onclick="annulerCrop()" style="background:#d1d5db;color:#1f2937;font-weight:bold;font-size:12px;padding:8px 16px;border-radius:4px;border:none;">Annuler</button>
+      <button type="button" onclick="validerCrop()" style="background:#2563eb;color:#fff;font-weight:bold;font-size:12px;padding:8px 16px;border-radius:4px;border:none;">Valider le recadrage</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// == SERVICE WORKER ==
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(function(){});
+}
+window.addEventListener('offline', function(){ document.getElementById('offBanner').classList.add('show'); });
+window.addEventListener('online',  function(){ document.getElementById('offBanner').classList.remove('show'); });
+if (!navigator.onLine) document.getElementById('offBanner').classList.add('show');
+
+// == DONNÉES ==
+var data = [];
+var photoB64 = null;
+var cropInst = null;
+
+var MODELES = [
+  'ZT111 - 8dots','ZT111 - 12dots','ZT220 - 8dots','ZT220 - 12dots','ZT230 - 8dots','ZT230 - 12dots',
+  'ZT231 - 8dots','ZT231 - 12dots','ZT410 - 8dots','ZT410 - 12dots','ZT410 - 24dots',
+  'ZT411 - 8dots','ZT411 - 12dots','ZT411 - 24dots','ZT420 - 8dots','ZT420 - 12dots',
+  'ZT421 - 8dots','ZT421 - 12dots','ZT610 - 8dots','ZT610 - 12dots','ZT610 - 24dots',
+  'ZT620 - 8dots','ZT620 - 12dots','ZT630 - 8dots','ZD220 - 8dots','ZD230 - 8dots',
+  'ZD421 - 8dots','ZD421 - 12dots','ZD621 - 8dots','ZD621 - 12dots','ZM400 - 8dots','ZM600 - 8dots',
+  'ZQ230 - 8dots','ZQ300 - 8dots','ZQ600 - 8dots','ZQ600 - 12dots','S4M+ - 8dots','S4M+ - 12dots',
+  'PM42 - 8dots','PM43 - 8dots','PM43c - 8dots','PM45 - 8dots','PD43 - 8dots','PD45 - 8dots',
+  'PC43t - 8dots','PF4i - 8dots','PF4i - 12dots','B-EX4T1 - 8dots','B-SA4TM - 8dots','PX4ie - 8dots'
+];
+
+// == SESSION ==
+function save() {
+  try {
+    sessionStorage.setItem('mds4', JSON.stringify(data));
+    sessionStorage.setItem('mds4h', JSON.stringify({
+      s: g('hSite').value, i: g('hInterv').value,
+      b: g('hBrand').value, d: g('hDate').value
+    }));
+  } catch(e) {}
+}
+function loadSession() {
+  try {
+    var d = sessionStorage.getItem('mds4');
+    var h = sessionStorage.getItem('mds4h');
+    if (d) data = JSON.parse(d);
+    if (h) {
+      h = JSON.parse(h);
+      g('hSite').value   = h.s || '';
+      g('hInterv').value = h.i || '';
+      g('hBrand').value  = h.b || 'ZEBRA';
+      g('hDate').value   = h.d || today();
+    }
+  } catch(e) {}
+}
+function today() { return new Date().toISOString().split('T')[0]; }
+function g(id) { return document.getElementById(id); }
+
+// == FORMULAIRE ==
+function ajouterEquip(e) {
+  e.preventDefault();
+  data.push({
+    id: Date.now(),
+    zone:   g('fZone').value.trim(),
+    modele: g('fModele').value.trim(),
+    lieu:   g('fLieu').value.trim(),
+    serial: g('fSerial').value.trim(),
+    ip:     g('fIp').value.trim(),
+    cell:   g('fCell').value,
+    dot:    g('fDot').value,
+    roll:   g('fRoll').value,
+    imp:    g('fImp').value,
+    gen:    g('fGen').value,
+    rem:    g('fRem').value.trim(),
+    photos: photoB64 ? [photoB64] : []
+  });
+  save();
+  majTab();
+  ['fModele','fSerial','fLieu','fIp','fRem'].forEach(function(id){ g(id).value=''; });
+  supprimerPhoto();
+}
+
+// == TABLEAU ==
+function majTab() {
+  var tb = g('tbody');
+  if (!data.length) {
+    tb.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine.</td></tr>';
+    return;
+  }
+  tb.innerHTML = data.map(function(r) {
+    var s = r.gen==='Critique' ? 'color:#dc2626;font-weight:bold' :
+            r.gen==='A surveiller' ? 'color:#d97706;font-weight:bold' : 'color:#16a34a';
+    return '<tr class="hover:bg-gray-50 text-xs">'
+      +'<td class="px-3 py-2 text-left"><div class="font-bold">'+r.modele+'</div>'
+      +'<div class="text-gray-400 text-xs">'+r.lieu+'</div></td>'
+      +'<td class="px-3 py-2 font-bold tracking-wider">'+r.serial+'</td>'
+      +'<td class="px-3 py-2">'+r.zone+'</td>'
+      +'<td class="px-3 py-2"><span style="'+s+'">'+r.gen+'</span></td>'
+      +'<td class="px-3 py-2"><button type="button" onclick="del('+r.id+')" style="color:#ef4444;font-weight:bold;font-size:11px;">Supprimer</button></td>'
+      +'</tr>';
+  }).join('');
+}
+function del(id) { data=data.filter(function(r){return r.id!==id;}); save(); majTab(); }
+
+// == PHOTO ==
+function lancerPhoto() {
+  var inp = g('camInput');
+  inp.value = '';
+  inp.click();
+}
+function initPhoto() {
+  g('camInput').onchange = function() {
+    var file = this.files[0];
+    if (!file) return;
+    var fr = new FileReader();
+    fr.onload = function(ev) { ouvrirCrop(ev.target.result); };
+    fr.readAsDataURL(file);
+  };
+}
+function ouvrirCrop(src) {
+  var img = g('cropImg');
+  if (cropInst) { cropInst.destroy(); cropInst = null; }
+  g('cropModal').style.display = 'flex';
+  img.onload = function() {
+    cropInst = new Cropper(img, {aspectRatio:10/4, viewMode:1, autoCropArea:0.9, responsive:true});
+    img.onload = null;
+  };
+  img.src = src;
+}
+function validerCrop() {
+  if (!cropInst) return;
+  var c = cropInst.getCroppedCanvas({maxWidth:800, maxHeight:320});
+  photoB64 = c.toDataURL('image/jpeg', 0.85);
+  g('photoPreview').src = photoB64;
+  g('photoBox').style.display = 'flex';
+  annulerCrop();
+}
+function annulerCrop() {
+  g('cropModal').style.display = 'none';
+  if (cropInst) { cropInst.destroy(); cropInst = null; }
+  g('camInput').value = '';
+}
+function supprimerPhoto() {
+  photoB64 = null;
+  g('photoPreview').src = '';
+  g('photoBox').style.display = 'none';
+}
+
+// == SCANNER ==
+var snOk=null, pnOk=null, mode='SN', manuel=false;
+var stream=null, track=null, raf=null, det=null;
+var flash=false, lastCode='', lastAt=0;
+
+function ouvrirScanner() {
+  if (!('BarcodeDetector' in window)) {
+    alert('BarcodeDetector non supporté. Requis : Chrome 83+ Android.');
+    return;
+  }
+  BarcodeDetector.getSupportedFormats().then(function(fmts) {
+    if (!fmts.includes('code_128')) {
+      alert('Code 128 non supporté sur ce navigateur.');
+      return;
+    }
+    det = new BarcodeDetector({formats:['code_128']});
+    snOk=null; pnOk=null; mode='SN'; manuel=false;
+    lastCode=''; lastAt=0; flash=false;
+    resetScanUI();
+    g('scanModal').style.cssText = 'display:flex;flex-direction:column;position:fixed;inset:0;background:#000;z-index:100;';
+    g('vidZone').style.display = 'block';
+    g('ctrlPanel').style.cssText = 'background:#111827;padding:12px 16px;display:flex;flex-direction:column;gap:8px;flex-shrink:0;';
+    g('manZone').style.display = 'none';
+    navigator.mediaDevices.getUserMedia({
+      video: {facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080}}
+    }).then(function(s) {
+      stream = s;
+      var v = g('scanVid');
+      v.srcObject = s;
+      v.play().then(function() {
+        track = s.getVideoTracks()[0];
+        setTimeout(flashOn, 800);
+        boucle();
+      });
+    }).catch(function(err) {
+      alert('Caméra inaccessible : ' + err.message);
+      fermerScanner();
+    });
+  });
+}
+
+function boucle() {
+  if (manuel || !stream) return;
+  var v=g('scanVid'), c=g('scanCvs'), ctx=c.getContext('2d');
+  if (v.readyState < 2) { raf=requestAnimationFrame(boucle); return; }
+  var vw=v.videoWidth, vh=v.videoHeight;
+  var cy=Math.floor(vh*0.3), ch=Math.floor(vh*0.4);
+  c.width=vw; c.height=ch;
+  ctx.drawImage(v, 0,cy,vw,ch, 0,0,vw,ch);
+  det.detect(c).then(function(res) {
+    if (res && res.length) {
+      var best=res.reduce(function(a,b){return b.boundingBox.width>a.boundingBox.width?b:a;});
+      if (best.rawValue) traiter(best.rawValue);
+    }
+  }).catch(function(){}).finally(function(){ raf=requestAnimationFrame(boucle); });
+}
+
+function traiter(txt) {
+  var brut=txt.trim(), now=Date.now();
+  if (brut===lastCode && now-lastAt<1200) return;
+  lastCode=brut; lastAt=now;
+  g('rawTxt').textContent=brut; g('rawTxt').style.color='#4ade80';
+  if (mode==='SN') {
+    var sn=extraireSN(brut);
+    if (sn) {
+      snOk=sn;
+      g('rSN').textContent='✅ '+sn; g('rSN').style.color='#4ade80';
+      passerPN();
+    } else { var m=identModele(brut); if(m) pnOk=m; }
+  } else {
+    if (brut===snOk||brut==='S'+snOk) return;
+    var m=identModele(brut);
+    if (m) {
+      pnOk=m;
+      g('rPN').textContent='✅ '+m; g('rPN').style.color='#4ade80';
+      g('btnVal').disabled=false; g('btnVal').style.opacity='1';
+      setTimeout(validerScan, 600);
+    } else {
+      g('rawTxt').textContent='⚠️ P/N non reconnu : '+brut;
+      g('rawTxt').style.color='#fbbf24';
+      g('btnMan').style.display='block';
+    }
+  }
+}
+
+function passerPN() {
+  mode='PN'; lastCode=''; lastAt=0;
+  g('stepLbl').textContent='ÉTAPE 2/2 — Pointez sur le P/N';
+  g('scanBadge').textContent='P/N';
+  g('scanBadge').style.background='#3b82f6'; g('scanBadge').style.color='#fff';
+  g('scanBdr').setAttribute('stroke','#3b82f6');
+  g('cSN').style.opacity='0.5'; g('cSN').style.borderColor='';
+  g('cPN').style.opacity='1'; g('cPN').style.borderColor='#3b82f6'; g('cPN').style.borderWidth='2px';
+  g('lblPN').style.color='#60a5fa';
+  g('rawTxt').textContent='Pointez sur le code P/N...'; g('rawTxt').style.color='#60a5fa';
+  g('btnMan').style.display='block';
+  if (pnOk) {
+    g('rPN').textContent='✅ '+pnOk; g('rPN').style.color='#4ade80';
+    g('btnVal').disabled=false; g('btnVal').style.opacity='1';
+    setTimeout(validerScan, 600);
+  }
+}
+
+function ouvrirManuel() {
+  manuel=true;
+  g('snRappel').textContent=snOk||'—';
+  filtreSugg('');
+  g('vidZone').style.display='none';
+  g('ctrlPanel').style.display='none';
+  g('manZone').style.display='flex';
+  g('manZone').style.flexDirection='column';
+  var inp=g('manInput'); inp.value='';
+  setTimeout(function(){inp.focus();},100);
+}
+function retourScan() {
+  manuel=false; lastCode=''; lastAt=0;
+  g('manZone').style.display='none';
+  g('vidZone').style.display='block';
+  g('ctrlPanel').style.display='flex';
+  g('ctrlPanel').style.flexDirection='column';
+  boucle();
+}
+function validerManuel() {
+  var v=g('manInput').value.trim();
+  if (!v) { alert('Saisissez un modèle.'); return; }
+  pnOk=v; validerScan();
+}
+function validerScan() {
+  if (snOk)  g('fSerial').value=snOk;
+  if (pnOk)  g('fModele').value=pnOk;
+  fermerScanner();
+}
+function fermerScanner() {
+  g('scanModal').style.display='none';
+  if (raf) { cancelAnimationFrame(raf); raf=null; }
+  if (stream) { stream.getTracks().forEach(function(t){t.stop();}); stream=null; }
+  track=null; det=null; manuel=false;
+}
+function flashOn() {
+  if (!track) return;
+  track.applyConstraints({advanced:[{torch:true}]}).then(function(){flash=true;}).catch(function(){});
+}
+function toggleFlash() {
+  if (!track) return;
+  flash=!flash;
+  track.applyConstraints({advanced:[{torch:flash}]}).catch(function(){});
+}
+function resetScanUI() {
+  g('stepLbl').textContent='ÉTAPE 1/2 — Pointez sur le S/N';
+  g('scanBadge').textContent='S/N'; g('scanBadge').style.background='#f5a11c'; g('scanBadge').style.color='#1a1a1a';
+  g('scanBdr').setAttribute('stroke','#f59e0b');
+  g('cSN').style.borderColor='#f5a11c'; g('cSN').style.borderWidth='2px'; g('cSN').style.opacity='1';
+  g('cPN').style.borderColor=''; g('cPN').style.borderWidth='1px'; g('cPN').style.opacity='0.5';
+  g('lblPN').style.color='';
+  g('rSN').textContent='❌ En attente'; g('rSN').style.color='#f87171';
+  g('rPN').textContent='❌ En attente'; g('rPN').style.color='#f87171';
+  g('rawTxt').textContent='Aucune lecture...'; g('rawTxt').style.color='#6b7280';
+  g('btnVal').disabled=true; g('btnVal').style.opacity='0.4';
+  g('btnMan').style.display='none';
+}
+function filtreSugg(f) {
+  f=(f||'').toUpperCase();
+  var l=f?MODELES.filter(function(s){return s.toUpperCase().indexOf(f)!==-1;}):MODELES.slice(0,12);
+  g('suggBox').innerHTML=l.slice(0,12).map(function(s){
+    return '<button type="button" onclick="choisir(\''+ s +'\')" style="background:#374151;color:#fff;font-size:11px;font-weight:700;padding:6px 4px;border-radius:4px;border:none;cursor:pointer;">'+s+'</button>';
+  }).join('');
+}
+function choisir(m){g('manInput').value=m; filtreSugg(m);}
+
+// == IDENTIFICATION ==
+function identModele(pn) {
+  var t=pn.toUpperCase().trim();
+  if(t.startsWith('1P'))t=t.slice(2);
+  else if(/^P(ZT|ZD|ZM)/.test(t))t=t.slice(1);
+  var mm=t.match(/^(ZT|ZD|ZM)(\d{2})(\d{2})/);
+  if(mm){
+    var fam=mm[1],mod=mm[2],res=mm[3];
+    var TBL={ZT:{'23':'ZT231','41':'ZT411','42':'ZT421','61':'ZT610','62':'ZT620','63':'ZT630','30':'ZT230'},ZD:{'42':'ZD421','62':'ZD621','22':'ZD220','23':'ZD230'},ZM:{'40':'ZM400','60':'ZM600'}};
+    var nom=(TBL[fam]||{})[mod]||(fam+mod+'x');
+    var d=res.charAt(1);
+    return nom+' - '+(d==='3'?'12dots':d==='6'?'24dots':'8dots');
+  }
+  var C={'ZT231':'ZT231','ZT230':'ZT230','ZT411':'ZT411','ZT421':'ZT421','ZD421':'ZD421','ZT410':'ZT410','ZT420':'ZT420','ZT610':'ZT610','ZT620':'ZT620','ZT630':'ZT630','ZM400':'ZM400','ZM600':'ZM600'};
+  for(var k in C){if(t.startsWith(k)){var dd=t.charAt(6);return C[k]+' - '+(dd==='3'?'12dots':dd==='6'?'24dots':'8dots');}}
+  var S={'41J':'ZT411 - 8dots','42J':'ZT421 - 8dots','23J':'ZT231 - 8dots','23C':'ZT231 - 8dots','33J':'ZD421 - 8dots','41A':'ZT410 - 8dots','42A':'ZT420 - 8dots'};
+  for(var k in S){if(t.startsWith(k))return S[k];}
+  if(t.indexOf('-')!==-1&&t.length>=8)return t;
+  return null;
+}
+function extraireSN(b) {
+  var t=b.trim(),u=t.toUpperCase();
+  if(u.charAt(0)==='S'&&t.length>=7&&t.length<=22&&/^[A-Z0-9]{5,20}$/i.test(t.slice(1)))return t.slice(1);
+  if(/^[A-Z][0-9][A-Z][0-9]{6,}/i.test(u)&&t.length<=20)return t;
+  if(/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/i.test(u))return t;
+  if(/^[A-Z0-9]{8,20}$/i.test(t)&&t.indexOf('-')===-1)return t;
+  return null;
+}
+
+// == EXPORT WORD ==
+function exportWord() {
+  if (!data.length){alert('Tableau vide.');return;}
+  var site  = g('hSite').value.trim()||'Non spécifié';
+  var interv= g('hInterv').value||'Non spécifié';
+  var parc  = g('hBrand').value;
+  var date  = g('hDate').value||today();
+  var logo  = g('logoImg').src;
+  var lignes='', photos='', hasP=false;
+  data.forEach(function(r){
+    var clr=r.gen==='Critique'?'color:#dc2626;font-weight:bold':r.gen==='A surveiller'?'color:#d97706;font-weight:bold':'';
+    lignes+='<tr>'
+      +'<td style="text-align:left">'+(r.zone||'-')+'</td>'
+      +'<td style="text-align:left;font-weight:bold">'+(r.modele||'-')+'<br><span style="color:#64748b;font-size:8pt">'+(r.lieu||'')+'</span></td>'
+      +'<td style="font-weight:bold">'+(r.serial||'-')+'</td>'
+      +'<td>'+(r.ip||'-')+'</td>'
+      +'<td>'+(r.cell||'-')+'</td>'
+      +'<td>'+(r.dot||'-')+'</td>'
+      +'<td>'+(r.roll||'-')+'</td>'
+      +'<td>'+(r.imp||'-')+'</td>'
+      +'<td style="'+clr+'">'+(r.gen||'-')+'</td>'
+      +'<td style="text-align:left">'+(r.rem||'')+'</td>'
+      +'</tr>';
+    if(r.photos&&r.photos.length){hasP=true;photos+='<p style="margin-top:12px;font-weight:bold;font-size:10pt">Photos — '+r.modele+' | S/N : '+r.serial+' | Zone : '+(r.zone||'N/A')+'</p>';r.photos.forEach(function(img){photos+='<img src="'+img+'" style="max-width:380px;max-height:150px;border:1px solid #cbd5e1;display:block;margin:6px 0">';});}
+  });
+  var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
+    +'<head><meta charset="utf-8"><title>Rapport MDS</title><style>'
+    +'@page Section1{size:29.7cm 21cm;mso-page-orientation:landscape;margin:1.2cm;mso-header-margin:.5cm;mso-footer-margin:.5cm;mso-paper-source:0;}div.Section1{page:Section1;}'
+    +'body{font-family:Arial,sans-serif;font-size:9pt;color:#222}table{border-collapse:collapse;width:100%}'
+    +'th{background:#0d1f8c;color:#fff;padding:5px 4px;border:1px solid #0d1f8c;font-size:8.5pt;text-align:center}'
+    +'td{padding:5px 4px;border:1px solid #cbd5e1;font-size:8.5pt;vertical-align:middle;text-align:center}'
+    +'.m td{border:1px solid #c7cef5;background:#eef0fb;padding:7px;font-size:9pt}'
+    +'h1{color:#0d1f8c;font-size:16pt;margin:0 0 2px;text-transform:uppercase}.pb{page-break-before:always}'
+    +'</style></head><body><div class="Section1">'
+    +'<table style="margin-bottom:10px;border:none"><tr>'
+    +'<td style="border:none;width:72px;vertical-align:middle"><img src="'+logo+'" style="height:44px;width:auto"></td>'
+    +'<td style="border:none;vertical-align:middle"><h1>Rapport de Maintenance Préventive</h1>'
+    +'<div style="color:#555;font-size:9pt">Identification Automatique — Parc Imprimantes</div></td></tr></table>'
+    +'<table class="m" style="margin-bottom:14px"><tr>'
+    +'<td><b>Client / Site :</b> '+site+'</td><td><b>Intervenant :</b> '+interv+'</td>'
+    +'<td><b>Parc :</b> '+parc+'</td><td><b>Date :</b> '+date+'</td>'
+    +'<td><b>Équipements :</b> '+data.length+'</td></tr></table>'
+    +'<table><thead><tr>'
+    +'<th style="width:9%;text-align:left">Zone</th><th style="width:16%;text-align:left">Modèle / ID</th>'
+    +'<th style="width:13%">S/N</th><th style="width:11%">Adresse IP</th>'
+    +'<th style="width:7%">Capteurs</th><th style="width:8%">État Dot</th>'
+    +'<th style="width:7%">Roller</th><th style="width:7%">Test Imp.</th>'
+    +'<th style="width:8%">Général</th><th style="width:14%;text-align:left">Remarques</th>'
+    +'</tr></thead><tbody>'+lignes+'</tbody></table>'
+    +(hasP?'<div class="pb"></div><h2 style="color:#0d1f8c">Photos Jointes</h2>'+photos:'')
+    +'</div></body></html>';
+  var blob=new Blob(['\ufeff'+html],{type:'application/msword'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='Rapport_MDS_'+site.replace(/[^a-z0-9]/gi,'_')+'_'+date+'.doc';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+// == INIT — exécuté après chargement complet du DOM ==
+window.addEventListener('DOMContentLoaded', function() {
+  loadSession();
+  if (!g('hDate').value) g('hDate').value = today();
+  majTab();
+  initPhoto();
+});
+</script>
+</body>
+</html>
