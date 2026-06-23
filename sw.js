@@ -1,61 +1,55 @@
-// ════════════════════════════════════════════════════════
-//  SERVICE WORKER — MDS Maintenance Préventive
-//  Cache offline : ressources CDN + page principale
-// ════════════════════════════════════════════════════════
-const CACHE_NAME = 'mds-maintenance-v1';
+// ════ SERVICE WORKER MDS v3 ════
+// Changer CACHE_NAME force le rechargement complet
+const CACHE_NAME = 'mds-maintenance-v3';
 
-const URLS_TO_CACHE = [
-    './',
-    './index.html',
-    'https://cdn.tailwindcss.com',
-    'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css',
-    'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js',
-];
-
-// Installation : mise en cache des ressources essentielles
 self.addEventListener('install', event => {
+    self.skipWaiting(); // Force l'activation immédiate
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache => {
-            // On tente de cacher chaque URL individuellement pour éviter l'échec global
-            return Promise.allSettled(
-                URLS_TO_CACHE.map(url => cache.add(url).catch(() => null))
-            );
+            return cache.addAll(['./index.html']).catch(() => {});
         })
     );
-    self.skipWaiting();
 });
 
-// Activation : suppression des anciens caches
 self.addEventListener('activate', event => {
     event.waitUntil(
         caches.keys().then(keys =>
-            Promise.all(
-                keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
-            )
+            Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
         )
     );
-    self.clients.claim();
+    self.clients.claim(); // Prend le contrôle immédiatement
 });
 
-// Interception des requêtes : Cache First, puis réseau
+// Network First pour index.html (toujours la version fraîche)
+// Cache First pour les ressources CDN
 self.addEventListener('fetch', event => {
+    const url = new URL(event.request.url);
+    
+    // Pour index.html : réseau en priorité, cache en fallback
+    if (url.pathname.endsWith('index.html') || url.pathname.endsWith('/')) {
+        event.respondWith(
+            fetch(event.request)
+                .then(response => {
+                    const clone = response.clone();
+                    caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+                    return response;
+                })
+                .catch(() => caches.match(event.request))
+        );
+        return;
+    }
+    
+    // Pour le reste (CDN) : cache en priorité
     event.respondWith(
         caches.match(event.request).then(cached => {
             if (cached) return cached;
             return fetch(event.request).then(response => {
-                // On met en cache uniquement les réponses valides
-                if (response && response.status === 200 && response.type !== 'opaque') {
+                if (response && response.status === 200) {
                     const clone = response.clone();
-                    caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+                    caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
                 }
                 return response;
-            }).catch(() => {
-                // Fallback silencieux si hors ligne et non mis en cache
-                return new Response('Hors ligne — ressource non disponible', {
-                    status: 503,
-                    headers: { 'Content-Type': 'text/plain' }
-                });
-            });
+            }).catch(() => new Response('Hors ligne', { status: 503 }));
         })
     );
 });
