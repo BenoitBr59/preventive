@@ -22,6 +22,11 @@
 #offBanner.show{display:block;}
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-thumb{background:var(--b);border-radius:4px;}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:#1f2937;color:#fff;font-weight:bold;font-size:13px;padding:12px 24px;
+  border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.3);z-index:9999;
+  transition:transform .3s ease,opacity .3s ease;opacity:0;pointer-events:none;}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
 </style>
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen p-4 md:p-8">
@@ -75,7 +80,7 @@
 <!-- FORMULAIRE -->
 <form id="theForm" onsubmit="ajouterEquip(event)" class="p-4 rounded-lg border mb-6 grid grid-cols-1 md:grid-cols-4 gap-4 sb">
   <div class="md:col-span-4">
-    <h3 class="text-sm font-bold text-blue-950 uppercase border-b pb-1 mb-2">Ajouter un équipement</h3>
+    <h3 id="formTitle" class="text-sm font-bold text-blue-950 uppercase border-b pb-1 mb-2">Ajouter un équipement</h3>
   </div>
   <div>
     <label class="block text-xs font-medium text-gray-700 mb-1">Zone / Emplacement</label>
@@ -144,8 +149,9 @@
       <button type="button" onclick="supprimerPhoto()" class="text-xs text-red-500 font-bold">✕ Supprimer</button>
     </div>
   </div>
-  <div class="md:col-span-4 flex justify-end mt-2">
-    <button type="submit" class="bp font-bold text-sm px-6 py-2 rounded shadow">Ajouter au tableau</button>
+  <div class="md:col-span-4 flex justify-end gap-3 mt-2">
+    <button type="button" id="cancelEditBtn" onclick="annulerEdit()" style="display:none;background:#6b7280;color:#fff;font-weight:bold;font-size:14px;padding:8px 20px;border-radius:6px;border:none;align-items:center;gap:6px;">✕ Annuler</button>
+    <button type="submit" id="submitBtn" class="bp font-bold text-sm px-6 py-2 rounded shadow">Ajouter au tableau</button>
   </div>
 </form>
 
@@ -154,15 +160,13 @@
   <table class="min-w-full divide-y divide-gray-200 text-sm text-center">
     <thead class="th text-white text-xs uppercase font-bold">
       <tr>
-        <th class="px-3 py-3 text-left">Modèle / ID</th>
+        <th class="px-3 py-3 text-left">P/N — Modèle</th>
         <th class="px-3 py-3">S/N</th>
-        <th class="px-3 py-3">Zone</th>
-        <th class="px-3 py-3">État</th>
-        <th class="px-3 py-3">Suppr.</th>
+        <th class="px-3 py-3">Actions</th>
       </tr>
     </thead>
     <tbody id="tbody" class="bg-white divide-y divide-gray-200">
-      <tr><td colspan="5" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine.</td></tr>
+      <tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine.</td></tr>
     </tbody>
   </table>
 </div>
@@ -262,6 +266,7 @@
   </div>
 </div>
 
+<div id="toast"></div>
 <script>
 // == SERVICE WORKER ==
 if ('serviceWorker' in navigator) {
@@ -270,6 +275,14 @@ if ('serviceWorker' in navigator) {
 window.addEventListener('offline', function(){ document.getElementById('offBanner').classList.add('show'); });
 window.addEventListener('online',  function(){ document.getElementById('offBanner').classList.remove('show'); });
 if (!navigator.onLine) document.getElementById('offBanner').classList.add('show');
+
+// == TOAST ==
+function showToast(msg) {
+  var t = g('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 3000);
+}
 
 // == DONNÉES ==
 var data = [];
@@ -316,50 +329,141 @@ function today() { return new Date().toISOString().split('T')[0]; }
 function g(id) { return document.getElementById(id); }
 
 // == FORMULAIRE ==
+var editId = null; // null = mode ajout, sinon = id en cours d'édition
+
 function ajouterEquip(e) {
   e.preventDefault();
-  data.push({
-    id: Date.now(),
-    zone:   g('fZone').value.trim(),
-    modele: g('fModele').value.trim(),
-    lieu:   g('fLieu').value.trim(),
-    serial: g('fSerial').value.trim(),
-    ip:     g('fIp').value.trim(),
-    cell:   g('fCell').value,
-    dot:    g('fDot').value,
-    roll:   g('fRoll').value,
-    imp:    g('fImp').value,
-    gen:    g('fGen').value,
-    rem:    g('fRem').value.trim(),
-    photos: photoB64 ? [photoB64] : []
-  });
+  if (editId !== null) {
+    // Mode modification : mettre à jour l'entrée existante
+    var idx = data.findIndex(function(r){ return r.id === editId; });
+    if (idx !== -1) {
+      data[idx].zone   = g('fZone').value.trim();
+      data[idx].modele = g('fModele').value.trim();
+      data[idx].lieu   = g('fLieu').value.trim();
+      data[idx].serial = g('fSerial').value.trim();
+      data[idx].ip     = g('fIp').value.trim();
+      data[idx].cell   = g('fCell').value;
+      data[idx].dot    = g('fDot').value;
+      data[idx].roll   = g('fRoll').value;
+      data[idx].imp    = g('fImp').value;
+      data[idx].gen    = g('fGen').value;
+      data[idx].rem    = g('fRem').value.trim();
+      if (photoB64) data[idx].photos = [photoB64];
+    }
+    annulerEdit();
+  } else {
+    // Mode ajout normal
+    data.push({
+      id:     Date.now(),
+      zone:   g('fZone').value.trim(),
+      modele: g('fModele').value.trim(),
+      lieu:   g('fLieu').value.trim(),
+      serial: g('fSerial').value.trim(),
+      ip:     g('fIp').value.trim(),
+      cell:   g('fCell').value,
+      dot:    g('fDot').value,
+      roll:   g('fRoll').value,
+      imp:    g('fImp').value,
+      gen:    g('fGen').value,
+      rem:    g('fRem').value.trim(),
+      photos: photoB64 ? [photoB64] : []
+    });
+  }
   save();
   majTab();
+  // En mode ajout : vider les champs clés mais garder la zone (gain de temps)
   ['fModele','fSerial','fLieu','fIp','fRem'].forEach(function(id){ g(id).value=''; });
   supprimerPhoto();
+}
+
+function editer(id) {
+  var r = data.find(function(r){ return r.id === id; });
+  if (!r) return;
+  editId = id;
+  // Remplir le formulaire avec les données de la ligne
+  g('fZone').value   = r.zone   || '';
+  g('fModele').value = r.modele || '';
+  g('fLieu').value   = r.lieu   || '';
+  g('fSerial').value = r.serial || '';
+  g('fIp').value     = r.ip     || '';
+  g('fCell').value   = r.cell   || 'OK';
+  g('fDot').value    = r.dot    || 'OK';
+  g('fRoll').value   = r.roll   || 'OK';
+  g('fImp').value    = r.imp    || 'OK';
+  g('fGen').value    = r.gen    || 'OK';
+  g('fRem').value    = r.rem    || '';
+  // Afficher la photo existante si présente
+  if (r.photos && r.photos.length) {
+    photoB64 = r.photos[0];
+    g('photoPreview').src = photoB64;
+    g('photoBox').style.display = 'flex';
+  }
+  // Changer l'UI du formulaire en mode édition
+  g('submitBtn').textContent  = '💾 Mettre à jour';
+  g('submitBtn').style.background = '#d97706';
+  g('cancelEditBtn').style.display = 'inline-flex';
+  g('formTitle').textContent = 'Modifier l\'équipement — ' + (r.modele || r.serial);
+  g('formTitle').style.color = '#d97706';
+  // Scroller vers le formulaire
+  g('theForm').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function annulerEdit() {
+  editId = null;
+  ['fModele','fSerial','fLieu','fIp','fRem','fZone'].forEach(function(id){ g(id).value=''; });
+  g('fCell').value = 'OK'; g('fDot').value = 'OK';
+  g('fRoll').value = 'OK'; g('fImp').value = 'OK'; g('fGen').value = 'OK';
+  supprimerPhoto();
+  g('submitBtn').textContent = 'Ajouter au tableau';
+  g('submitBtn').style.background = '';
+  g('submitBtn').style.color = '';
+  g('cancelEditBtn').style.display = 'none';
+  g('formTitle').textContent = 'Ajouter un équipement';
+  g('formTitle').style.color = '';
 }
 
 // == TABLEAU ==
 function majTab() {
   var tb = g('tbody');
   if (!data.length) {
-    tb.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine.</td></tr>';
     return;
   }
-  tb.innerHTML = data.map(function(r) {
-    var s = r.gen==='Critique' ? 'color:#dc2626;font-weight:bold' :
-            r.gen==='A surveiller' ? 'color:#d97706;font-weight:bold' : 'color:#16a34a';
-    return '<tr class="hover:bg-gray-50 text-xs">'
-      +'<td class="px-3 py-2 text-left"><div class="font-bold">'+r.modele+'</div>'
-      +'<div class="text-gray-400 text-xs">'+r.lieu+'</div></td>'
-      +'<td class="px-3 py-2 font-bold tracking-wider">'+r.serial+'</td>'
-      +'<td class="px-3 py-2">'+r.zone+'</td>'
-      +'<td class="px-3 py-2"><span style="'+s+'">'+r.gen+'</span></td>'
-      +'<td class="px-3 py-2"><button type="button" onclick="del('+r.id+')" style="color:#ef4444;font-weight:bold;font-size:11px;">Supprimer</button></td>'
-      +'</tr>';
-  }).join('');
+  // Grouper par zone+lieu
+  var groupes = {};
+  var ordre = [];
+  data.forEach(function(r) {
+    var cle = (r.zone||'Sans zone') + (r.lieu ? ' — ' + r.lieu : '');
+    if (!groupes[cle]) { groupes[cle] = []; ordre.push(cle); }
+    groupes[cle].push(r);
+  });
+  var html = '';
+  ordre.forEach(function(cle) {
+    // Ligne d'en-tête de groupe (lieu/zone)
+    html += '<tr style="background:#0d1f8c;">'
+      + '<td colspan="3" style="padding:8px 12px;color:#fff;font-weight:bold;font-size:12px;letter-spacing:.04em;">'
+      + '&#128205; ' + cle
+      + '</td></tr>';
+    // Lignes équipements du groupe
+    groupes[cle].forEach(function(r) {
+      html += '<tr class="hover:bg-blue-50 text-xs border-b border-gray-100">'
+        + '<td class="px-4 py-2 text-left font-bold text-gray-900">' + r.modele + '</td>'
+        + '<td class="px-3 py-2 text-center font-mono font-bold text-gray-700 tracking-wider">' + r.serial + '</td>'
+        + '<td class="px-3 py-2 text-center" style="white-space:nowrap;">'
+        + '<button type="button" onclick="editer(' + r.id + ')" title="Modifier" style="color:#2563eb;font-size:18px;background:none;border:none;cursor:pointer;margin-right:8px;">&#9998;</button>'
+        + '<button type="button" onclick="del(' + r.id + ')" title="Supprimer" style="color:#ef4444;font-size:18px;background:none;border:none;cursor:pointer;">&#128465;</button>'
+        + '</td></tr>';
+    });
+  });
+  tb.innerHTML = html;
 }
-function del(id) { data=data.filter(function(r){return r.id!==id;}); save(); majTab(); }
+function del(id) {
+  var r = data.find(function(r){return r.id===id;});
+  if (!r) return;
+  if (!confirm('Supprimer ' + (r.modele||r.serial) + ' ?')) return;
+  data = data.filter(function(r){return r.id!==id;});
+  save(); majTab();
+}
 
 // == PHOTO ==
 function lancerPhoto() {
@@ -688,9 +792,17 @@ function exportWord() {
     majTab();
     ['hSite','hInterv','hBrand','hDate'].forEach(function(id){ g(id).value=''; });
     g('hDate').value = today();
-    alert('Export réussi — Le rapport a été réinitialisé.');
+    showToast('✅ Export réussi — Rapport réinitialisé.');
   }, 500);
 }
+
+// == PROTECTION QUITTER ==
+window.addEventListener('beforeunload', function(e) {
+  if (data.length > 0) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
 
 // == INIT — exécuté après chargement complet du DOM ==
 window.addEventListener('DOMContentLoaded', function() {
