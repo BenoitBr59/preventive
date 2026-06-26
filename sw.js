@@ -1,5 +1,5 @@
 // MDS Maintenance SW v5 — Network First pour index.html
-const CACHE = 'mds-v14';
+const CACHE = 'mds-v18';
 
 self.addEventListener('install', function(e) {
   self.skipWaiting();
