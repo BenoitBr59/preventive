@@ -87,14 +87,6 @@
     <input type="text" id="fZone" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ex: Expédition">
   </div>
   <div>
-    <label class="block text-xs font-medium text-gray-700 mb-1">Modèle (P/N)</label>
-    <input type="text" id="fModele" class="w-full bg-yellow-50 border border-gray-300 rounded px-3 py-1.5 text-sm font-semibold" placeholder="Scanné ou saisi" required>
-  </div>
-  <div>
-    <label class="block text-xs font-medium text-gray-700 mb-1">Machine ID / Lieu</label>
-    <input type="text" id="fLieu" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="ID Interne">
-  </div>
-  <div>
     <label class="block text-xs font-medium text-gray-700 mb-1">Numéro de Série (S/N)</label>
     <div class="flex">
       <input type="text" id="fSerial" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm font-bold" placeholder="S/N" required>
@@ -103,6 +95,14 @@
         SCANNER
       </button>
     </div>
+  </div>
+  <div>
+    <label class="block text-xs font-medium text-gray-700 mb-1">Modèle (P/N)</label>
+    <input type="text" id="fModele" class="w-full bg-yellow-50 border border-gray-300 rounded px-3 py-1.5 text-sm font-semibold" placeholder="Scanné ou saisi" required>
+  </div>
+  <div>
+    <label class="block text-xs font-medium text-gray-700 mb-1">Machine ID / Lieu</label>
+    <input type="text" id="fLieu" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="ID Interne">
   </div>
   <div class="md:col-span-2 grid grid-cols-2 gap-4 bg-white p-3 rounded border border-gray-200">
     <div>
@@ -122,32 +122,38 @@
       <select id="fImp" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>NOK</option></select>
     </div>
   </div>
-  <div class="md:col-span-2 grid grid-cols-2 gap-4">
+  <div class="md:col-span-2 grid grid-cols-1 gap-4">
+    <!-- État Général seul sur sa ligne -->
+    <div>
+      <label class="block text-xs font-medium text-gray-700 mb-1">État Général</label>
+      <select id="fGen" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm"><option>OK</option><option>A surveiller</option><option>Critique</option></select>
+    </div>
+    <!-- Adresse IP sur toute la largeur -->
     <div>
       <label class="block text-xs font-medium text-gray-700 mb-1">Adresse IP</label>
-      <div style="display:flex;flex-direction:column;gap:4px;">
-        <!-- Sélecteur de préfixe réseau -->
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <!-- Ligne 1 : sélecteur réseau + boutons -->
         <div style="display:flex;gap:4px;align-items:center;">
           <select id="fIpSelect" onchange="selectionnerPrefix(this.value)"
             class="bg-gray-100 border border-gray-300 rounded text-sm font-mono text-gray-600"
-            style="flex:1;padding:5px 6px;">
+            style="flex:1;padding:5px 6px;min-width:0;">
           </select>
-          <button type="button" onclick="ajouterReseau()" title="Ajouter un réseau"
-            style="background:#0d1f8c;color:#fff;border:none;border-radius:4px;padding:5px 10px;font-size:16px;cursor:pointer;flex-shrink:0;">+</button>
+          <button type="button" onclick="ajouterReseau()" title="Mémoriser ce réseau"
+            style="background:#0d1f8c;color:#fff;border:none;border-radius:4px;padding:5px 12px;font-size:16px;cursor:pointer;flex-shrink:0;">+</button>
           <button type="button" id="btnSuppReseau" onclick="supprimerReseau()" title="Supprimer ce réseau"
             style="background:#ef4444;color:#fff;border:none;border-radius:4px;padding:5px 10px;font-size:14px;cursor:pointer;flex-shrink:0;display:none;">✕</button>
         </div>
-        <!-- Préfixe modifiable + suffixe -->
-        <div style="display:flex;align-items:center;gap:4px;">
+        <!-- Ligne 2 : préfixe + suffixe -->
+        <div style="display:flex;align-items:center;gap:0;">
           <input type="text" id="fIpPrefix"
             class="bg-gray-50 border border-gray-300 rounded-l font-mono text-sm text-gray-600"
-            style="width:130px;padding:5px 8px;"
+            style="flex:1;min-width:0;padding:6px 8px;"
             placeholder="192.168.0."
             oninput="onPrefixEdit()"
             autocomplete="off">
           <input type="text" id="fIpSuffix" maxlength="3"
-            class="bg-white border border-gray-300 rounded-r font-mono font-bold text-gray-900 text-sm"
-            style="width:56px;padding:5px 8px;text-align:center;"
+            class="bg-white border border-l-0 border-gray-300 rounded-r font-mono font-bold text-gray-900 text-sm"
+            style="width:60px;padding:6px 8px;text-align:center;"
             placeholder="XXX"
             oninput="majIpFull()"
             onkeypress="return /[0-9]/.test(event.key)">
@@ -155,11 +161,7 @@
         </div>
       </div>
     </div>
-    <div>
-      <label class="block text-xs font-medium text-gray-700 mb-1">État Général</label>
-      <select id="fGen" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm"><option>OK</option><option>A surveiller</option><option>Critique</option></select>
-    </div>
-    <div class="col-span-2">
+    <div class="col-span-1">
       <label class="block text-xs font-medium text-gray-700 mb-1">Remarques / Actions</label>
       <textarea id="fRem" rows="2" class="w-full bg-white border border-gray-300 rounded px-3 py-1 text-sm" placeholder="Nettoyage, remplacement pièce..."></textarea>
     </div>
@@ -481,17 +483,19 @@ function majTab() {
   var groupes = {};
   var ordre = [];
   data.forEach(function(r) {
-    var cle = (r.zone||'Sans zone') + (r.lieu ? ' — ' + r.lieu : '');
+    var cle = (r.zone||'') + (r.lieu ? (r.zone ? ' — ' : '') + r.lieu : '');
     if (!groupes[cle]) { groupes[cle] = []; ordre.push(cle); }
     groupes[cle].push(r);
   });
   var html = '';
   ordre.forEach(function(cle) {
-    // Ligne d'en-tête de groupe (lieu/zone)
-    html += '<tr style="background:#0d1f8c;">'
+    // Ligne d'en-tête de groupe — uniquement si zone ou lieu renseigné
+    if (cle) {
+      html += '<tr style="background:#0d1f8c;">'
       + '<td colspan="3" style="padding:8px 12px;color:#fff;font-weight:bold;font-size:12px;letter-spacing:.04em;">'
       + '&#128205; ' + cle
       + '</td></tr>';
+    }
     // Lignes équipements du groupe
     groupes[cle].forEach(function(r) {
       html += '<tr class="hover:bg-blue-50 text-xs border-b border-gray-100">'
@@ -768,10 +772,18 @@ function identModele(pn) {
   return null;
 }
 function extraireSN(b) {
-  var t=b.trim(),u=t.toUpperCase();
+  var t=b.trim(), u=t.toUpperCase();
+  // Exclure les préfixes P/N Zebra typiques — jamais un S/N
+  if(/^1P(ZT|ZD|ZM)/i.test(u)) return null;
+  if(/^P(ZT|ZD|ZM)/i.test(u))  return null;
+  if(/^(ZT|ZD|ZM)\d{4}/i.test(u)) return null;
+  // S/N avec préfixe S
   if(u.charAt(0)==='S'&&t.length>=7&&t.length<=22&&/^[A-Z0-9]{5,20}$/i.test(t.slice(1)))return t.slice(1);
+  // S/N format Zebra lettre-chiffre-lettre-chiffres
   if(/^[A-Z][0-9][A-Z][0-9]{6,}/i.test(u)&&t.length<=20)return t;
+  // S/N préfixes connus
   if(/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/i.test(u))return t;
+  // S/N alphanumérique générique sans tiret
   if(/^[A-Z0-9]{8,20}$/i.test(t)&&t.indexOf('-')===-1)return t;
   return null;
 }
@@ -788,7 +800,7 @@ function exportWord() {
   data.forEach(function(r){
     var clr=r.gen==='Critique'?'color:#dc2626;font-weight:bold':r.gen==='A surveiller'?'color:#d97706;font-weight:bold':'';
     lignes+='<tr>'
-      +'<td style="text-align:left">'+(r.zone||'-')+'</td>'
+      +'<td style="text-align:left">'+(r.zone||'')+'</td>'
       +'<td style="text-align:left;font-weight:bold">'+(r.modele||'-')+'<br><span style="color:#64748b;font-size:8pt">'+(r.lieu||'')+'</span></td>'
       +'<td style="font-weight:bold">'+(r.serial||'-')+'</td>'
       +'<td>'+(r.ip||'-')+'</td>'
