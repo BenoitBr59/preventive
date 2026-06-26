@@ -125,7 +125,35 @@
   <div class="md:col-span-2 grid grid-cols-2 gap-4">
     <div>
       <label class="block text-xs font-medium text-gray-700 mb-1">Adresse IP</label>
-      <input type="text" id="fIp" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="192.168.x.x">
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <!-- Sélecteur de préfixe réseau -->
+        <div style="display:flex;gap:4px;align-items:center;">
+          <select id="fIpSelect" onchange="selectionnerPrefix(this.value)"
+            class="bg-gray-100 border border-gray-300 rounded text-sm font-mono text-gray-600"
+            style="flex:1;padding:5px 6px;">
+          </select>
+          <button type="button" onclick="ajouterReseau()" title="Ajouter un réseau"
+            style="background:#0d1f8c;color:#fff;border:none;border-radius:4px;padding:5px 10px;font-size:16px;cursor:pointer;flex-shrink:0;">+</button>
+          <button type="button" id="btnSuppReseau" onclick="supprimerReseau()" title="Supprimer ce réseau"
+            style="background:#ef4444;color:#fff;border:none;border-radius:4px;padding:5px 10px;font-size:14px;cursor:pointer;flex-shrink:0;display:none;">✕</button>
+        </div>
+        <!-- Préfixe modifiable + suffixe -->
+        <div style="display:flex;align-items:center;gap:4px;">
+          <input type="text" id="fIpPrefix"
+            class="bg-gray-50 border border-gray-300 rounded-l font-mono text-sm text-gray-600"
+            style="width:130px;padding:5px 8px;"
+            placeholder="192.168.0."
+            oninput="onPrefixEdit()"
+            autocomplete="off">
+          <input type="text" id="fIpSuffix" maxlength="3"
+            class="bg-white border border-gray-300 rounded-r font-mono font-bold text-gray-900 text-sm"
+            style="width:56px;padding:5px 8px;text-align:center;"
+            placeholder="XXX"
+            oninput="majIpFull()"
+            onkeypress="return /[0-9]/.test(event.key)">
+          <input type="hidden" id="fIp">
+        </div>
+      </div>
     </div>
     <div>
       <label class="block text-xs font-medium text-gray-700 mb-1">État Général</label>
@@ -372,7 +400,10 @@ function ajouterEquip(e) {
   save();
   majTab();
   // En mode ajout : vider les champs clés mais garder la zone (gain de temps)
-  ['fModele','fSerial','fLieu','fIp','fRem'].forEach(function(id){ g(id).value=''; });
+  // Garder fZone et fIpPrefix pour l'entrée suivante
+  ['fModele','fSerial','fLieu','fRem'].forEach(function(id){ g(id).value=''; });
+  g('fIpSuffix').value = '';
+  g('fIp').value = '';
   supprimerPhoto();
 }
 
@@ -385,7 +416,22 @@ function editer(id) {
   g('fModele').value = r.modele || '';
   g('fLieu').value   = r.lieu   || '';
   g('fSerial').value = r.serial || '';
-  g('fIp').value     = r.ip     || '';
+  // Découper l'IP en préfixe + suffixe
+  var ipParts = (r.ip||'').split('.');
+  if (ipParts.length === 4) {
+    var pfx = ipParts[0]+'.'+ipParts[1]+'.'+ipParts[2]+'.';
+    g('fIpPrefix').value = pfx;
+    g('fIpSuffix').value = ipParts[3];
+    // Sélectionner le réseau dans le select si mémorisé
+    var idxR = ipReseaux.indexOf(pfx);
+    g('fIpSelect').value = idxR !== -1 ? idxR : '';
+    g('btnSuppReseau').style.display = idxR !== -1 ? 'block' : 'none';
+  } else {
+    g('fIpPrefix').value = r.ip || '';
+    g('fIpSuffix').value = '';
+    g('fIpSelect').value = '';
+  }
+  g('fIp').value = r.ip || '';
   g('fCell').value   = r.cell   || 'OK';
   g('fDot').value    = r.dot    || 'OK';
   g('fRoll').value   = r.roll   || 'OK';
@@ -410,7 +456,9 @@ function editer(id) {
 
 function annulerEdit() {
   editId = null;
-  ['fModele','fSerial','fLieu','fIp','fRem','fZone'].forEach(function(id){ g(id).value=''; });
+  ['fModele','fSerial','fLieu','fRem','fZone'].forEach(function(id){ g(id).value=''; });
+  g('fIpPrefix').value=''; g('fIpSuffix').value=''; g('fIp').value='';
+  g('fIpSelect').value=''; g('btnSuppReseau').style.display='none';
   g('fCell').value = 'OK'; g('fDot').value = 'OK';
   g('fRoll').value = 'OK'; g('fImp').value = 'OK'; g('fGen').value = 'OK';
   supprimerPhoto();
@@ -796,6 +844,99 @@ function exportWord() {
   }, 500);
 }
 
+// == IP MULTI-RÉSEAU ==
+var ipReseaux = []; // Liste des préfixes mémorisés
+
+function chargerReseaux() {
+  try {
+    var s = localStorage.getItem('mds_reseaux');
+    ipReseaux = s ? JSON.parse(s) : [];
+  } catch(e) { ipReseaux = []; }
+  majSelectReseau();
+}
+
+function sauverReseaux() {
+  try { localStorage.setItem('mds_reseaux', JSON.stringify(ipReseaux)); } catch(e) {}
+}
+
+function majSelectReseau() {
+  var sel = g('fIpSelect');
+  var current = sel.value;
+  sel.innerHTML = '<option value="">— Choisir un réseau —</option>'
+    + ipReseaux.map(function(r, i) {
+        return '<option value="' + i + '">' + r + '</option>';
+      }).join('');
+  // Restaurer la sélection si possible
+  if (current !== '' && ipReseaux[parseInt(current)]) sel.value = current;
+  g('btnSuppReseau').style.display = sel.value !== '' ? 'block' : 'none';
+}
+
+function selectionnerPrefix(idx) {
+  if (idx === '') {
+    g('fIpPrefix').value = '';
+    g('fIpSuffix').value = '';
+    g('fIp').value = '';
+    g('btnSuppReseau').style.display = 'none';
+    return;
+  }
+  var prefix = ipReseaux[parseInt(idx)] || '';
+  g('fIpPrefix').value = prefix;
+  g('fIpSuffix').value = '';
+  g('fIp').value = '';
+  g('btnSuppReseau').style.display = 'block';
+  g('fIpSuffix').focus();
+}
+
+function onPrefixEdit() {
+  // Quand l'utilisateur modifie le préfixe manuellement, désélectionner
+  g('fIpSelect').value = '';
+  g('btnSuppReseau').style.display = 'none';
+  majIpFull();
+}
+
+function ajouterReseau() {
+  var prefix = g('fIpPrefix').value.trim();
+  if (!prefix) {
+    // Mettre le focus sur le champ préfixe pour que l'utilisateur le saisisse
+    g('fIpPrefix').focus();
+    g('fIpPrefix').placeholder = 'Ex: 192.168.1.';
+    showToast('Saisissez le préfixe puis appuyez sur +');
+    return;
+  }
+  if (!prefix.endsWith('.')) prefix += '.';
+  if (ipReseaux.indexOf(prefix) !== -1) {
+    showToast('Ce réseau est déjà mémorisé.');
+    return;
+  }
+  ipReseaux.push(prefix);
+  sauverReseaux();
+  majSelectReseau();
+  g('fIpSelect').value = ipReseaux.length - 1;
+  selectionnerPrefix(ipReseaux.length - 1);
+  showToast('✅ Réseau ' + prefix + ' mémorisé.');
+}
+
+function supprimerReseau() {
+  var idx = parseInt(g('fIpSelect').value);
+  if (isNaN(idx)) return;
+  var nom = ipReseaux[idx];
+  if (!confirm('Supprimer le réseau ' + nom + ' ?')) return;
+  ipReseaux.splice(idx, 1);
+  sauverReseaux();
+  majSelectReseau();
+  g('fIpPrefix').value = '';
+  g('fIpSuffix').value = '';
+  g('fIp').value = '';
+  showToast('Réseau supprimé.');
+}
+
+function majIpFull() {
+  var prefix = g('fIpPrefix').value.trim();
+  var suffix = g('fIpSuffix').value.trim();
+  if (prefix && !prefix.endsWith('.')) prefix += '.';
+  g('fIp').value = suffix ? prefix + suffix : '';
+}
+
 // == PROTECTION QUITTER ==
 window.addEventListener('beforeunload', function(e) {
   if (data.length > 0) {
@@ -810,6 +951,7 @@ window.addEventListener('DOMContentLoaded', function() {
   if (!g('hDate').value) g('hDate').value = today();
   majTab();
   initPhoto();
+  chargerReseaux();
 });
 </script>
 </body>
