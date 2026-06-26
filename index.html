@@ -585,7 +585,7 @@ function ouvrirScanner() {
       setTimeout(flashOn, 800);
       if ('BarcodeDetector' in window) {
         useBD = true;
-        det = new BarcodeDetector({formats:['code_128','code_39','ean_13']});
+        det = new BarcodeDetector({formats:['code_128','code_39']});
       } else {
         useBD = false;
         chargerZXing();
@@ -618,9 +618,26 @@ function boucle() {
   ctx.drawImage(v, 0,cy,vw,ch, 0,0,vw,ch);
   if (useBD) {
     det.detect(cvs).then(function(res) {
-      if (res && res.length) {
+      if (!res || !res.length) return;
+      if (mode==='SN') {
+        // Mode SN : prendre le plus large (le plus lisible)
         var best=res.reduce(function(a,b){return b.boundingBox.width>a.boundingBox.width?b:a;});
         if (best.rawValue) traiter(best.rawValue);
+      } else {
+        // Mode PN : parcourir TOUS les codes, ignorer ceux qui ressemblent au SN
+        var trouve = false;
+        // Trier du plus petit au plus grand pour favoriser le P/N (plus court physiquement)
+        var tries = res.slice().sort(function(a,b){return a.boundingBox.width-b.boundingBox.width;});
+        for (var i=0; i<tries.length; i++) {
+          var val = tries[i].rawValue;
+          if (val && !estMemeCodeQueSN(val)) {
+            traiter(val);
+            trouve = true;
+            break;
+          }
+        }
+        // Si tous filtrés, quand même signaler le dernier lu (sera filtré dans traiter)
+        if (!trouve && tries.length) traiter(tries[tries.length-1].rawValue);
       }
     }).catch(function(){}).finally(function(){ raf=requestAnimationFrame(boucle); });
   } else {
@@ -641,7 +658,9 @@ function boucle() {
 }
 function traiter(txt) {
   var brut=txt.trim(), now=Date.now();
-  if (brut===lastCode && now-lastAt<1200) return;
+  // Debounce plus court en mode PN pour ne pas rater le code-barres P/N
+  var debounce = (mode==='PN') ? 400 : 1200;
+  if (brut===lastCode && (now-lastAt)<debounce) return;
   lastCode=brut; lastAt=now;
   g('rawTxt').textContent=brut; g('rawTxt').style.color='#4ade80';
   if (mode==='SN') {
@@ -668,7 +687,7 @@ function traiter(txt) {
 }
 
 function passerPN() {
-  mode='PN'; lastCode=''; lastAt=0;
+  mode='PN'; lastCode=''; lastAt=0; // Reset complet du debounce pour le mode PN
   g('stepLbl').textContent='ÉTAPE 2/2 — Pointez sur le P/N';
   g('scanBadge').textContent='P/N';
   g('scanBadge').style.background='#3b82f6'; g('scanBadge').style.color='#fff';
