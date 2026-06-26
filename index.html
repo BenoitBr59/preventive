@@ -652,7 +652,7 @@ function traiter(txt) {
       passerPN();
     } else { var m=identModele(brut); if(m) pnOk=m; }
   } else {
-    if (brut===snOk||brut==='S'+snOk) return;
+    if (estMemeCodeQueSN(brut)) return;
     var m=identModele(brut);
     if (m) {
       pnOk=m;
@@ -754,8 +754,10 @@ function choisir(m){g('manInput').value=m; filtreSugg(m);}
 // == IDENTIFICATION ==
 function identModele(pn) {
   var t=pn.toUpperCase().trim();
-  if(t.startsWith('1P'))t=t.slice(2);
-  else if(/^P(ZT|ZD|ZM)/.test(t))t=t.slice(1);
+  // Gérer tous les préfixes Zebra : 1P, P1, P suivi de ZT/ZD/ZM
+  if(/^1P/.test(t))          t=t.slice(2);
+  else if(/^P1/.test(t))     t=t.slice(2);
+  else if(/^P(ZT|ZD|ZM)/.test(t)) t=t.slice(1);
   var mm=t.match(/^(ZT|ZD|ZM)(\d{2})(\d{2})/);
   if(mm){
     var fam=mm[1],mod=mm[2],res=mm[3];
@@ -770,6 +772,16 @@ function identModele(pn) {
   for(var k in S){if(t.startsWith(k))return S[k];}
   if(t.indexOf('-')!==-1&&t.length>=8)return t;
   return null;
+}
+
+function estMemeCodeQueSN(brut) {
+  if(!snOk) return false;
+  var b = brut.toUpperCase(), s = snOk.toUpperCase();
+  // Égalité exacte ou avec préfixe S
+  if(b===s || b==='S'+s || 'S'+b===s) return true;
+  // Le scan a relu le même code avec 1-2 chars en plus/moins (débordement de zone)
+  if(b.indexOf(s)!==-1 || s.indexOf(b)!==-1) return true;
+  return false;
 }
 function extraireSN(b) {
   var t=b.trim(), u=t.toUpperCase();
