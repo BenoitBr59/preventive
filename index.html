@@ -337,7 +337,8 @@ function save() {
     localStorage.setItem('mds4', JSON.stringify(data));
     localStorage.setItem('mds4h', JSON.stringify({
       s: g('hSite').value, i: g('hInterv').value,
-      b: g('hBrand').value, d: g('hDate').value
+      b: g('hBrand').value, d: g('hDate').value,
+      e: editId  // Sauvegarde du mode édition
     }));
   } catch(e) {}
 }
@@ -352,6 +353,15 @@ function loadSession() {
       g('hInterv').value = h.i || '';
       g('hBrand').value  = h.b || 'ZEBRA';
       g('hDate').value   = h.d || today();
+      // Restaurer le mode édition si interrompu
+      if (h.e !== null && h.e !== undefined) {
+        editId = h.e;
+        if (editId !== null) {
+          var r = data.find(function(r){ return r.id === editId; });
+          if (r) editer(editId);
+          else editId = null; // L'entrée n'existe plus
+        }
+      }
     }
   } catch(e) {}
 }
@@ -864,8 +874,9 @@ function estMemeCodeQueSN(brut) {
 }
 function extraireSN(b) {
   var t=b.trim(), u=t.toUpperCase();
-  // Exclure les préfixes P/N Zebra typiques — jamais un S/N
+  // Exclure tous les préfixes P/N Zebra — jamais un S/N
   if(/^1P(ZT|ZD|ZM)/i.test(u)) return null;
+  if(/^P1(ZT|ZD|ZM)/i.test(u)) return null;
   if(/^P(ZT|ZD|ZM)/i.test(u))  return null;
   if(/^(ZT|ZD|ZM)\d{4}/i.test(u)) return null;
   // S/N avec préfixe S
@@ -882,6 +893,8 @@ function extraireSN(b) {
 // == EXPORT WORD ==
 function exportWord() {
   if (!data.length){alert('Tableau vide.');return;}
+  // Désactiver temporairement beforeunload pour ne pas bloquer le téléchargement
+  window._skipUnload = true;
   var site  = g('hSite').value.trim()||'Non spécifié';
   var interv= g('hInterv').value||'Non spécifié';
   var parc  = g('hBrand').value;
@@ -947,6 +960,8 @@ function exportWord() {
   a.href=URL.createObjectURL(blob);
   a.download='Rapport_MDS_'+site.replace(/[^a-z0-9]/gi,'_')+'_'+date+'.doc';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  // Réactiver beforeunload après téléchargement
+  setTimeout(function(){ window._skipUnload = false; }, 1000);
   // Vider les données après export
   setTimeout(function() {
     data = [];
@@ -1054,6 +1069,7 @@ function majIpFull() {
 
 // == PROTECTION QUITTER ==
 window.addEventListener('beforeunload', function(e) {
+  if (window._skipUnload) return;
   if (data.length > 0) {
     e.preventDefault();
     e.returnValue = '';
