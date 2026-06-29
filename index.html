@@ -111,11 +111,11 @@
     </div>
     <div>
       <label class="block text-xs font-medium text-gray-700 mb-1">État Dot (Tête)</label>
-      <select id="fDot" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>Dots HS</option><option>Dots usées</option><option>surchauffe</option><option>Tête absente</option></select>
+      <select id="fDot" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>1 Dot HS</option><option>2 Dots HS</option><option>Plusieurs Dots HS</option><option>Tête HS</option></select>
     </div>
     <div>
       <label class="block text-xs font-medium text-gray-700 mb-1">Pressing Roller</label>
-      <select id="fRoll" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>Manque matière</option><option>cutter</option></select>
+      <select id="fRoll" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>Marqué</option><option>À remplacer</option></select>
     </div>
     <div>
       <label class="block text-xs font-medium text-gray-700 mb-1">Test Impression</label>
@@ -126,7 +126,7 @@
     <!-- État Général seul sur sa ligne -->
     <div>
       <label class="block text-xs font-medium text-gray-700 mb-1">État Général</label>
-      <select id="fGen" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm"><option>OK</option><option>Voir rem</option></select>
+      <select id="fGen" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm"><option>OK</option><option>A surveiller</option><option>Critique</option></select>
     </div>
     <!-- Adresse IP sur toute la largeur -->
     <div>
@@ -320,11 +320,11 @@ var photoB64 = null;
 var cropInst = null;
 
 var MODELES = [
-  'ZT111 - 8dots','ZT220 - 8dots','ZT230 - 8dots','ZT230 - 12dots',
+  'ZT111 - 8dots','ZT111 - 12dots','ZT220 - 8dots','ZT220 - 12dots','ZT230 - 8dots','ZT230 - 12dots',
   'ZT231 - 8dots','ZT231 - 12dots','ZT410 - 8dots','ZT410 - 12dots','ZT410 - 24dots',
   'ZT411 - 8dots','ZT411 - 12dots','ZT411 - 24dots','ZT420 - 8dots','ZT420 - 12dots',
   'ZT421 - 8dots','ZT421 - 12dots','ZT610 - 8dots','ZT610 - 12dots','ZT610 - 24dots',
-  'ZT620 - 8dots','ZT620 - 12dots','ZD220 - 8dots','ZD230 - 8dots',
+  'ZT620 - 8dots','ZT620 - 12dots','ZT630 - 8dots','ZD220 - 8dots','ZD230 - 8dots',
   'ZD421 - 8dots','ZD421 - 12dots','ZD621 - 8dots','ZD621 - 12dots','ZM400 - 8dots','ZM600 - 8dots',
   'ZQ230 - 8dots','ZQ300 - 8dots','ZQ600 - 8dots','ZQ600 - 12dots','S4M+ - 8dots','S4M+ - 12dots',
   'PM42 - 8dots','PM43 - 8dots','PM43c - 8dots','PM45 - 8dots','PD43 - 8dots','PD45 - 8dots',
@@ -728,12 +728,12 @@ function boucle() {
 }
 function traiter(txt) {
   var brut=txt.trim(), now=Date.now();
-  // Debounce plus court en mode PN pour ne pas rater le code-barres P/N
   var debounce = (mode==='PN') ? 400 : 1200;
   if (brut===lastCode && (now-lastAt)<debounce) return;
-  lastCode=brut; lastAt=now;
-  g('rawTxt').textContent=brut; g('rawTxt').style.color='#4ade80';
+
   if (mode==='SN') {
+    lastCode=brut; lastAt=now;
+    g('rawTxt').textContent=brut; g('rawTxt').style.color='#4ade80';
     var sn=extraireSN(brut);
     if (sn) {
       snOk=sn;
@@ -741,7 +741,14 @@ function traiter(txt) {
       passerPN();
     } else { var m=identModele(brut); if(m) pnOk=m; }
   } else {
-    if (estMemeCodeQueSN(brut)) return;
+    // Mode PN : ignorer le S/N sans bloquer le debounce
+    if (estMemeCodeQueSN(brut)) {
+      g('rawTxt').textContent='(S/N ignoré — pointez sur le P/N)';
+      g('rawTxt').style.color='#6b7280';
+      return; // PAS de mise à jour lastCode => prochaine lecture P/N non bloquée
+    }
+    lastCode=brut; lastAt=now;
+    g('rawTxt').textContent=brut; g('rawTxt').style.color='#4ade80';
     var m=identModele(brut);
     if (m) {
       pnOk=m;
