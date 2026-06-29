@@ -690,14 +690,14 @@ function boucle() {
     det.detect(cvs).then(function(res) {
       if (!res || !res.length) return;
       if (mode==='SN') {
-        // Mode SN : prendre le plus large (le plus lisible)
+        // Mode SN : prendre le plus large
         var best=res.reduce(function(a,b){return b.boundingBox.width>a.boundingBox.width?b:a;});
         if (best.rawValue) traiter(best.rawValue);
       } else {
-        // Mode PN : parcourir TOUS les codes, ignorer ceux qui ressemblent au SN
+        // Mode PN : trier du PLUS GRAND au plus petit
+        // Le P/N Zebra est physiquement plus large que le S/N
+        var tries = res.slice().sort(function(a,b){return b.boundingBox.width-a.boundingBox.width;});
         var trouve = false;
-        // Trier du plus petit au plus grand pour favoriser le P/N (plus court physiquement)
-        var tries = res.slice().sort(function(a,b){return a.boundingBox.width-b.boundingBox.width;});
         for (var i=0; i<tries.length; i++) {
           var val = tries[i].rawValue;
           if (val && !estMemeCodeQueSN(val)) {
@@ -706,8 +706,8 @@ function boucle() {
             break;
           }
         }
-        // Si tous filtrés, quand même signaler le dernier lu (sera filtré dans traiter)
-        if (!trouve && tries.length) traiter(tries[tries.length-1].rawValue);
+        // Si tous filtrés (que des S/N dans le cadre), signaler pour feedback
+        if (!trouve && tries.length) traiter(tries[0].rawValue);
       }
     }).catch(function(){}).finally(function(){ raf=requestAnimationFrame(boucle); });
   } else {
