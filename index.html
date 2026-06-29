@@ -694,9 +694,11 @@ function boucle() {
         var best=res.reduce(function(a,b){return b.boundingBox.width>a.boundingBox.width?b:a;});
         if (best.rawValue) traiter(best.rawValue);
       } else {
-        // Mode PN : trier du PLUS GRAND au plus petit
-        // Le P/N Zebra est physiquement plus large que le S/N
-        var tries = res.slice().sort(function(a,b){return b.boundingBox.width-a.boundingBox.width;});
+        // Mode PN : trier par longueur du contenu décodé (DESC)
+        // P/N Zebra ~16 chars > S/N ~12 chars → P/N testé en premier
+        var tries = res.slice().sort(function(a,b){
+          return b.rawValue.length - a.rawValue.length;
+        });
         var trouve = false;
         for (var i=0; i<tries.length; i++) {
           var val = tries[i].rawValue;
@@ -706,8 +708,11 @@ function boucle() {
             break;
           }
         }
-        // Si tous filtrés (que des S/N dans le cadre), signaler pour feedback
-        if (!trouve && tries.length) traiter(tries[0].rawValue);
+        // Si tous filtrés (que des S/N dans le cadre) : message sans bloquer le debounce
+        if (!trouve) {
+          g('rawTxt').textContent = '(S/N ignoré — pointez sur le P/N)';
+          g('rawTxt').style.color = '#6b7280';
+        }
       }
     }).catch(function(){}).finally(function(){ raf=requestAnimationFrame(boucle); });
   } else {
