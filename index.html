@@ -683,7 +683,15 @@ function boucle() {
   if (v.readyState < 2) { raf=requestAnimationFrame(boucle); return; }
   var cvs=g('scanCvs'), ctx=cvs.getContext('2d');
   var vw=v.videoWidth, vh=v.videoHeight;
-  var cy=Math.floor(vh*0.3), ch=Math.floor(vh*0.4);
+  // En mode PN : décaler la zone de capture vers le bas (P/N sous le S/N sur l'étiquette Zebra)
+  var cy, ch;
+  if (mode === 'PN') {
+    cy = Math.floor(vh * 0.42); // zone basse : P/N
+    ch = Math.floor(vh * 0.28);
+  } else {
+    cy = Math.floor(vh * 0.30); // zone standard : S/N
+    ch = Math.floor(vh * 0.40);
+  }
   cvs.width=vw; cvs.height=ch;
   ctx.drawImage(v, 0,cy,vw,ch, 0,0,vw,ch);
   if (useBD) {
@@ -694,10 +702,12 @@ function boucle() {
         var best=res.reduce(function(a,b){return b.boundingBox.width>a.boundingBox.width?b:a;});
         if (best.rawValue) traiter(best.rawValue);
       } else {
-        // Mode PN : trier par longueur du contenu décodé (DESC)
-        // P/N Zebra ~16 chars > S/N ~12 chars → P/N testé en premier
+        // Mode PN : sur étiquette Zebra, le P/N est TOUJOURS en dessous du S/N
+        // Trier par position Y décroissante (y_center le plus grand = le plus bas = P/N)
         var tries = res.slice().sort(function(a,b){
-          return b.rawValue.length - a.rawValue.length;
+          var ya = a.boundingBox.y + a.boundingBox.height/2;
+          var yb = b.boundingBox.y + b.boundingBox.height/2;
+          return yb - ya; // DESC : le plus bas en premier
         });
         var trouve = false;
         for (var i=0; i<tries.length; i++) {
@@ -708,7 +718,7 @@ function boucle() {
             break;
           }
         }
-        // Si tous filtrés (que des S/N dans le cadre) : message sans bloquer le debounce
+        // Si seul le S/N est dans le cadre : message sans bloquer le debounce
         if (!trouve) {
           g('rawTxt').textContent = '(S/N ignoré — pointez sur le P/N)';
           g('rawTxt').style.color = '#6b7280';
@@ -769,15 +779,22 @@ function traiter(txt) {
 }
 
 function passerPN() {
-  mode='PN'; lastCode=''; lastAt=0; // Reset complet du debounce pour le mode PN
-  g('stepLbl').textContent='ÉTAPE 2/2 — Pointez sur le P/N';
+  mode='PN'; lastCode=''; lastAt=0;
+  g('stepLbl').textContent='ÉTAPE 2/2 — Pointez sur le P/N (code du bas)';
   g('scanBadge').textContent='P/N';
   g('scanBadge').style.background='#3b82f6'; g('scanBadge').style.color='#fff';
+  // Décaler le cadre de scan vers le bas pour cibler le P/N (sous le S/N)
+  g('scanBdr').setAttribute('y','54%');
+  g('scanBdr').setAttribute('height','20%');
   g('scanBdr').setAttribute('stroke','#3b82f6');
+  // Décaler le masque SVG également
+  var maskRect = document.querySelector('#scanMask rect:last-child');
+  if (maskRect) { maskRect.setAttribute('y','54%'); maskRect.setAttribute('height','20%'); }
   g('cSN').style.opacity='0.5'; g('cSN').style.borderColor='';
   g('cPN').style.opacity='1'; g('cPN').style.borderColor='#3b82f6'; g('cPN').style.borderWidth='2px';
   g('lblPN').style.color='#60a5fa';
-  g('rawTxt').textContent='Pointez sur le code P/N...'; g('rawTxt').style.color='#60a5fa';
+  g('rawTxt').textContent='Pointez sur le code P/N (en bas de l\'étiquette)...';
+  g('rawTxt').style.color='#60a5fa';
   g('btnMan').style.display='block';
   if (pnOk) {
     g('rPN').textContent='✅ '+pnOk; g('rPN').style.color='#4ade80';
