@@ -777,13 +777,7 @@ function passerPN() {
   g('stepLbl').textContent='ÉTAPE 2/2 — Pointez sur le P/N (code du bas)';
   g('scanBadge').textContent='P/N';
   g('scanBadge').style.background='#3b82f6'; g('scanBadge').style.color='#fff';
-  // Décaler le cadre de scan vers le bas pour cibler le P/N (sous le S/N)
-  g('scanBdr').setAttribute('y','54%');
-  g('scanBdr').setAttribute('height','20%');
   g('scanBdr').setAttribute('stroke','#3b82f6');
-  // Décaler le masque SVG également
-  var maskRect = document.querySelector('#scanMask rect:last-child');
-  if (maskRect) { maskRect.setAttribute('y','54%'); maskRect.setAttribute('height','20%'); }
   g('cSN').style.opacity='0.5'; g('cSN').style.borderColor='';
   g('cPN').style.opacity='1'; g('cPN').style.borderColor='#3b82f6'; g('cPN').style.borderWidth='2px';
   g('lblPN').style.color='#60a5fa';
