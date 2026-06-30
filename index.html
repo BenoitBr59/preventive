@@ -645,7 +645,7 @@ function ouvrirScanner() {
   g('ctrlPanel').style.cssText = 'background:#111827;padding:12px 16px;display:flex;flex-direction:column;gap:8px;flex-shrink:0;';
   g('manZone').style.display = 'none';
   navigator.mediaDevices.getUserMedia({
-    video: {facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720}}
+    video: {facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080}}
   }).then(function(s) {
     stream = s;
     var v = g('scanVid');
@@ -683,9 +683,16 @@ function boucle() {
   if (v.readyState < 2) { raf=requestAnimationFrame(boucle); return; }
   var cvs=g('scanCvs'), ctx=cvs.getContext('2d');
   var vw=v.videoWidth, vh=v.videoHeight;
-  // Zone unique fixe, identique au cadre visuel affiché (y=35%, h=30%)
-  var cy = Math.floor(vh * 0.35);
-  var ch = Math.floor(vh * 0.30);
+  // Zone analysée : légèrement plus large en mode PN (le code est souvent plus bas/petit),
+  // sans déplacer le cadre visuel affiché (toujours y=35%, h=30%)
+  var cy, ch;
+  if (mode === 'PN') {
+    cy = Math.floor(vh * 0.33);
+    ch = Math.floor(vh * 0.34);
+  } else {
+    cy = Math.floor(vh * 0.35);
+    ch = Math.floor(vh * 0.30);
+  }
   cvs.width=vw; cvs.height=ch;
   ctx.drawImage(v, 0,cy,vw,ch, 0,0,vw,ch);
   if (useBD) {
