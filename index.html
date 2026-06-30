@@ -683,47 +683,31 @@ function boucle() {
   if (v.readyState < 2) { raf=requestAnimationFrame(boucle); return; }
   var cvs=g('scanCvs'), ctx=cvs.getContext('2d');
   var vw=v.videoWidth, vh=v.videoHeight;
-  // Zone analysée : légèrement plus large en mode PN (le code est souvent plus bas/petit),
-  // sans déplacer le cadre visuel affiché (toujours y=35%, h=30%)
-  var cy, ch;
-  if (mode === 'PN') {
-    cy = Math.floor(vh * 0.33);
-    ch = Math.floor(vh * 0.34);
-  } else {
-    cy = Math.floor(vh * 0.35);
-    ch = Math.floor(vh * 0.30);
-  }
-  cvs.width=vw; cvs.height=ch;
-  ctx.drawImage(v, 0,cy,vw,ch, 0,0,vw,ch);
+  // Analyser toute la hauteur visible — pas de découpe qui ferait rater un code
+  cvs.width=vw; cvs.height=vh;
+  ctx.drawImage(v, 0,0,vw,vh, 0,0,vw,vh);
   if (useBD) {
     det.detect(cvs).then(function(res) {
       if (!res || !res.length) return;
       if (mode==='SN') {
-        // Mode SN : prendre le plus large
-        var best=res.reduce(function(a,b){return b.boundingBox.width>a.boundingBox.width?b:a;});
+        // Prendre le code le plus large (S/N est le plus grand physiquement)
+        var best=res.reduce(function(a,b){
+          return b.boundingBox.width>a.boundingBox.width?b:a;
+        });
         if (best.rawValue) traiter(best.rawValue);
       } else {
-        // Mode PN : sur étiquette Zebra, le P/N est TOUJOURS en dessous du S/N
-        // Trier par position Y décroissante (y_center le plus grand = le plus bas = P/N)
-        var tries = res.slice().sort(function(a,b){
-          var ya = a.boundingBox.y + a.boundingBox.height/2;
-          var yb = b.boundingBox.y + b.boundingBox.height/2;
-          return yb - ya; // DESC : le plus bas en premier
-        });
-        var trouve = false;
-        for (var i=0; i<tries.length; i++) {
-          var val = tries[i].rawValue;
+        // Mode PN : parcourir tous les codes détectés,
+        // prendre le premier qui n'est pas le S/N
+        for (var i=0; i<res.length; i++) {
+          var val = res[i].rawValue;
           if (val && !estMemeCodeQueSN(val)) {
             traiter(val);
-            trouve = true;
-            break;
+            return;
           }
         }
-        // Si seul le S/N est dans le cadre : message sans bloquer le debounce
-        if (!trouve) {
-          g('rawTxt').textContent = '(S/N ignoré — pointez sur le P/N)';
-          g('rawTxt').style.color = '#6b7280';
-        }
+        // Tous les codes détectés sont le S/N — attendre
+        g('rawTxt').textContent = 'S/N ignoré — cadrez le code P/N...';
+        g('rawTxt').style.color = '#6b7280';
       }
     }).catch(function(){}).finally(function(){ raf=requestAnimationFrame(boucle); });
   } else {
