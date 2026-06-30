@@ -224,9 +224,9 @@
     <canvas id="scanCvs" style="display:none;"></canvas>
     <div style="position:absolute;inset:0;pointer-events:none;">
       <svg style="position:absolute;inset:0;width:100%;height:100%;">
-        <defs><mask id="scanMask"><rect width="100%" height="100%" fill="white"/><rect x="6%" y="38%" width="88%" height="24%" rx="4" fill="black"/></mask></defs>
+        <defs><mask id="scanMask"><rect width="100%" height="100%" fill="white"/><rect x="6%" y="35%" width="88%" height="30%" rx="4" fill="black"/></mask></defs>
         <rect width="100%" height="100%" fill="rgba(0,0,0,0.55)" mask="url(#scanMask)"/>
-        <rect id="scanBdr" x="6%" y="38%" width="88%" height="24%" rx="4" fill="none" stroke="#f5a11c" stroke-width="2" stroke-dasharray="8,4"/>
+        <rect id="scanBdr" x="6%" y="35%" width="88%" height="30%" rx="4" fill="none" stroke="#f5a11c" stroke-width="2" stroke-dasharray="8,4"/>
         <line x1="6%" y1="50%" x2="94%" y2="50%" stroke="#ef4444" stroke-width="1.5"><animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite"/></line>
       </svg>
       <div id="scanBadge" style="position:absolute;top:12px;left:50%;transform:translateX(-50%);background:#f5a11c;color:#1a1a1a;font-size:11px;font-weight:900;padding:3px 14px;border-radius:999px;letter-spacing:.1em;">S/N</div>
@@ -683,15 +683,9 @@ function boucle() {
   if (v.readyState < 2) { raf=requestAnimationFrame(boucle); return; }
   var cvs=g('scanCvs'), ctx=cvs.getContext('2d');
   var vw=v.videoWidth, vh=v.videoHeight;
-  // En mode PN : décaler la zone de capture vers le bas (P/N sous le S/N sur l'étiquette Zebra)
-  var cy, ch;
-  if (mode === 'PN') {
-    cy = Math.floor(vh * 0.42); // zone basse : P/N
-    ch = Math.floor(vh * 0.28);
-  } else {
-    cy = Math.floor(vh * 0.30); // zone standard : S/N
-    ch = Math.floor(vh * 0.40);
-  }
+  // Zone unique fixe, identique au cadre visuel affiché (y=35%, h=30%)
+  var cy = Math.floor(vh * 0.35);
+  var ch = Math.floor(vh * 0.30);
   cvs.width=vw; cvs.height=ch;
   ctx.drawImage(v, 0,cy,vw,ch, 0,0,vw,ch);
   if (useBD) {
