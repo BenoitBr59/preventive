@@ -264,15 +264,14 @@
   <div id="ctrlPanel" style="background:#111827;padding:12px 16px;display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
     <button type="button" onclick="toggleFlash()" class="bs" style="width:100%;font-weight:bold;font-size:12px;padding:8px;border-radius:4px;border:none;text-transform:uppercase;letter-spacing:.05em;">&#9889; Flash ON / OFF</button>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-      <div id="cPN" style="background:#1f2937;border-radius:4px;padding:8px;text-align:center;border:1px solid #374151;opacity:0.5;">
-        <div id="lblPN" style="font-size:10px;font-weight:bold;text-transform:uppercase;color:#9ca3af;margin-bottom:4px;">&#201;tape 2 — P/N</div>
-        <div id="rPN" style="color:#f87171;font-weight:bold;font-size:12px;word-break:break-all;">&#10060; En attente</div>
-      </div>
       <div id="cSN" style="background:#1f2937;border-radius:4px;padding:8px;text-align:center;border:2px solid #f5a11c;">
         <div style="font-size:10px;font-weight:bold;text-transform:uppercase;color:#f5a11c;margin-bottom:4px;">&#201;tape 1 — S/N</div>
         <div id="rSN" style="color:#f87171;font-weight:bold;font-size:12px;word-break:break-all;">&#10060; En attente</div>
       </div>
-
+      <div id="cPN" style="background:#1f2937;border-radius:4px;padding:8px;text-align:center;border:1px solid #374151;opacity:0.5;">
+        <div id="lblPN" style="font-size:10px;font-weight:bold;text-transform:uppercase;color:#9ca3af;margin-bottom:4px;">&#201;tape 2 — P/N</div>
+        <div id="rPN" style="color:#f87171;font-weight:bold;font-size:12px;word-break:break-all;">&#10060; En attente</div>
+      </div>
     </div>
     <div style="background:#000;border-radius:4px;padding:6px 8px;text-align:center;border:1px solid #1f2937;">
       <span id="rawTxt" style="font-size:11px;color:#6b7280;font-family:monospace;word-break:break-all;">Aucune lecture...</span>
@@ -311,7 +310,7 @@ function showToast(msg) {
   var t = g('toast');
   t.textContent = msg;
   t.classList.add('show');
-  setTimeout(function(){ t.classList.remove('show'); }, 3000);
+  setTimeout(function(){ t.classList.remove('show'); }, 4000);
 }
 
 // == DONNÉES ==
@@ -471,8 +470,8 @@ function annulerEdit() {
   ['fModele','fSerial','fLieu','fRem','fZone'].forEach(function(id){ g(id).value=''; });
   g('fIpPrefix').value=''; g('fIpSuffix').value=''; g('fIp').value='';
   g('fIpSelect').value=''; g('btnSuppReseau').style.display='none';
-  g('fCell').value = 'OK'; g('fDot').value = 'OK';
-  g('fRoll').value = 'OK'; g('fImp').value = 'OK'; g('fGen').value = 'OK';
+  g('fCell').value='OK'; g('fDot').value='OK';
+  g('fRoll').value='OK'; g('fImp').value='OK'; g('fGen').value='OK';
   supprimerPhoto();
   g('submitBtn').textContent = 'Ajouter au tableau';
   g('submitBtn').style.background = '';
@@ -509,8 +508,8 @@ function majTab() {
     // Lignes équipements du groupe
     groupes[cle].forEach(function(r) {
       html += '<tr class="hover:bg-blue-50 text-xs border-b border-gray-100">'
-        + '<td class="px-4 py-2 text-left font-bold text-gray-900">' + r.modele + '</td>'
-        + '<td class="px-3 py-2 text-center font-mono font-bold text-gray-700 tracking-wider">' + r.serial + '</td>'
+        + '<td class="px-4 py-2 text-left font-bold text-gray-900">' + (r.modele||'-') + '</td>'
+        + '<td class="px-3 py-2 text-center font-mono font-bold text-gray-700 tracking-wider">' + (r.serial||'-') + '</td>'
         + '<td class="px-3 py-2 text-center" style="white-space:nowrap;">'
         + '<button type="button" onclick="editer(' + r.id + ')" title="Modifier" style="color:#2563eb;font-size:18px;background:none;border:none;cursor:pointer;margin-right:8px;">&#9998;</button>'
         + '<button type="button" onclick="del(' + r.id + ')" title="Supprimer" style="color:#ef4444;font-size:18px;background:none;border:none;cursor:pointer;">&#128465;</button>'
@@ -728,7 +727,7 @@ function boucle() {
 }
 function traiter(txt) {
   var brut=txt.trim(), now=Date.now();
-  var debounce = (mode==='PN') ? 400 : 1200;
+  var debounce = (mode==='PN') ? 800 : 1200;
   if (brut===lastCode && (now-lastAt)<debounce) return;
 
   if (mode==='SN') {
@@ -874,11 +873,10 @@ function identModele(pn) {
 function estMemeCodeQueSN(brut) {
   if(!snOk) return false;
   var b = brut.toUpperCase(), s = snOk.toUpperCase();
-  // Égalité exacte ou avec préfixe S
-  if(b===s || b==='S'+s || 'S'+b===s) return true;
-  // Le scan a relu le même code avec 1-2 chars en plus/moins (débordement de zone)
-  if(b.indexOf(s)!==-1 || s.indexOf(b)!==-1) return true;
-  return false;
+  // Égalité exacte ou avec préfixe S uniquement.
+  // L'ancien double indexOf() bloquait des P/N valides contenant
+  // une sous-chaîne du S/N (ex: "23" dans "ZT23143-T1E000FZ").
+  return (b===s || b==='S'+s || 'S'+b===s);
 }
 function extraireSN(b) {
   var t=b.trim(), u=t.toUpperCase();
@@ -901,6 +899,7 @@ function extraireSN(b) {
 // == EXPORT WORD ==
 function exportWord() {
   if (!data.length){alert('Tableau vide.');return;}
+  if (!confirm('Exporter le rapport en Word ?\n\nAttention : le tableau sera réinitialisé après l\'export.')) return;
   // Désactiver temporairement beforeunload pour ne pas bloquer le téléchargement
   window._skipUnload = true;
   var site  = g('hSite').value.trim()||'Non spécifié';
@@ -976,7 +975,8 @@ function exportWord() {
     localStorage.removeItem('mds4');
     localStorage.removeItem('mds4h');
     majTab();
-    ['hSite','hInterv','hBrand','hDate'].forEach(function(id){ g(id).value=''; });
+    g('hSite').value=''; g('hInterv').value='';
+    g('hBrand').value='ZEBRA';
     g('hDate').value = today();
     showToast('✅ Export réussi — Rapport réinitialisé.');
   }, 500);
