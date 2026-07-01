@@ -1,47 +1,1097 @@
-// MDS Maintenance SW v5 — Network First pour index.html
-const CACHE = 'mds-v32';
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rapport Maintenance MDS</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+<style>
+:root{--b:#0d1f8c;--o:#f5a11c;}
+.bp{background-color:var(--b)!important;color:#fff!important;}
+.bp:hover{background-color:#091570!important;}
+.bs{background-color:var(--o)!important;color:#1a1a1a!important;}
+.tt{color:var(--b)!important;}
+.mt{color:var(--o)!important;}
+.bto{border-top:4px solid var(--o);}
+.th{background-color:var(--b)!important;}
+.sb{background-color:#eef0fb!important;border-color:#c7cef5!important;}
+.pb{background-color:#fff7ed!important;border-color:#fed7aa!important;}
+#offBanner{display:none;position:fixed;top:0;left:0;right:0;background:#f5a11c;color:#1a1a1a;font-weight:bold;font-size:12px;text-align:center;padding:6px;z-index:9999;}
+#offBanner.show{display:block;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-thumb{background:var(--b);border-radius:4px;}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:#1f2937;color:#fff;font-weight:bold;font-size:13px;padding:12px 24px;
+  border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.3);z-index:9999;
+  transition:transform .3s ease,opacity .3s ease;opacity:0;pointer-events:none;}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+</style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen p-4 md:p-8">
 
-self.addEventListener('install', function(e) {
-  self.skipWaiting();
-});
+<div id="offBanner">⚠️ Hors connexion — Mode local actif.</div>
 
-self.addEventListener('activate', function(e) {
-  e.waitUntil(
-    caches.keys().then(function(keys) {
-      return Promise.all(keys.filter(function(k){ return k !== CACHE; }).map(function(k){ return caches.delete(k); }));
-    })
-  );
-  self.clients.claim();
-});
+<div class="max-w-7xl mx-auto bg-white rounded-xl shadow-md p-6">
 
-self.addEventListener('fetch', function(e) {
-  var url = e.request.url;
-  // Network first pour HTML — toujours la version fraîche
-  if (url.endsWith('.html') || url.endsWith('/')) {
-    e.respondWith(
-      fetch(e.request).then(function(r) {
-        var clone = r.clone();
-        caches.open(CACHE).then(function(c){ c.put(e.request, clone); });
-        return r;
-      }).catch(function() {
-        return caches.match(e.request);
-      })
-    );
+<!-- EN-TÊTE -->
+<div class="flex items-center justify-between border-b-2 pb-3 mb-4 bto pt-3" style="border-bottom-color:#0d1f8c;">
+  <div class="flex items-center gap-4">
+    <img id="logoImg" src="data:image/jpeg;base64,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" alt="MDS" class="h-14 w-auto object-contain">
+    <div>
+      <h1 class="text-xl font-extrabold tracking-wide tt uppercase">Rapport de Maintenance Préventive</h1>
+      <p class="text-xs text-gray-500 mt-0.5 font-medium">Identification Automatique — Parc Imprimantes</p>
+    </div>
+  </div>
+  <div class="text-right hidden md:block">
+    <div class="text-xs text-gray-400 uppercase font-bold tracking-widest">MDS</div>
+    <div class="text-xs text-gray-400">identification automatique</div>
+  </div>
+</div>
+
+<!-- INFOS -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 rounded-lg border sb">
+  <div>
+    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Client / Site</label>
+    <input type="text" id="hSite" oninput="save()" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm" placeholder="Ex: Site Paris">
+  </div>
+  <div>
+    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Intervenant</label>
+    <select id="hInterv" onchange="save()" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
+      <option value="">-- Choisir --</option>
+      <option>Pascal CARTON</option>
+      <option>Benoît BRACKMAN</option>
+      <option>Pascal CARTON / Benoît BRACKMAN</option>
+    </select>
+  </div>
+  <div>
+    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Parc imprimante</label>
+    <select id="hBrand" onchange="save()" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
+      <option>ZEBRA</option><option>HONEYWELL</option><option>TOSHIBA</option><option>INTERMEC</option>
+    </select>
+  </div>
+  <div>
+    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Date</label>
+    <input type="date" id="hDate" onchange="save()" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
+  </div>
+</div>
+
+<!-- FORMULAIRE -->
+<form id="theForm" onsubmit="ajouterEquip(event)" class="p-4 rounded-lg border mb-6 grid grid-cols-1 md:grid-cols-4 gap-4 sb">
+  <div class="md:col-span-4">
+    <h3 id="formTitle" class="text-sm font-bold text-blue-950 uppercase border-b pb-1 mb-2">Ajouter un équipement</h3>
+  </div>
+  <div>
+    <label class="block text-xs font-medium text-gray-700 mb-1">Zone / Emplacement</label>
+    <input type="text" id="fZone" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ex: Expédition">
+  </div>
+  <div>
+    <label class="block text-xs font-medium text-gray-700 mb-1">Numéro de Série (S/N)</label>
+    <div class="flex">
+      <input type="text" id="fSerial" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm font-bold" placeholder="S/N" required>
+      <button type="button" onclick="ouvrirScanner()" class="bs rounded-r px-4 text-xs font-bold whitespace-nowrap flex items-center gap-1.5">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h2M7 5h1M3 5v2M21 5h-2M17 5h-1M21 5v2M3 19h2M7 19h1M3 19v-2M21 19h-2M17 19h-1M21 19v-2"/><rect x="7" y="8" width="10" height="8" rx="1"/><line x1="5" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="19" y2="12"/></svg>
+        SCANNER
+      </button>
+    </div>
+  </div>
+  <div>
+    <label class="block text-xs font-medium text-gray-700 mb-1">Modèle (P/N)</label>
+    <input type="text" id="fModele" class="w-full bg-yellow-50 border border-gray-300 rounded px-3 py-1.5 text-sm font-semibold" placeholder="Scanné ou saisi" required>
+  </div>
+  <div>
+    <label class="block text-xs font-medium text-gray-700 mb-1">Machine ID / Lieu</label>
+    <input type="text" id="fLieu" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="ID Interne">
+  </div>
+  <div class="md:col-span-2 grid grid-cols-2 gap-4 bg-white p-3 rounded border border-gray-200">
+    <div>
+      <label class="block text-xs font-medium text-gray-700 mb-1">Cellules / Capteurs</label>
+      <select id="fCell" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>NOK</option><option>-</option></select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-gray-700 mb-1">État Dot (Tête)</label>
+      <select id="fDot" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>1 Dot HS</option><option>2 Dots HS</option><option>Plusieurs Dots HS</option><option>Tête HS</option></select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-gray-700 mb-1">Pressing Roller</label>
+      <select id="fRoll" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>Marqué</option><option>À remplacer</option></select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-gray-700 mb-1">Test Impression</label>
+      <select id="fImp" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>NOK</option></select>
+    </div>
+  </div>
+  <div class="md:col-span-2 grid grid-cols-1 gap-4">
+    <!-- État Général seul sur sa ligne -->
+    <div>
+      <label class="block text-xs font-medium text-gray-700 mb-1">État Général</label>
+      <select id="fGen" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm"><option>OK</option><option>A surveiller</option><option>Critique</option></select>
+    </div>
+    <!-- Adresse IP sur toute la largeur -->
+    <div>
+      <label class="block text-xs font-medium text-gray-700 mb-1">Adresse IP</label>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <!-- Ligne 1 : sélecteur réseau + boutons -->
+        <div style="display:flex;gap:4px;align-items:center;">
+          <select id="fIpSelect" onchange="selectionnerPrefix(this.value)"
+            class="bg-gray-100 border border-gray-300 rounded text-sm font-mono text-gray-600"
+            style="flex:1;padding:5px 6px;min-width:0;">
+          </select>
+          <button type="button" onclick="ajouterReseau()" title="Mémoriser ce réseau"
+            style="background:#0d1f8c;color:#fff;border:none;border-radius:4px;padding:5px 12px;font-size:16px;cursor:pointer;flex-shrink:0;">+</button>
+          <button type="button" id="btnSuppReseau" onclick="supprimerReseau()" title="Supprimer ce réseau"
+            style="background:#ef4444;color:#fff;border:none;border-radius:4px;padding:5px 10px;font-size:14px;cursor:pointer;flex-shrink:0;display:none;">✕</button>
+        </div>
+        <!-- Ligne 2 : préfixe + suffixe -->
+        <div style="display:flex;align-items:center;gap:0;">
+          <input type="text" id="fIpPrefix"
+            class="bg-gray-50 border border-gray-300 rounded-l font-mono text-sm text-gray-600"
+            style="flex:1;min-width:0;padding:6px 8px;"
+            placeholder="192.168.0."
+            oninput="onPrefixEdit()"
+            autocomplete="off">
+          <input type="text" id="fIpSuffix" maxlength="3"
+            class="bg-white border border-l-0 border-gray-300 rounded-r font-mono font-bold text-gray-900 text-sm"
+            style="width:60px;padding:6px 8px;text-align:center;"
+            placeholder="XXX"
+            oninput="majIpFull()"
+            onkeypress="return /[0-9]/.test(event.key)">
+          <input type="hidden" id="fIp">
+        </div>
+      </div>
+    </div>
+    <div class="col-span-1">
+      <label class="block text-xs font-medium text-gray-700 mb-1">Remarques / Actions</label>
+      <textarea id="fRem" rows="2" class="w-full bg-white border border-gray-300 rounded px-3 py-1 text-sm" placeholder="Nettoyage, remplacement pièce..."></textarea>
+    </div>
+  </div>
+  <!-- PHOTO -->
+  <div class="md:col-span-4 p-4 rounded border flex flex-col sm:flex-row items-center justify-between gap-4 pb">
+    <span class="text-sm font-bold tt">Pièce-jointe photo</span>
+    <button type="button" onclick="lancerPhoto()" class="bs font-bold text-xs px-5 py-3 rounded-lg shadow flex items-center gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      Appareil photo / Galerie
+    </button>
+    <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none;">
+    <div id="photoBox" style="display:none;" class="flex flex-col items-center gap-1 border-l pl-4 border-blue-200">
+      <img id="photoPreview" src="" class="h-16 rounded border bg-white" style="aspect-ratio:10/4;object-fit:cover;">
+      <button type="button" onclick="supprimerPhoto()" class="text-xs text-red-500 font-bold">✕ Supprimer</button>
+    </div>
+  </div>
+  <div class="md:col-span-4 flex justify-end gap-3 mt-2">
+    <button type="button" id="cancelEditBtn" onclick="annulerEdit()" style="display:none;background:#6b7280;color:#fff;font-weight:bold;font-size:14px;padding:8px 20px;border-radius:6px;border:none;align-items:center;gap:6px;">✕ Annuler</button>
+    <button type="submit" id="submitBtn" class="bp font-bold text-sm px-6 py-2 rounded shadow">Ajouter au tableau</button>
+  </div>
+</form>
+
+<!-- TABLEAU -->
+<div class="overflow-x-auto border border-gray-200 rounded-lg mb-4">
+  <table class="min-w-full divide-y divide-gray-200 text-sm text-center">
+    <thead class="th text-white text-xs uppercase font-bold">
+      <tr>
+        <th class="px-3 py-3 text-left">P/N — Modèle</th>
+        <th class="px-3 py-3">S/N</th>
+        <th class="px-3 py-3">Actions</th>
+      </tr>
+    </thead>
+    <tbody id="tbody" class="bg-white divide-y divide-gray-200">
+      <tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- EXPORT -->
+<div class="flex justify-end mt-4">
+  <button type="button" onclick="exportWord()" class="bp font-bold text-sm px-6 py-2.5 rounded shadow flex items-center gap-2">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+    Exporter
+  </button>
+</div>
+</div>
+
+<!-- MODAL SCANNER -->
+<div id="scanModal" style="display:none;position:fixed;inset:0;background:#000;flex-direction:column;z-index:100;flex-direction:column;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #374151;flex-shrink:0;">
+    <div>
+      <div style="font-weight:bold;font-size:14px;color:#f5a11c;">&#9889; SCANNER CODE 128</div>
+      <div id="stepLbl" style="color:#93c5fd;font-size:12px;margin-top:2px;">&#201;TAPE 1/2 — Pointez sur le S/N</div>
+    </div>
+    <button type="button" onclick="fermerScanner()" style="background:#dc2626;color:#fff;font-weight:bold;font-size:12px;padding:6px 12px;border-radius:4px;border:none;">&#10005; Fermer</button>
+  </div>
+  <div id="vidZone" style="position:relative;flex:1;background:#000;overflow:hidden;">
+    <video id="scanVid" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" playsinline muted autoplay></video>
+    <canvas id="scanCvs" style="display:none;"></canvas>
+    <div style="position:absolute;inset:0;pointer-events:none;">
+      <svg style="position:absolute;inset:0;width:100%;height:100%;">
+        <defs><mask id="scanMask"><rect width="100%" height="100%" fill="white"/><rect x="6%" y="35%" width="88%" height="30%" rx="4" fill="black"/></mask></defs>
+        <rect width="100%" height="100%" fill="rgba(0,0,0,0.55)" mask="url(#scanMask)"/>
+        <rect id="scanBdr" x="6%" y="35%" width="88%" height="30%" rx="4" fill="none" stroke="#f5a11c" stroke-width="2" stroke-dasharray="8,4"/>
+        <line x1="6%" y1="50%" x2="94%" y2="50%" stroke="#ef4444" stroke-width="1.5"><animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite"/></line>
+      </svg>
+      <div id="scanBadge" style="position:absolute;top:12px;left:50%;transform:translateX(-50%);background:#f5a11c;color:#1a1a1a;font-size:11px;font-weight:900;padding:3px 14px;border-radius:999px;letter-spacing:.1em;">S/N</div>
+    </div>
+  </div>
+  <!-- Zone manuelle -->
+  <div id="manZone" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;background:#030712;padding:24px;gap:16px;">
+    <div style="text-align:center;">
+      <div style="font-size:28px;margin-bottom:8px;">&#9000;&#65039;</div>
+      <div style="color:#fff;font-weight:bold;font-size:16px;">Saisie manuelle du modèle</div>
+    </div>
+    <div style="width:100%;background:#1f2937;border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:12px;">
+      <span style="color:#4ade80;font-size:18px;">&#10003;</span>
+      <div>
+        <div style="font-size:10px;color:#9ca3af;font-weight:bold;text-transform:uppercase;">S/N capturé</div>
+        <div id="snRappel" style="color:#86efac;font-weight:bold;font-size:14px;letter-spacing:.05em;">—</div>
+      </div>
+    </div>
+    <div style="width:100%;">
+      <div style="font-size:10px;color:#9ca3af;font-weight:bold;text-transform:uppercase;margin-bottom:8px;">Modèle / P/N</div>
+      <input type="text" id="manInput" oninput="filtreSugg(this.value)" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
+        style="width:100%;background:#1f2937;border:2px solid #3b82f6;color:#fff;font-weight:bold;font-size:18px;border-radius:8px;padding:12px 16px;text-align:center;box-sizing:border-box;"
+        placeholder="Ex: ZT411 - 8dots">
+    </div>
+    <div style="width:100%;">
+      <div style="font-size:10px;color:#6b7280;font-weight:bold;text-transform:uppercase;margin-bottom:8px;">Modèles courants</div>
+      <div id="suggBox" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>
+    </div>
+    <div style="width:100%;display:flex;gap:8px;">
+      <button type="button" onclick="retourScan()" style="flex:1;background:#374151;color:#fff;font-weight:bold;padding:10px;border-radius:4px;border:none;font-size:14px;">← Rescanner P/N</button>
+      <button type="button" onclick="validerManuel()" style="flex:1;background:#16a34a;color:#fff;font-weight:bold;padding:10px;border-radius:4px;border:none;font-size:14px;">&#10003; Valider</button>
+    </div>
+  </div>
+  <!-- Panneau de contrôle -->
+  <div id="ctrlPanel" style="background:#111827;padding:12px 16px;display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+    <button type="button" onclick="toggleFlash()" class="bs" style="width:100%;font-weight:bold;font-size:12px;padding:8px;border-radius:4px;border:none;text-transform:uppercase;letter-spacing:.05em;">&#9889; Flash ON / OFF</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div id="cSN" style="background:#1f2937;border-radius:4px;padding:8px;text-align:center;border:2px solid #f5a11c;">
+        <div style="font-size:10px;font-weight:bold;text-transform:uppercase;color:#f5a11c;margin-bottom:4px;">&#201;tape 1 — S/N</div>
+        <div id="rSN" style="color:#f87171;font-weight:bold;font-size:12px;word-break:break-all;">&#10060; En attente</div>
+      </div>
+      <div id="cPN" style="background:#1f2937;border-radius:4px;padding:8px;text-align:center;border:1px solid #374151;opacity:0.5;">
+        <div id="lblPN" style="font-size:10px;font-weight:bold;text-transform:uppercase;color:#9ca3af;margin-bottom:4px;">&#201;tape 2 — P/N</div>
+        <div id="rPN" style="color:#f87171;font-weight:bold;font-size:12px;word-break:break-all;">&#10060; En attente</div>
+      </div>
+    </div>
+    <div style="background:#000;border-radius:4px;padding:6px 8px;text-align:center;border:1px solid #1f2937;">
+      <span id="rawTxt" style="font-size:11px;color:#6b7280;font-family:monospace;word-break:break-all;">Aucune lecture...</span>
+    </div>
+    <button type="button" id="btnMan" onclick="ouvrirManuel()" style="display:none;width:100%;background:#4b5563;color:#fff;font-weight:bold;padding:8px;border-radius:4px;border:none;font-size:14px;">&#9000;&#65039; Saisir manuellement</button>
+    <button type="button" id="btnVal" onclick="validerScan()" disabled style="width:100%;background:#16a34a;color:#fff;font-weight:bold;padding:10px;border-radius:4px;border:none;font-size:14px;opacity:0.4;">&#10003; Valider et remplir le formulaire</button>
+  </div>
+</div>
+
+<!-- MODAL CROPPER -->
+<div id="cropModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:8px;padding:16px;width:100%;max-width:580px;display:flex;flex-direction:column;max-height:90vh;">
+    <h3 style="font-size:13px;font-weight:bold;text-transform:uppercase;margin:0 0 10px;">Recadrage photo (10×4)</h3>
+    <div style="overflow:hidden;flex:1;background:#f3f4f6;border-radius:4px;min-height:280px;max-height:55vh;">
+      <img id="cropImg" src="" style="max-width:100%;display:block;">
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
+      <button type="button" onclick="annulerCrop()" style="background:#d1d5db;color:#1f2937;font-weight:bold;font-size:12px;padding:8px 16px;border-radius:4px;border:none;">Annuler</button>
+      <button type="button" onclick="validerCrop()" style="background:#2563eb;color:#fff;font-weight:bold;font-size:12px;padding:8px 16px;border-radius:4px;border:none;">Valider le recadrage</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script>
+// == SERVICE WORKER ==
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(function(){});
+}
+window.addEventListener('offline', function(){ document.getElementById('offBanner').classList.add('show'); });
+window.addEventListener('online',  function(){ document.getElementById('offBanner').classList.remove('show'); });
+if (!navigator.onLine) document.getElementById('offBanner').classList.add('show');
+
+// == TOAST ==
+function showToast(msg) {
+  var t = g('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 4000);
+}
+
+// == DONNÉES ==
+var data = [];
+var photoB64 = null;
+var cropInst = null;
+
+var MODELES = [
+  'ZT111 - 8dots','ZT111 - 12dots','ZT220 - 8dots','ZT220 - 12dots','ZT230 - 8dots','ZT230 - 12dots',
+  'ZT231 - 8dots','ZT231 - 12dots','ZT410 - 8dots','ZT410 - 12dots','ZT410 - 24dots',
+  'ZT411 - 8dots','ZT411 - 12dots','ZT411 - 24dots','ZT420 - 8dots','ZT420 - 12dots',
+  'ZT421 - 8dots','ZT421 - 12dots','ZT610 - 8dots','ZT610 - 12dots','ZT610 - 24dots',
+  'ZT620 - 8dots','ZT620 - 12dots','ZT630 - 8dots','ZD220 - 8dots','ZD230 - 8dots',
+  'ZD421 - 8dots','ZD421 - 12dots','ZD621 - 8dots','ZD621 - 12dots','ZM400 - 8dots','ZM600 - 8dots',
+  'ZQ230 - 8dots','ZQ300 - 8dots','ZQ600 - 8dots','ZQ600 - 12dots','S4M+ - 8dots','S4M+ - 12dots',
+  'PM42 - 8dots','PM43 - 8dots','PM43c - 8dots','PM45 - 8dots','PD43 - 8dots','PD45 - 8dots',
+  'PC43t - 8dots','PF4i - 8dots','PF4i - 12dots','B-EX4T1 - 8dots','B-SA4TM - 8dots','PX4ie - 8dots'
+];
+
+// == SESSION ==
+function save() {
+  try {
+    localStorage.setItem('mds4', JSON.stringify(data));
+    localStorage.setItem('mds4h', JSON.stringify({
+      s: g('hSite').value, i: g('hInterv').value,
+      b: g('hBrand').value, d: g('hDate').value,
+      e: editId  // Sauvegarde du mode édition
+    }));
+  } catch(e) {}
+}
+function loadSession() {
+  try {
+    var d = localStorage.getItem('mds4');
+    var h = localStorage.getItem('mds4h');
+    if (d) data = JSON.parse(d);
+    if (h) {
+      h = JSON.parse(h);
+      g('hSite').value   = h.s || '';
+      g('hInterv').value = h.i || '';
+      g('hBrand').value  = h.b || 'ZEBRA';
+      g('hDate').value   = h.d || today();
+      // Restaurer le mode édition si interrompu
+      if (h.e !== null && h.e !== undefined) {
+        editId = h.e;
+        if (editId !== null) {
+          var r = data.find(function(r){ return r.id === editId; });
+          if (r) editer(editId);
+          else editId = null; // L'entrée n'existe plus
+        }
+      }
+    }
+  } catch(e) {}
+}
+function today() { return new Date().toISOString().split('T')[0]; }
+function g(id) { return document.getElementById(id); }
+
+// == FORMULAIRE ==
+var editId = null; // null = mode ajout, sinon = id en cours d'édition
+
+function ajouterEquip(e) {
+  e.preventDefault();
+  if (editId !== null) {
+    // Mode modification : mettre à jour l'entrée existante
+    var idx = data.findIndex(function(r){ return r.id === editId; });
+    if (idx !== -1) {
+      data[idx].zone   = g('fZone').value.trim();
+      data[idx].modele = g('fModele').value.trim();
+      data[idx].lieu   = g('fLieu').value.trim();
+      data[idx].serial = g('fSerial').value.trim();
+      data[idx].ip     = g('fIp').value.trim();
+      data[idx].cell   = g('fCell').value;
+      data[idx].dot    = g('fDot').value;
+      data[idx].roll   = g('fRoll').value;
+      data[idx].imp    = g('fImp').value;
+      data[idx].gen    = g('fGen').value;
+      data[idx].rem    = g('fRem').value.trim();
+      if (photoB64) data[idx].photos = [photoB64];
+    }
+    annulerEdit();
+  } else {
+    // Mode ajout normal
+    data.push({
+      id:     Date.now(),
+      zone:   g('fZone').value.trim(),
+      modele: g('fModele').value.trim(),
+      lieu:   g('fLieu').value.trim(),
+      serial: g('fSerial').value.trim(),
+      ip:     g('fIp').value.trim(),
+      cell:   g('fCell').value,
+      dot:    g('fDot').value,
+      roll:   g('fRoll').value,
+      imp:    g('fImp').value,
+      gen:    g('fGen').value,
+      rem:    g('fRem').value.trim(),
+      photos: photoB64 ? [photoB64] : []
+    });
+  }
+  save();
+  majTab();
+  // En mode ajout : vider les champs clés mais garder la zone (gain de temps)
+  // Garder fZone et fIpPrefix pour l'entrée suivante
+  ['fModele','fSerial','fLieu','fRem'].forEach(function(id){ g(id).value=''; });
+  g('fIpSuffix').value = '';
+  g('fIp').value = '';
+  supprimerPhoto();
+}
+
+function editer(id) {
+  var r = data.find(function(r){ return r.id === id; });
+  if (!r) return;
+  editId = id;
+  // Remplir le formulaire avec les données de la ligne
+  g('fZone').value   = r.zone   || '';
+  g('fModele').value = r.modele || '';
+  g('fLieu').value   = r.lieu   || '';
+  g('fSerial').value = r.serial || '';
+  // Découper l'IP en préfixe + suffixe
+  var ipParts = (r.ip||'').split('.');
+  if (ipParts.length === 4) {
+    var pfx = ipParts[0]+'.'+ipParts[1]+'.'+ipParts[2]+'.';
+    g('fIpPrefix').value = pfx;
+    g('fIpSuffix').value = ipParts[3];
+    // Sélectionner le réseau dans le select si mémorisé
+    var idxR = ipReseaux.indexOf(pfx);
+    g('fIpSelect').value = idxR !== -1 ? idxR : '';
+    g('btnSuppReseau').style.display = idxR !== -1 ? 'block' : 'none';
+  } else {
+    g('fIpPrefix').value = r.ip || '';
+    g('fIpSuffix').value = '';
+    g('fIpSelect').value = '';
+  }
+  g('fIp').value = r.ip || '';
+  g('fCell').value   = r.cell   || 'OK';
+  g('fDot').value    = r.dot    || 'OK';
+  g('fRoll').value   = r.roll   || 'OK';
+  g('fImp').value    = r.imp    || 'OK';
+  g('fGen').value    = r.gen    || 'OK';
+  g('fRem').value    = r.rem    || '';
+  // Afficher la photo existante si présente
+  if (r.photos && r.photos.length) {
+    photoB64 = r.photos[0];
+    g('photoPreview').src = photoB64;
+    g('photoBox').style.display = 'flex';
+  }
+  // Changer l'UI du formulaire en mode édition
+  g('submitBtn').textContent  = '💾 Mettre à jour';
+  g('submitBtn').style.background = '#d97706';
+  g('cancelEditBtn').style.display = 'inline-flex';
+  g('formTitle').textContent = 'Modifier l\'équipement — ' + (r.modele || r.serial);
+  g('formTitle').style.color = '#d97706';
+  // Scroller vers le formulaire
+  g('theForm').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function annulerEdit() {
+  editId = null;
+  ['fModele','fSerial','fLieu','fRem','fZone'].forEach(function(id){ g(id).value=''; });
+  g('fIpPrefix').value=''; g('fIpSuffix').value=''; g('fIp').value='';
+  g('fIpSelect').value=''; g('btnSuppReseau').style.display='none';
+  g('fCell').value='OK'; g('fDot').value='OK';
+  g('fRoll').value='OK'; g('fImp').value='OK'; g('fGen').value='OK';
+  supprimerPhoto();
+  g('submitBtn').textContent = 'Ajouter au tableau';
+  g('submitBtn').style.background = '';
+  g('submitBtn').style.color = '';
+  g('cancelEditBtn').style.display = 'none';
+  g('formTitle').textContent = 'Ajouter un équipement';
+  g('formTitle').style.color = '';
+}
+
+// == TABLEAU ==
+function majTab() {
+  var tb = g('tbody');
+  if (!data.length) {
+    tb.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine.</td></tr>';
     return;
   }
-  // Cache first pour CDN (Tailwind, Cropper)
-  e.respondWith(
-    caches.match(e.request).then(function(cached) {
-      if (cached) return cached;
-      return fetch(e.request).then(function(r) {
-        if (r && r.status === 200) {
-          var clone = r.clone();
-          caches.open(CACHE).then(function(c){ c.put(e.request, clone); });
+  // Grouper par zone+lieu
+  var groupes = {};
+  var ordre = [];
+  data.forEach(function(r) {
+    var cle = (r.zone||'') + (r.lieu ? (r.zone ? ' — ' : '') + r.lieu : '');
+    if (!groupes[cle]) { groupes[cle] = []; ordre.push(cle); }
+    groupes[cle].push(r);
+  });
+  var html = '';
+  ordre.forEach(function(cle) {
+    // Ligne d'en-tête de groupe — uniquement si zone ou lieu renseigné
+    if (cle) {
+      html += '<tr style="background:#0d1f8c;">'
+      + '<td colspan="3" style="padding:8px 12px;color:#fff;font-weight:bold;font-size:12px;letter-spacing:.04em;">'
+      + '&#128205; ' + cle
+      + '</td></tr>';
+    }
+    // Lignes équipements du groupe
+    groupes[cle].forEach(function(r) {
+      html += '<tr class="hover:bg-blue-50 text-xs border-b border-gray-100">'
+        + '<td class="px-4 py-2 text-left font-bold text-gray-900">' + (r.modele||'-') + '</td>'
+        + '<td class="px-3 py-2 text-center font-mono font-bold text-gray-700 tracking-wider">' + (r.serial||'-') + '</td>'
+        + '<td class="px-3 py-2 text-center" style="white-space:nowrap;">'
+        + '<button type="button" onclick="editer(' + r.id + ')" title="Modifier" style="color:#2563eb;font-size:18px;background:none;border:none;cursor:pointer;margin-right:8px;">&#9998;</button>'
+        + '<button type="button" onclick="del(' + r.id + ')" title="Supprimer" style="color:#ef4444;font-size:18px;background:none;border:none;cursor:pointer;">&#128465;</button>'
+        + '</td></tr>';
+    });
+  });
+  tb.innerHTML = html;
+}
+function del(id) {
+  var r = data.find(function(r){return r.id===id;});
+  if (!r) return;
+  if (!confirm('Supprimer ' + (r.modele||r.serial) + ' ?')) return;
+  data = data.filter(function(r){return r.id!==id;});
+  save(); majTab();
+}
+
+// == PHOTO ==
+function lancerPhoto() {
+  var inp = g('camInput');
+  inp.value = '';
+  inp.click();
+}
+function initPhoto() {
+  g('camInput').onchange = function() {
+    var file = this.files[0];
+    if (!file) return;
+    var fr = new FileReader();
+    fr.onload = function(ev) { ouvrirCrop(ev.target.result); };
+    fr.readAsDataURL(file);
+  };
+}
+function ouvrirCrop(src) {
+  var img = g('cropImg');
+  if (cropInst) { cropInst.destroy(); cropInst = null; }
+  g('cropModal').style.display = 'flex';
+  img.onload = function() {
+    cropInst = new Cropper(img, {
+      aspectRatio: NaN,        // Ratio libre — l'utilisateur cadre ce qu'il veut
+      viewMode: 1,
+      autoCropArea: 0.95,
+      responsive: true,
+      checkCrossOrigin: false,
+      imageSmoothingEnabled: false  // Pas de lissage = pixels nets
+    });
+    img.onload = null;
+  };
+  img.src = src;
+}
+function validerCrop() {
+  if (!cropInst) return;
+  // Recadrage haute résolution — pas de limite artificielle
+  var cropped = cropInst.getCroppedCanvas({
+    maxWidth: 4096,
+    maxHeight: 4096,
+    imageSmoothingEnabled: true,
+    imageSmoothingQuality: 'high'
+  });
+  // Appliquer un filtre de netteté (unsharp mask) via convolution
+  var sharpened = appliquerNettete(cropped);
+  // JPEG qualité maximale pour les détails fins de tête d'impression
+  photoB64 = sharpened.toDataURL('image/jpeg', 0.97);
+  g('photoPreview').src = photoB64;
+  g('photoBox').style.display = 'flex';
+  annulerCrop();
+}
+
+function appliquerNettete(srcCanvas) {
+  var w = srcCanvas.width, h = srcCanvas.height;
+  var dst = document.createElement('canvas');
+  dst.width = w; dst.height = h;
+  var ctx = dst.getContext('2d');
+  ctx.drawImage(srcCanvas, 0, 0);
+  var imgData = ctx.getImageData(0, 0, w, h);
+  var src = imgData.data;
+  var out = new Uint8ClampedArray(src.length);
+  // Noyau de netteté (unsharp mask 3x3)
+  var kernel = [
+     0, -1,  0,
+    -1,  5, -1,
+     0, -1,  0
+  ];
+  for (var y = 1; y < h-1; y++) {
+    for (var x = 1; x < w-1; x++) {
+      var i = (y*w + x) * 4;
+      for (var ch = 0; ch < 3; ch++) {
+        var val = 0;
+        for (var ky = -1; ky <= 1; ky++) {
+          for (var kx = -1; kx <= 1; kx++) {
+            var ki = ((y+ky)*w + (x+kx)) * 4;
+            val += src[ki+ch] * kernel[(ky+1)*3 + (kx+1)];
+          }
         }
-        return r;
-      }).catch(function() {
-        return new Response('Hors ligne', {status:503});
-      });
-    })
-  );
+        out[i+ch] = Math.min(255, Math.max(0, val));
+      }
+      out[i+3] = src[i+3]; // alpha inchangé
+    }
+  }
+  // Bordures : copier pixel original
+  for (var y2 = 0; y2 < h; y2++) {
+    for (var x2 = 0; x2 < w; x2++) {
+      if (y2===0||y2===h-1||x2===0||x2===w-1) {
+        var bi = (y2*w+x2)*4;
+        out[bi]=src[bi]; out[bi+1]=src[bi+1]; out[bi+2]=src[bi+2]; out[bi+3]=src[bi+3];
+      }
+    }
+  }
+  ctx.putImageData(new ImageData(out, w, h), 0, 0);
+  return dst;
+}
+function annulerCrop() {
+  g('cropModal').style.display = 'none';
+  if (cropInst) { cropInst.destroy(); cropInst = null; }
+  g('camInput').value = '';
+}
+function supprimerPhoto() {
+  photoB64 = null;
+  g('photoPreview').src = '';
+  g('photoBox').style.display = 'none';
+}
+
+// == SCANNER ==
+var snOk=null, pnOk=null, mode='SN', manuel=false;
+var stream=null, track=null, raf=null, det=null;
+var flash=false, lastCode='', lastAt=0;
+
+function ouvrirScanner() {
+  snOk=null; pnOk=null; mode='SN'; manuel=false;
+  lastCode=''; lastAt=0; flash=false;
+  resetScanUI();
+  g('scanModal').style.cssText = 'display:flex;flex-direction:column;position:fixed;inset:0;background:#000;z-index:100;';
+  g('vidZone').style.display = 'block';
+  g('ctrlPanel').style.cssText = 'background:#111827;padding:12px 16px;display:flex;flex-direction:column;gap:8px;flex-shrink:0;';
+  g('manZone').style.display = 'none';
+  navigator.mediaDevices.getUserMedia({
+    video: {facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080}}
+  }).then(function(s) {
+    stream = s;
+    var v = g('scanVid');
+    v.srcObject = s;
+    v.play().then(function() {
+      track = s.getVideoTracks()[0];
+      setTimeout(flashOn, 800);
+      if ('BarcodeDetector' in window) {
+        useBD = true;
+        det = new BarcodeDetector({formats:['code_128','code_39']});
+      } else {
+        useBD = false;
+        chargerZXing();
+      }
+      boucle();
+    });
+  }).catch(function(err) {
+    alert('Camera inaccessible : ' + err.message);
+    fermerScanner();
+  });
+}
+
+var useBD = false;
+
+function chargerZXing() {
+  if (window.ZXing) return;
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js';
+  document.head.appendChild(s);
+}
+
+function boucle() {
+  if (manuel || !stream) return;
+  var v = g('scanVid');
+  if (v.readyState < 2) { raf=requestAnimationFrame(boucle); return; }
+  var cvs=g('scanCvs'), ctx=cvs.getContext('2d');
+  var vw=v.videoWidth, vh=v.videoHeight;
+  // Analyser toute la hauteur visible — pas de découpe qui ferait rater un code
+  cvs.width=vw; cvs.height=vh;
+  ctx.drawImage(v, 0,0,vw,vh, 0,0,vw,vh);
+  if (useBD) {
+    det.detect(cvs).then(function(res) {
+      if (!res || !res.length) return;
+      if (mode==='SN') {
+        // Prendre le code le plus large (S/N est le plus grand physiquement)
+        var best=res.reduce(function(a,b){
+          return b.boundingBox.width>a.boundingBox.width?b:a;
+        });
+        if (best.rawValue) traiter(best.rawValue);
+      } else {
+        // Mode PN : parcourir tous les codes détectés,
+        // prendre le premier qui n'est pas le S/N
+        for (var i=0; i<res.length; i++) {
+          var val = res[i].rawValue;
+          if (val && !estMemeCodeQueSN(val)) {
+            traiter(val);
+            return;
+          }
+        }
+        // Tous les codes détectés sont le S/N — attendre
+        g('rawTxt').textContent = 'S/N ignoré — cadrez le code P/N...';
+        g('rawTxt').style.color = '#6b7280';
+      }
+    }).catch(function(){}).finally(function(){ raf=requestAnimationFrame(boucle); });
+  } else {
+    if (!window.ZXing) { raf=requestAnimationFrame(boucle); return; }
+    try {
+      var hints = new Map();
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.CODE_39]);
+      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+      var reader = new ZXing.MultiFormatReader();
+      reader.setHints(hints);
+      var lum = new ZXing.HTMLCanvasElementLuminanceSource(cvs);
+      var bmp = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
+      var result = reader.decode(bmp);
+      if (result) traiter(result.getText());
+    } catch(e) {}
+    raf = requestAnimationFrame(boucle);
+  }
+}
+function traiter(txt) {
+  var brut=txt.trim(), now=Date.now();
+  var debounce = (mode==='PN') ? 800 : 1200;
+  if (brut===lastCode && (now-lastAt)<debounce) return;
+
+  if (mode==='SN') {
+    lastCode=brut; lastAt=now;
+    g('rawTxt').textContent=brut; g('rawTxt').style.color='#4ade80';
+    var sn=extraireSN(brut);
+    if (sn) {
+      snOk=sn;
+      g('rSN').textContent='✅ '+sn; g('rSN').style.color='#4ade80';
+      passerPN();
+    } else { var m=identModele(brut); if(m) pnOk=m; }
+  } else {
+    // Mode PN : ignorer le S/N sans bloquer le debounce
+    if (estMemeCodeQueSN(brut)) {
+      g('rawTxt').textContent='(S/N ignoré — pointez sur le P/N)';
+      g('rawTxt').style.color='#6b7280';
+      return; // PAS de mise à jour lastCode => prochaine lecture P/N non bloquée
+    }
+    lastCode=brut; lastAt=now;
+    g('rawTxt').textContent=brut; g('rawTxt').style.color='#4ade80';
+    var m=identModele(brut);
+    if (m) {
+      pnOk=m;
+      g('rPN').textContent='✅ '+m; g('rPN').style.color='#4ade80';
+      g('btnVal').disabled=false; g('btnVal').style.opacity='1';
+      setTimeout(validerScan, 600);
+    } else {
+      g('rawTxt').textContent='⚠️ P/N non reconnu : '+brut;
+      g('rawTxt').style.color='#fbbf24';
+      g('btnMan').style.display='block';
+    }
+  }
+}
+
+function passerPN() {
+  mode='PN'; lastCode=''; lastAt=0;
+  g('stepLbl').textContent='ÉTAPE 2/2 — Pointez sur le P/N (code du bas)';
+  g('scanBadge').textContent='P/N';
+  g('scanBadge').style.background='#3b82f6'; g('scanBadge').style.color='#fff';
+  g('scanBdr').setAttribute('stroke','#3b82f6');
+  g('cSN').style.opacity='0.5'; g('cSN').style.borderColor='';
+  g('cPN').style.opacity='1'; g('cPN').style.borderColor='#3b82f6'; g('cPN').style.borderWidth='2px';
+  g('lblPN').style.color='#60a5fa';
+  g('rawTxt').textContent='Pointez sur le code P/N (en bas de l\'étiquette)...';
+  g('rawTxt').style.color='#60a5fa';
+  g('btnMan').style.display='block';
+  if (pnOk) {
+    g('rPN').textContent='✅ '+pnOk; g('rPN').style.color='#4ade80';
+    g('btnVal').disabled=false; g('btnVal').style.opacity='1';
+    setTimeout(validerScan, 600);
+  }
+}
+
+function ouvrirManuel() {
+  manuel=true;
+  g('snRappel').textContent=snOk||'—';
+  filtreSugg('');
+  g('vidZone').style.display='none';
+  g('ctrlPanel').style.display='none';
+  g('manZone').style.display='flex';
+  g('manZone').style.flexDirection='column';
+  var inp=g('manInput'); inp.value='';
+  setTimeout(function(){inp.focus();},100);
+}
+function retourScan() {
+  manuel=false; lastCode=''; lastAt=0;
+  g('manZone').style.display='none';
+  g('vidZone').style.display='block';
+  g('ctrlPanel').style.display='flex';
+  g('ctrlPanel').style.flexDirection='column';
+  boucle();
+}
+function validerManuel() {
+  var v=g('manInput').value.trim();
+  if (!v) { alert('Saisissez un modèle.'); return; }
+  pnOk=v; validerScan();
+}
+function validerScan() {
+  if (snOk)  g('fSerial').value=snOk;
+  if (pnOk)  g('fModele').value=pnOk;
+  fermerScanner();
+}
+function fermerScanner() {
+  g('scanModal').style.display='none';
+  if (raf) { cancelAnimationFrame(raf); raf=null; }
+  if (stream) { stream.getTracks().forEach(function(t){t.stop();}); stream=null; }
+  track=null; det=null; manuel=false;
+}
+function flashOn() {
+  if (!track) return;
+  track.applyConstraints({advanced:[{torch:true}]}).then(function(){flash=true;}).catch(function(){});
+}
+function toggleFlash() {
+  if (!track) return;
+  flash=!flash;
+  track.applyConstraints({advanced:[{torch:flash}]}).catch(function(){});
+}
+function resetScanUI() {
+  g('stepLbl').textContent='ÉTAPE 1/2 — Pointez sur le S/N';
+  g('scanBadge').textContent='S/N'; g('scanBadge').style.background='#f5a11c'; g('scanBadge').style.color='#1a1a1a';
+  g('scanBdr').setAttribute('stroke','#f59e0b');
+  g('cSN').style.borderColor='#f5a11c'; g('cSN').style.borderWidth='2px'; g('cSN').style.opacity='1';
+  g('cPN').style.borderColor=''; g('cPN').style.borderWidth='1px'; g('cPN').style.opacity='0.5';
+  g('lblPN').style.color='';
+  g('rSN').textContent='❌ En attente'; g('rSN').style.color='#f87171';
+  g('rPN').textContent='❌ En attente'; g('rPN').style.color='#f87171';
+  g('rawTxt').textContent='Aucune lecture...'; g('rawTxt').style.color='#6b7280';
+  g('btnVal').disabled=true; g('btnVal').style.opacity='0.4';
+  g('btnMan').style.display='none';
+}
+function filtreSugg(f) {
+  f=(f||'').toUpperCase();
+  var l=f?MODELES.filter(function(s){return s.toUpperCase().indexOf(f)!==-1;}):MODELES.slice(0,12);
+  g('suggBox').innerHTML=l.slice(0,12).map(function(s){
+    return '<button type="button" onclick="choisir(\''+ s +'\')" style="background:#374151;color:#fff;font-size:11px;font-weight:700;padding:6px 4px;border-radius:4px;border:none;cursor:pointer;">'+s+'</button>';
+  }).join('');
+}
+function choisir(m){g('manInput').value=m; filtreSugg(m);}
+
+// == IDENTIFICATION ==
+function identModele(pn) {
+  var t=pn.toUpperCase().trim();
+  // Gérer tous les préfixes Zebra : 1P, P1, P suivi de ZT/ZD/ZM
+  if(/^1P/.test(t))          t=t.slice(2);
+  else if(/^P1/.test(t))     t=t.slice(2);
+  else if(/^P(ZT|ZD|ZM)/.test(t)) t=t.slice(1);
+  var mm=t.match(/^(ZT|ZD|ZM)(\d{2})(\d{2})/);
+  if(mm){
+    var fam=mm[1],mod=mm[2],res=mm[3];
+    var TBL={ZT:{'23':'ZT231','41':'ZT411','42':'ZT421','61':'ZT610','62':'ZT620','63':'ZT630','30':'ZT230'},ZD:{'42':'ZD421','62':'ZD621','22':'ZD220','23':'ZD230'},ZM:{'40':'ZM400','60':'ZM600'}};
+    var nom=(TBL[fam]||{})[mod]||(fam+mod+'x');
+    var d=res.charAt(1);
+    return nom+' - '+(d==='3'?'12dots':d==='6'?'24dots':'8dots');
+  }
+  var C={'ZT231':'ZT231','ZT230':'ZT230','ZT411':'ZT411','ZT421':'ZT421','ZD421':'ZD421','ZT410':'ZT410','ZT420':'ZT420','ZT610':'ZT610','ZT620':'ZT620','ZT630':'ZT630','ZM400':'ZM400','ZM600':'ZM600'};
+  for(var k in C){if(t.startsWith(k)){var dd=t.charAt(6);return C[k]+' - '+(dd==='3'?'12dots':dd==='6'?'24dots':'8dots');}}
+  var S={'41J':'ZT411 - 8dots','42J':'ZT421 - 8dots','23J':'ZT231 - 8dots','23C':'ZT231 - 8dots','33J':'ZD421 - 8dots','41A':'ZT410 - 8dots','42A':'ZT420 - 8dots'};
+  for(var k in S){if(t.startsWith(k))return S[k];}
+  if(t.indexOf('-')!==-1&&t.length>=8)return t;
+  return null;
+}
+
+function estMemeCodeQueSN(brut) {
+  if(!snOk) return false;
+  var b = brut.toUpperCase(), s = snOk.toUpperCase();
+  // Égalité exacte ou avec préfixe S uniquement.
+  // L'ancien double indexOf() bloquait des P/N valides contenant
+  // une sous-chaîne du S/N (ex: "23" dans "ZT23143-T1E000FZ").
+  return (b===s || b==='S'+s || 'S'+b===s);
+}
+function extraireSN(b) {
+  var t=b.trim(), u=t.toUpperCase();
+  // Exclure tous les préfixes P/N Zebra — jamais un S/N
+  if(/^1P(ZT|ZD|ZM)/i.test(u)) return null;
+  if(/^P1(ZT|ZD|ZM)/i.test(u)) return null;
+  if(/^P(ZT|ZD|ZM)/i.test(u))  return null;
+  if(/^(ZT|ZD|ZM)\d{4}/i.test(u)) return null;
+  // S/N avec préfixe S
+  if(u.charAt(0)==='S'&&t.length>=7&&t.length<=22&&/^[A-Z0-9]{5,20}$/i.test(t.slice(1)))return t.slice(1);
+  // S/N format Zebra lettre-chiffre-lettre-chiffres
+  if(/^[A-Z][0-9][A-Z][0-9]{6,}/i.test(u)&&t.length<=20)return t;
+  // S/N préfixes connus
+  if(/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/i.test(u))return t;
+  // S/N alphanumérique générique sans tiret
+  if(/^[A-Z0-9]{8,20}$/i.test(t)&&t.indexOf('-')===-1)return t;
+  return null;
+}
+
+// == EXPORT WORD ==
+function exportWord() {
+  if (!data.length){alert('Tableau vide.');return;}
+  if (!confirm('Exporter le rapport en Word ?\n\nAttention : le tableau sera réinitialisé après l\'export.')) return;
+  // Désactiver temporairement beforeunload pour ne pas bloquer le téléchargement
+  window._skipUnload = true;
+  var site  = g('hSite').value.trim()||'Non spécifié';
+  var interv= g('hInterv').value||'Non spécifié';
+  var parc  = g('hBrand').value;
+  var date  = g('hDate').value||today();
+  var logo  = g('logoImg').src;
+  var lignes='', photos='', hasP=false;
+  data.forEach(function(r){
+    var clr=r.gen==='Critique'?'color:#dc2626;font-weight:bold':r.gen==='A surveiller'?'color:#d97706;font-weight:bold':'';
+    lignes+='<tr>'
+      +'<td style="text-align:left">'+(r.zone||'')+'</td>'
+      +'<td style="text-align:left;font-weight:bold">'+(r.modele||'-')+'<br><span style="color:#64748b;font-size:8pt">'+(r.lieu||'')+'</span></td>'
+      +'<td style="font-weight:bold">'+(r.serial||'-')+'</td>'
+      +'<td>'+(r.ip||'-')+'</td>'
+      +'<td>'+(r.cell||'-')+'</td>'
+      +'<td>'+(r.dot||'-')+'</td>'
+      +'<td>'+(r.roll||'-')+'</td>'
+      +'<td>'+(r.imp||'-')+'</td>'
+      +'<td style="'+clr+'">'+(r.gen||'-')+'</td>'
+      +'<td style="text-align:left">'+(r.rem||'')+'</td>'
+      +'</tr>';
+    if(r.photos&&r.photos.length){
+      hasP=true;
+      var titre='Photos — '+r.modele+' | S/N : '+r.serial+(r.zone?' | Zone : '+r.zone:'')+(r.lieu?' | '+r.lieu:'');
+      photos+='<p style="margin-top:12px;font-weight:bold;font-size:10pt">'+titre+'</p>';
+      // 2 photos par ligne = 6 par page A4 paysage (3 lignes x 2)
+      for(var pi=0;pi<r.photos.length;pi+=2){
+        photos+='<table style="border:none;border-collapse:collapse;margin:3px 0;"><tr>';
+        for(var pj=pi;pj<Math.min(pi+2,r.photos.length);pj++){
+          photos+='<td style="border:none;padding:3px;vertical-align:top;"><img src="'+r.photos[pj]+'" style="width:280pt;height:112pt;object-fit:cover;border:1px solid #cbd5e1;" width="373" height="149"></td>';
+        }
+        photos+='</tr></table>';
+      }
+    }
+  });
+  var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
+    +'<head><meta charset="utf-8"><title>Rapport MDS</title><style>'
+    +'@page Section1{size:29.7cm 21cm;mso-page-orientation:landscape;margin:1.2cm;mso-header-margin:.5cm;mso-footer-margin:.5cm;mso-paper-source:0;}div.Section1{page:Section1;}'
+    +'body{font-family:Arial,sans-serif;font-size:9pt;color:#222}table{border-collapse:collapse;width:100%}'
+    +'th{background:#0d1f8c;color:#fff;padding:5px 4px;border:1px solid #0d1f8c;font-size:8.5pt;text-align:center}'
+    +'td{padding:5px 4px;border:1px solid #cbd5e1;font-size:8.5pt;vertical-align:middle;text-align:center}'
+    +'.m td{border:1px solid #c7cef5;background:#eef0fb;padding:7px;font-size:9pt}'
+    +'h1{color:#0d1f8c;font-size:16pt;margin:0 0 2px;text-transform:uppercase}.pb{page-break-before:always}'
+    +'</style></head><body><div class="Section1">'
+    +'<table style="margin-bottom:10px;border:none"><tr>'
+    +'<td style="border:none;width:72px;vertical-align:middle"><img src="'+logo+'" style="height:44px;width:auto"></td>'
+    +'<td style="border:none;vertical-align:middle"><h1>Rapport de Maintenance Préventive</h1>'
+    +'<div style="color:#555;font-size:9pt">Identification Automatique — Parc Imprimantes</div></td></tr></table>'
+    +'<table class="m" style="margin-bottom:14px"><tr>'
+    +'<td><b>Client / Site :</b> '+site+'</td><td><b>Intervenant :</b> '+interv+'</td>'
+    +'<td><b>Parc :</b> '+parc+'</td><td><b>Date :</b> '+date+'</td>'
+    +'<td><b>Équipements :</b> '+data.length+'</td></tr></table>'
+    +'<table><thead><tr>'
+    +'<th style="width:9%;text-align:left">Zone</th><th style="width:16%;text-align:left">Modèle / ID</th>'
+    +'<th style="width:13%">S/N</th><th style="width:11%">Adresse IP</th>'
+    +'<th style="width:7%">Capteurs</th><th style="width:8%">État Dot</th>'
+    +'<th style="width:7%">Roller</th><th style="width:7%">Test Imp.</th>'
+    +'<th style="width:8%">Général</th><th style="width:14%;text-align:left">Remarques</th>'
+    +'</tr></thead><tbody>'+lignes+'</tbody></table>'
+    +(hasP?'<div class="pb"></div><h2 style="color:#0d1f8c">Photos Jointes</h2>'+photos:'')
+    +'</div></body></html>';
+  var blob=new Blob(['\ufeff'+html],{type:'application/msword'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='Rapport_MDS_'+site.replace(/[^a-z0-9]/gi,'_')+'_'+date+'.doc';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  // Réactiver beforeunload après téléchargement
+  setTimeout(function(){ window._skipUnload = false; }, 1000);
+  // Vider les données après export
+  setTimeout(function() {
+    data = [];
+    localStorage.removeItem('mds4');
+    localStorage.removeItem('mds4h');
+    majTab();
+    g('hSite').value=''; g('hInterv').value='';
+    g('hBrand').value='ZEBRA';
+    g('hDate').value = today();
+    showToast('✅ Export réussi — Rapport réinitialisé.');
+  }, 500);
+}
+
+// == IP MULTI-RÉSEAU ==
+var ipReseaux = []; // Liste des préfixes mémorisés
+
+function chargerReseaux() {
+  try {
+    var s = localStorage.getItem('mds_reseaux');
+    ipReseaux = s ? JSON.parse(s) : [];
+  } catch(e) { ipReseaux = []; }
+  majSelectReseau();
+}
+
+function sauverReseaux() {
+  try { localStorage.setItem('mds_reseaux', JSON.stringify(ipReseaux)); } catch(e) {}
+}
+
+function majSelectReseau() {
+  var sel = g('fIpSelect');
+  var current = sel.value;
+  sel.innerHTML = '<option value="">— Choisir un réseau —</option>'
+    + ipReseaux.map(function(r, i) {
+        return '<option value="' + i + '">' + r + '</option>';
+      }).join('');
+  // Restaurer la sélection si possible
+  if (current !== '' && ipReseaux[parseInt(current)]) sel.value = current;
+  g('btnSuppReseau').style.display = sel.value !== '' ? 'block' : 'none';
+}
+
+function selectionnerPrefix(idx) {
+  if (idx === '') {
+    g('fIpPrefix').value = '';
+    g('fIpSuffix').value = '';
+    g('fIp').value = '';
+    g('btnSuppReseau').style.display = 'none';
+    return;
+  }
+  var prefix = ipReseaux[parseInt(idx)] || '';
+  g('fIpPrefix').value = prefix;
+  g('fIpSuffix').value = '';
+  g('fIp').value = '';
+  g('btnSuppReseau').style.display = 'block';
+  g('fIpSuffix').focus();
+}
+
+function onPrefixEdit() {
+  // Quand l'utilisateur modifie le préfixe manuellement, désélectionner
+  g('fIpSelect').value = '';
+  g('btnSuppReseau').style.display = 'none';
+  majIpFull();
+}
+
+function ajouterReseau() {
+  var prefix = g('fIpPrefix').value.trim();
+  if (!prefix) {
+    // Mettre le focus sur le champ préfixe pour que l'utilisateur le saisisse
+    g('fIpPrefix').focus();
+    g('fIpPrefix').placeholder = 'Ex: 192.168.1.';
+    showToast('Saisissez le préfixe puis appuyez sur +');
+    return;
+  }
+  if (!prefix.endsWith('.')) prefix += '.';
+  if (ipReseaux.indexOf(prefix) !== -1) {
+    showToast('Ce réseau est déjà mémorisé.');
+    return;
+  }
+  ipReseaux.push(prefix);
+  sauverReseaux();
+  majSelectReseau();
+  g('fIpSelect').value = ipReseaux.length - 1;
+  selectionnerPrefix(ipReseaux.length - 1);
+  showToast('✅ Réseau ' + prefix + ' mémorisé.');
+}
+
+function supprimerReseau() {
+  var idx = parseInt(g('fIpSelect').value);
+  if (isNaN(idx)) return;
+  var nom = ipReseaux[idx];
+  if (!confirm('Supprimer le réseau ' + nom + ' ?')) return;
+  ipReseaux.splice(idx, 1);
+  sauverReseaux();
+  majSelectReseau();
+  g('fIpPrefix').value = '';
+  g('fIpSuffix').value = '';
+  g('fIp').value = '';
+  showToast('Réseau supprimé.');
+}
+
+function majIpFull() {
+  var prefix = g('fIpPrefix').value.trim();
+  var suffix = g('fIpSuffix').value.trim();
+  if (prefix && !prefix.endsWith('.')) prefix += '.';
+  g('fIp').value = suffix ? prefix + suffix : '';
+}
+
+// == PROTECTION QUITTER ==
+window.addEventListener('beforeunload', function(e) {
+  if (window._skipUnload) return;
+  if (data.length > 0) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
 });
+
+// == INIT — exécuté après chargement complet du DOM ==
+window.addEventListener('DOMContentLoaded', function() {
+  loadSession();
+  if (!g('hDate').value) g('hDate').value = today();
+  majTab();
+  initPhoto();
+  chargerReseaux();
+});
+</script>
+</body>
+</html>
