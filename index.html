@@ -211,7 +211,7 @@
 </div>
 
 <!-- MODAL SCANNER -->
-<div id="scanModal" style="display:none;position:fixed;inset:0;background:#000;flex-direction:column;z-index:100;flex-direction:column;">
+<div id="scanModal" style="display:none;visibility:hidden;position:fixed;inset:0;background:#000;flex-direction:column;z-index:100;">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #374151;flex-shrink:0;">
     <div>
       <div style="font-weight:bold;font-size:14px;color:#f5a11c;">&#9889; SCANNER CODE 128</div>
@@ -283,7 +283,7 @@
 </div>
 
 <!-- MODAL CROPPER -->
-<div id="cropModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;align-items:center;justify-content:center;padding:16px;">
+<div id="cropModal" style="display:none;visibility:hidden;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;align-items:center;justify-content:center;padding:16px;">
   <div style="background:#fff;border-radius:8px;padding:16px;width:100%;max-width:580px;display:flex;flex-direction:column;max-height:90vh;">
     <h3 style="font-size:13px;font-weight:bold;text-transform:uppercase;margin:0 0 10px;">Recadrage photo (10×4)</h3>
     <div style="overflow:hidden;flex:1;background:#f3f4f6;border-radius:4px;min-height:280px;max-height:55vh;">
@@ -546,6 +546,7 @@ function ouvrirCrop(src) {
   var img = g('cropImg');
   if (cropInst) { cropInst.destroy(); cropInst = null; }
   g('cropModal').style.display = 'flex';
+  g('cropModal').style.visibility = 'visible';
   img.onload = function() {
     cropInst = new Cropper(img, {
       aspectRatio: NaN,        // Ratio libre — l'utilisateur cadre ce qu'il veut
@@ -622,6 +623,7 @@ function appliquerNettete(srcCanvas) {
 }
 function annulerCrop() {
   g('cropModal').style.display = 'none';
+  g('cropModal').style.visibility = 'hidden';
   if (cropInst) { cropInst.destroy(); cropInst = null; }
   g('camInput').value = '';
 }
@@ -640,7 +642,7 @@ function ouvrirScanner() {
   snOk=null; pnOk=null; mode='SN'; manuel=false;
   lastCode=''; lastAt=0; flash=false;
   resetScanUI();
-  g('scanModal').style.cssText = 'display:flex;flex-direction:column;position:fixed;inset:0;background:#000;z-index:100;';
+  g('scanModal').style.cssText = 'display:flex;visibility:visible;flex-direction:column;position:fixed;inset:0;background:#000;z-index:100;';
   g('vidZone').style.display = 'block';
   g('ctrlPanel').style.cssText = 'background:#111827;padding:12px 16px;display:flex;flex-direction:column;gap:8px;flex-shrink:0;';
   g('manZone').style.display = 'none';
@@ -813,6 +815,7 @@ function validerScan() {
 }
 function fermerScanner() {
   g('scanModal').style.display='none';
+  g('scanModal').style.visibility='hidden';
   if (raf) { cancelAnimationFrame(raf); raf=null; }
   if (stream) { stream.getTracks().forEach(function(t){t.stop();}); stream=null; }
   track=null; det=null; manuel=false;
@@ -901,182 +904,86 @@ function extraireSN(b) {
 // == EXPORT WORD ==
 function exportWord() {
   if (!data.length){alert('Tableau vide.');return;}
-  if (!confirm('Exporter le rapport en Word ?\n\nAttention : le tableau sera réinitialisé après l\'export.')) return;
+  // Désactiver temporairement beforeunload pour ne pas bloquer le téléchargement
   window._skipUnload = true;
-
-  var site  = g('hSite').value.trim()  || 'Non spécifié';
-  var interv= g('hInterv').value        || 'Non spécifié';
+  var site  = g('hSite').value.trim()||'Non spécifié';
+  var interv= g('hInterv').value||'Non spécifié';
   var parc  = g('hBrand').value;
-  var date  = g('hDate').value          || today();
+  var date  = g('hDate').value||today();
   var logo  = g('logoImg').src;
-
-  var css = ''
-    + '@page Section1{'
-    +   'size:29.7cm 21cm;mso-page-orientation:landscape;'
-    +   'margin:1cm 1.2cm 1.5cm 1.2cm;'
-    +   'mso-header-margin:.5cm;mso-footer-margin:.8cm;mso-paper-source:0;'
-    + '}'
-    + 'div.Section1{page:Section1;}'
-    + 'body{font-family:Arial,sans-serif;font-size:8.5pt;color:#1a1a2e;}'
-    + '.doc-header{border-bottom:3px solid #f5a11c;padding-bottom:8px;margin-bottom:10px;}'
-    + '.doc-title{color:#0d1f8c;font-size:16pt;font-weight:bold;text-transform:uppercase;margin:0 0 2px;}'
-    + '.doc-sub{color:#555;font-size:8pt;}'
-    + '.info-box td{border:none;padding:6px 10px;font-size:8.5pt;vertical-align:middle;background:#eef0fb;}'
-    + '.info-box .lbl{color:#0d1f8c;font-weight:bold;font-size:7pt;text-transform:uppercase;display:block;margin-bottom:2px;}'
-    + '.info-box .val{font-weight:bold;color:#1a1a2e;font-size:9pt;}'
-    + 'table.main{border-collapse:collapse;width:100%;}'
-    + 'table.main th{background:#0d1f8c;color:#fff;padding:6px 4px;border:1px solid #0a1870;font-size:7.5pt;text-align:center;font-weight:bold;text-transform:uppercase;letter-spacing:.03em;}'
-    + 'table.main td{padding:5px;border:1px solid #d1d9f0;font-size:8pt;vertical-align:middle;text-align:center;}'
-    + 'table.main tr.pair td{background:#f7f8fd;}'
-    + 'table.main tr.impair td{background:#fff;}'
-    + '.c-modele{text-align:left!important;}'
-    + '.c-modele .mod{font-weight:bold;color:#0d1f8c;font-size:8.5pt;}'
-    + '.c-modele .lieu{color:#64748b;font-size:7pt;margin-top:1px;}'
-    + '.c-modele .ip{color:#94a3b8;font-size:7pt;font-family:Consolas,monospace;}'
-    + '.c-sn{font-weight:bold;font-family:Consolas,monospace;font-size:8pt;letter-spacing:.02em;}'
-    + '.ok{color:#15803d;font-weight:bold;}'
-    + '.nok{color:#dc2626;font-weight:bold;}'
-    + '.crit{color:#dc2626;font-weight:bold;background:#fef2f2;}'
-    + '.surv{color:#d97706;font-weight:bold;background:#fffbeb;}'
-    + '.c-rem{text-align:left!important;font-size:7.5pt;color:#374151;}'
-    + '.zone-hdr td{background:#0d1f8c!important;color:#fff!important;font-weight:bold;font-size:8pt;text-align:left!important;padding:5px 8px;letter-spacing:.05em;text-transform:uppercase;}'
-    + '.photo-title{color:#0d1f8c;font-size:10pt;font-weight:bold;border-left:4px solid #f5a11c;padding-left:8px;margin:14px 0 4px;}'
-    + '.photo-sub{color:#64748b;font-size:7.5pt;margin-bottom:6px;}'
-    + '.pb{page-break-before:always;}';
-
-  function clrGen(v){
-    if(!v||v==='OK')return 'ok';
-    if(v==='Critique')return 'crit';
-    if(v==='A surveiller')return 'surv';
-    return '';
-  }
-  function clrBool(v){return(!v||v==='OK')?'ok':'nok';}
-
-  var groupes={},ordre=[];
+  var lignes='', photos='', hasP=false;
   data.forEach(function(r){
-    var cle=(r.zone||'').trim()||'Sans zone';
-    if(!groupes[cle]){groupes[cle]=[];ordre.push(cle);}
-    groupes[cle].push(r);
-  });
-
-  var lignes='',photos='',hasP=false,rowIdx=0;
-  ordre.forEach(function(zone){
-    lignes+='<tr class="zone-hdr"><td colspan="8">&#128205; '+zone+'</td></tr>';
-    groupes[zone].forEach(function(r){
-      var cls=(rowIdx%2===0)?'pair':'impair'; rowIdx++;
-      var cellMod='<div class="mod">'+(r.modele||'-')+'</div>'
-        +(r.lieu?'<div class="lieu">'+r.lieu+'</div>':'')
-        +(r.ip?'<div class="ip">'+r.ip+'</div>':'');
-      lignes+='<tr class="'+cls+'">'
-        +'<td class="c-modele">'+cellMod+'</td>'
-        +'<td class="c-sn">'+(r.serial||'-')+'</td>'
-        +'<td class="'+clrBool(r.cell)+'">'+(r.cell||'-')+'</td>'
-        +'<td class="'+clrBool(r.dot)+'">'+(r.dot||'-')+'</td>'
-        +'<td class="'+clrBool(r.roll)+'">'+(r.roll||'-')+'</td>'
-        +'<td class="'+clrBool(r.imp)+'">'+(r.imp||'-')+'</td>'
-        +'<td class="'+clrGen(r.gen)+'">'+(r.gen||'-')+'</td>'
-        +'<td class="c-rem">'+(r.rem||'')+'</td>'
-        +'</tr>';
-      if(r.photos&&r.photos.length){
-        hasP=true;
-        var inf=r.modele+(r.serial?' — S/N '+r.serial:'')+(zone&&zone!=='Sans zone'?' | '+zone:'');
-        photos+='<p class="photo-title">'+inf+'</p>';
-        if(r.lieu||r.rem)photos+='<p class="photo-sub">'+(r.lieu?'Lieu : '+r.lieu:'')+(r.lieu&&r.rem?' — ':'')+(r.rem?'Note : '+r.rem:'')+'</p>';
-        for(var pi=0;pi<r.photos.length;pi+=2){
-          photos+='<table style="border:none;border-collapse:collapse;margin:0 0 8px;"><tr>';
-          for(var pj=pi;pj<Math.min(pi+2,r.photos.length);pj++){
-            photos+='<td style="border:none;padding:0 6px 0 0;vertical-align:top;">'
-              +'<img src="'+r.photos[pj]+'" style="width:278pt;height:111pt;object-fit:cover;border:1px solid #cbd5e1;border-radius:2px;" width="371" height="148">'
-              +'</td>';
-          }
-          photos+='</tr></table>';
+    var clr=r.gen==='Critique'?'color:#dc2626;font-weight:bold':r.gen==='A surveiller'?'color:#d97706;font-weight:bold':'';
+    lignes+='<tr>'
+      +'<td style="text-align:left">'+(r.zone||'')+'</td>'
+      +'<td style="text-align:left;font-weight:bold">'+(r.modele||'-')+'<br><span style="color:#64748b;font-size:8pt">'+(r.lieu||'')+'</span></td>'
+      +'<td style="font-weight:bold">'+(r.serial||'-')+'</td>'
+      +'<td>'+(r.ip||'-')+'</td>'
+      +'<td>'+(r.cell||'-')+'</td>'
+      +'<td>'+(r.dot||'-')+'</td>'
+      +'<td>'+(r.roll||'-')+'</td>'
+      +'<td>'+(r.imp||'-')+'</td>'
+      +'<td style="'+clr+'">'+(r.gen||'-')+'</td>'
+      +'<td style="text-align:left">'+(r.rem||'')+'</td>'
+      +'</tr>';
+    if(r.photos&&r.photos.length){
+      hasP=true;
+      var titre='Photos — '+r.modele+' | S/N : '+r.serial+(r.zone?' | Zone : '+r.zone:'')+(r.lieu?' | '+r.lieu:'');
+      photos+='<p style="margin-top:12px;font-weight:bold;font-size:10pt">'+titre+'</p>';
+      // 2 photos par ligne = 6 par page A4 paysage (3 lignes x 2)
+      for(var pi=0;pi<r.photos.length;pi+=2){
+        photos+='<table style="border:none;border-collapse:collapse;margin:3px 0;"><tr>';
+        for(var pj=pi;pj<Math.min(pi+2,r.photos.length);pj++){
+          photos+='<td style="border:none;padding:3px;vertical-align:top;"><img src="'+r.photos[pj]+'" style="width:280pt;height:112pt;object-fit:cover;border:1px solid #cbd5e1;" width="373" height="149"></td>';
         }
+        photos+='</tr></table>';
       }
-    });
+    }
   });
-
-  var nbCrit=data.filter(function(r){return r.gen==='Critique';}).length;
-  var nbSurv=data.filter(function(r){return r.gen==='A surveiller';}).length;
-  var recapEtat=data.length+' équipement(s)'
-    +(nbCrit?' — <span class="crit">'+nbCrit+' Critique(s)</span>':'')
-    +(nbSurv?' — <span class="surv">'+nbSurv+' À surveiller</span>':'');
-
-  var docHtml='<html xmlns:o="urn:schemas-microsoft-com:office:office"'
-    +' xmlns:w="urn:schemas-microsoft-com:office:word"'
-    +' xmlns="http://www.w3.org/TR/REC-html40">'
-    +'<head><meta charset="utf-8"><title>Rapport MDS</title>'
-    +'<style>'+css+'</style>'
-    +'</head><body><div class="Section1">'
-
-    // EN-TÊTE : logo + titre + barre orange
-    +'<table style="border:none;border-collapse:collapse;width:100%;border-bottom:3px solid #f5a11c;padding-bottom:8px;margin-bottom:10px;">'
-    +'<tr>'
-    +'<td style="border:none;width:80px;vertical-align:middle;padding:0 12px 0 0;">'
-    +'<img src="'+logo+'" style="height:50px;width:auto;"></td>'
-    +'<td style="border:none;vertical-align:middle;padding:0;">'
-    +'<div class="doc-title">Rapport de Maintenance Préventive</div>'
-    +'<div class="doc-sub">Identification Automatique — Parc Imprimantes '+parc+'</div>'
-    +'</td>'
-    +'</tr></table>'
-
-    // BLOC INFOS MISSION : 4 colonnes encadrées
-    +'<table class="info-box" style="width:100%;border-collapse:collapse;border:1px solid #c7cef5;margin-bottom:12px;">'
-    +'<tr>'
-    +'<td style="width:30%;border-right:1px solid #c7cef5;">'
-    +'<span class="lbl">Client / Site</span><span class="val">'+site+'</span></td>'
-    +'<td style="width:25%;border-right:1px solid #c7cef5;">'
-    +'<span class="lbl">Intervenant</span><span class="val">'+interv+'</span></td>'
-    +'<td style="width:20%;border-right:1px solid #c7cef5;">'
-    +'<span class="lbl">Date d'intervention</span><span class="val">'+date+'</span></td>'
-    +'<td style="width:25%;">'
-    +'<span class="lbl">Équipements</span><span class="val">'+recapEtat+'</span></td>'
-    +'</tr></table>'
-
-    // TABLEAU PRINCIPAL
-    +'<table class="main"><thead><tr>'
-    +'<th style="width:22%;text-align:left;">Imprimante Type / Lieu</th>'
-    +'<th style="width:14%;">S/N</th>'
-    +'<th style="width:7%;">Cellules</th>'
-    +'<th style="width:9%;">État Dot</th>'
-    +'<th style="width:8%;">Platen Roller</th>'
-    +'<th style="width:7%;">Impression</th>'
-    +'<th style="width:9%;">État Général</th>'
-    +'<th style="width:24%;text-align:left;">Remarques / Actions</th>'
-    +'</tr></thead>'
-    +'<tbody>'+lignes+'</tbody>'
-    +'</table>'
-
-    // SECTION PHOTOS
-    +(hasP
-      ?'<div class="pb"></div>'
-       +'<table style="border:none;border-collapse:collapse;width:100%;border-bottom:3px solid #f5a11c;margin-bottom:12px;padding-bottom:4px;">'
-       +'<tr><td style="border:none;padding:0;">'
-       +'<span style="color:#0d1f8c;font-size:13pt;font-weight:bold;text-transform:uppercase;">Photos Jointes</span>'
-       +'</td></tr></table>'
-       +photos
-      :'')
-
+  var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
+    +'<head><meta charset="utf-8"><title>Rapport MDS</title><style>'
+    +'@page Section1{size:29.7cm 21cm;mso-page-orientation:landscape;margin:1.2cm;mso-header-margin:.5cm;mso-footer-margin:.5cm;mso-paper-source:0;}div.Section1{page:Section1;}'
+    +'body{font-family:Arial,sans-serif;font-size:9pt;color:#222}table{border-collapse:collapse;width:100%}'
+    +'th{background:#0d1f8c;color:#fff;padding:5px 4px;border:1px solid #0d1f8c;font-size:8.5pt;text-align:center}'
+    +'td{padding:5px 4px;border:1px solid #cbd5e1;font-size:8.5pt;vertical-align:middle;text-align:center}'
+    +'.m td{border:1px solid #c7cef5;background:#eef0fb;padding:7px;font-size:9pt}'
+    +'h1{color:#0d1f8c;font-size:16pt;margin:0 0 2px;text-transform:uppercase}.pb{page-break-before:always}'
+    +'</style></head><body><div class="Section1">'
+    +'<table style="margin-bottom:10px;border:none"><tr>'
+    +'<td style="border:none;width:72px;vertical-align:middle"><img src="'+logo+'" style="height:44px;width:auto"></td>'
+    +'<td style="border:none;vertical-align:middle"><h1>Rapport de Maintenance Préventive</h1>'
+    +'<div style="color:#555;font-size:9pt">Identification Automatique — Parc Imprimantes</div></td></tr></table>'
+    +'<table class="m" style="margin-bottom:14px"><tr>'
+    +'<td><b>Client / Site :</b> '+site+'</td><td><b>Intervenant :</b> '+interv+'</td>'
+    +'<td><b>Parc :</b> '+parc+'</td><td><b>Date :</b> '+date+'</td>'
+    +'<td><b>Équipements :</b> '+data.length+'</td></tr></table>'
+    +'<table><thead><tr>'
+    +'<th style="width:9%;text-align:left">Zone</th><th style="width:16%;text-align:left">Modèle / ID</th>'
+    +'<th style="width:13%">S/N</th><th style="width:11%">Adresse IP</th>'
+    +'<th style="width:7%">Capteurs</th><th style="width:8%">État Dot</th>'
+    +'<th style="width:7%">Roller</th><th style="width:7%">Test Imp.</th>'
+    +'<th style="width:8%">Général</th><th style="width:14%;text-align:left">Remarques</th>'
+    +'</tr></thead><tbody>'+lignes+'</tbody></table>'
+    +(hasP?'<div class="pb"></div><h2 style="color:#0d1f8c">Photos Jointes</h2>'+photos:'')
     +'</div></body></html>';
-
-  var blob=new Blob(['﻿'+docHtml],{type:'application/msword'});
+  var blob=new Blob(['\ufeff'+html],{type:'application/msword'});
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download='Rapport_MDS_'+site.replace(/[^a-z0-9]/gi,'_')+'_'+date+'.doc';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
-
-  setTimeout(function(){window._skipUnload=false;},1000);
-  setTimeout(function(){
-    data=[];
+  // Réactiver beforeunload après téléchargement
+  setTimeout(function(){ window._skipUnload = false; }, 1000);
+  // Vider les données après export
+  setTimeout(function() {
+    data = [];
     localStorage.removeItem('mds4');
     localStorage.removeItem('mds4h');
     majTab();
-    g('hSite').value=''; g('hInterv').value='';
-    g('hBrand').value='ZEBRA';
-    g('hDate').value=today();
+    ['hSite','hInterv','hBrand','hDate'].forEach(function(id){ g(id).value=''; });
+    g('hDate').value = today();
     showToast('✅ Export réussi — Rapport réinitialisé.');
-  },500);
+  }, 500);
 }
-
 
 // == IP MULTI-RÉSEAU ==
 var ipReseaux = []; // Liste des préfixes mémorisés
