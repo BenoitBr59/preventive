@@ -976,21 +976,28 @@ function exportWord() {
   if (hasP && allPhotos.length) {
     photos = '<div class="pb"></div>';
     photos += '<h2 style="color:#0d1f8c;font-family:Arial,sans-serif;font-size:14pt;margin-bottom:8pt;">Photos Jointes</h2>';
-    // Regrouper 6 photos par page
+    // Dimensions fixes 10x4 en Word :
+    // 280pt = 373px (1pt = 1.333px) — chaque cellule = 50% de la page paysage
+    // height = 280pt / 2.5 = 112pt (ratio 10/4)
+    var IMG_W_PT = 280, IMG_H_PT = 112;
+    var IMG_W_PX = Math.round(IMG_W_PT * 1.333);
+    var IMG_H_PX = Math.round(IMG_H_PT * 1.333);
     for (var pi=0; pi<allPhotos.length; pi+=6) {
       if (pi>0) photos += '<div class="pb"></div>';
       var page = allPhotos.slice(pi, pi+6);
-      // 3 lignes de 2 photos
       for (var ri=0; ri<page.length; ri+=2) {
-        photos += '<table style="border:none;border-collapse:collapse;width:100%;margin-bottom:4pt;"><tr>';
+        photos += '<table style="border:none;border-collapse:collapse;width:100%;margin-bottom:6pt;"><tr>';
         for (var ci=ri; ci<Math.min(ri+2, page.length); ci++) {
-          photos += '<td style="border:none;padding:4pt;width:50%;vertical-align:top;">';
-          photos += '<img src="'+page[ci].src+'" style="width:280pt;height:112pt;object-fit:cover;border:1px solid #cbd5e1;display:block;">';
+          photos += '<td style="border:none;padding:3pt;width:50%;vertical-align:top;">';
+          // width/height en px pour Word + style pt pour cohérence + mso pour forcer
+          photos += '<img src="'+page[ci].src+'"'
+            + ' width="'+IMG_W_PX+'" height="'+IMG_H_PX+'"'
+            + ' style="width:'+IMG_W_PT+'pt;height:'+IMG_H_PT+'pt;'
+            + 'mso-width-source:absolute;mso-height-source:absolute;border:1px solid #cbd5e1;display:block;">';
           photos += '<div style="font-size:8pt;font-family:Arial,sans-serif;color:#374151;margin-top:2pt;font-weight:bold;">'+page[ci].legende+'</div>';
           photos += '</td>';
         }
-        // Cellule vide si nombre impair
-        if (page.slice(ri, ri+2).length === 1) {
+        if (page.slice(ri,ri+2).length===1) {
           photos += '<td style="border:none;width:50%;"></td>';
         }
         photos += '</tr></table>';
