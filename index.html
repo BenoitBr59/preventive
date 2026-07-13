@@ -186,6 +186,9 @@
 </form>
 
 <!-- TABLEAU -->
+<div class="flex items-center justify-between mb-2">
+  <span id="compteurEquip" class="text-xs font-bold text-gray-500"></span>
+</div>
 <div class="overflow-x-auto border border-gray-200 rounded-lg mb-4">
   <table class="min-w-full divide-y divide-gray-200 text-sm text-center">
     <thead class="th text-white text-xs uppercase font-bold">
@@ -399,7 +402,12 @@ function ajouterEquip(e) {
       modele: g('fModele').value.trim(),
       lieu:   g('fLieu').value.trim(),
       serial: g('fSerial').value.trim(),
-      ip:     g('fIp').value.trim(),
+      ip:     (function(){
+      var prefix = g('fIpPrefix').value.trim();
+      var suffix = g('fIpSuffix').value.trim();
+      if (prefix && !suffix) return ''; // IP incomplète = on n'enregistre pas
+      return g('fIp').value.trim();
+    })(),
       cell:   g('fCell').value,
       dot:    g('fDot').value,
       roll:   g('fRoll').value,
@@ -417,6 +425,11 @@ function ajouterEquip(e) {
   g('fIpSuffix').value = '';
   g('fIp').value = '';
   supprimerPhoto();
+  // Feedback visuel + focus pour enchaîner rapidement
+  showToast('✅ Équipement ajouté au tableau.');
+  setTimeout(function(){ g('fSerial').focus(); }, 100);
+  // Scroll vers le tableau pour voir l'entrée ajoutée
+  g('tbody').scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 
 function editer(id) {
@@ -487,9 +500,12 @@ function majTab() {
   var tb = g('tbody');
   if (!data.length) {
     tb.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine.</td></tr>';
+    // Compteur global
+    var ctr = g('compteurEquip');
+    if (ctr) ctr.textContent = '';
     return;
   }
-  // Grouper par ZONE uniquement — lieu affiché sur chaque ligne
+  // Grouper par ZONE uniquement
   var groupes = {};
   var ordre = [];
   data.forEach(function(r) {
@@ -500,16 +516,33 @@ function majTab() {
   var html = '';
   ordre.forEach(function(cle) {
     if (cle) {
-      html += '<tr style="background:#0d1f8c;">'      + '<td colspan="3" style="padding:8px 12px;color:#fff;font-weight:bold;font-size:12px;letter-spacing:.04em;">'      + '&#128205; ' + cle      + '</td></tr>';
+      html += '<tr style="background:#0d1f8c;">'
+      + '<td colspan="3" style="padding:8px 12px;color:#fff;font-weight:bold;font-size:12px;letter-spacing:.04em;display:flex;justify-content:space-between;align-items:center;">'
+      + '<span>&#128205; ' + cle + '</span>'
+      + '<span style="background:rgba(255,255,255,0.2);border-radius:12px;padding:2px 10px;font-size:11px;">'
+      + groupes[cle].length + ' impr.</span>'
+      + '</td></tr>';
     }
     groupes[cle].forEach(function(r) {
       var lieuLine = r.lieu
         ? '<div style="font-size:11px;color:#6b7280;font-style:italic;font-weight:normal;">'+r.lieu+'</div>'
         : '';
-      html += '<tr class="hover:bg-blue-50 text-xs border-b border-gray-100">'        + '<td class="px-4 py-2 text-left">'        + '<span style="font-weight:bold;color:#111827;">'+r.modele+'</span>'        + lieuLine        + '</td>'        + '<td class="px-3 py-2 text-center font-mono font-bold text-gray-700 tracking-wider">'+r.serial+'</td>'        + '<td class="px-3 py-2 text-center" style="white-space:nowrap;">'        + '<button type="button" onclick="editer('+r.id+')" title="Modifier" style="color:#2563eb;font-size:18px;background:none;border:none;cursor:pointer;margin-right:8px;">&#9998;</button>'        + '<button type="button" onclick="del('+r.id+')" title="Supprimer" style="color:#ef4444;font-size:18px;background:none;border:none;cursor:pointer;">&#128465;</button>'        + '</td></tr>';
+      html += '<tr class="hover:bg-blue-50 text-xs border-b border-gray-100">'
+        + '<td class="px-4 py-2 text-left">'
+        + '<span style="font-weight:bold;color:#111827;">'+r.modele+'</span>'
+        + lieuLine
+        + '</td>'
+        + '<td class="px-3 py-2 text-center font-mono font-bold text-gray-700 tracking-wider">'+r.serial+'</td>'
+        + '<td class="px-3 py-2 text-center" style="white-space:nowrap;">'
+        + '<button type="button" onclick="editer('+r.id+')" title="Modifier" style="color:#2563eb;font-size:18px;background:none;border:none;cursor:pointer;margin-right:8px;">&#9998;</button>'
+        + '<button type="button" onclick="del('+r.id+')" title="Supprimer" style="color:#ef4444;font-size:18px;background:none;border:none;cursor:pointer;">&#128465;</button>'
+        + '</td></tr>';
     });
   });
   tb.innerHTML = html;
+  // Mettre à jour le compteur global
+  var ctr = g('compteurEquip');
+  if (ctr) ctr.textContent = data.length + ' équipement' + (data.length > 1 ? 's' : '');
 }
 function del(id) {
   var r = data.find(function(r){return r.id===id;});
@@ -766,7 +799,7 @@ function passerPN() {
   g('cSN').style.opacity='0.5'; g('cSN').style.borderColor='';
   g('cPN').style.opacity='1'; g('cPN').style.borderColor='#3b82f6'; g('cPN').style.borderWidth='2px';
   g('lblPN').style.color='#60a5fa';
-  g('rawTxt').textContent='Pointez sur le code P/N (en bas de l\'étiquette)...';
+  g('rawTxt').textContent='\u2193 Pointez maintenant sur le code-barres P/N (en bas de l\'\u00e9tiquette)';
   g('rawTxt').style.color='#60a5fa';
   g('btnMan').style.display='block';
   if (pnOk) {
@@ -801,8 +834,17 @@ function validerManuel() {
   pnOk=v; validerScan();
 }
 function validerScan() {
-  if (snOk)  g('fSerial').value=snOk;
-  if (pnOk)  g('fModele').value=pnOk;
+  if (snOk) {
+    g('fSerial').value=snOk;
+    // Flash vert pour confirmer le remplissage
+    g('fSerial').style.background='#dcfce7';
+    setTimeout(function(){ g('fSerial').style.background=''; }, 1500);
+  }
+  if (pnOk) {
+    g('fModele').value=pnOk;
+    g('fModele').style.background='#dcfce7';
+    setTimeout(function(){ g('fModele').style.background='#fefce8'; }, 1500);
+  }
   fermerScanner();
 }
 function fermerScanner() {
@@ -868,11 +910,11 @@ function identModele(pn) {
 
 function estMemeCodeQueSN(brut) {
   if(!snOk) return false;
-  var b = brut.toUpperCase(), s = snOk.toUpperCase();
+  var b=brut.toUpperCase(), s=snOk.toUpperCase();
   // Égalité exacte ou avec préfixe S
   if(b===s || b==='S'+s || 'S'+b===s) return true;
-  // Le scan a relu le même code avec 1-2 chars en plus/moins (débordement de zone)
-  if(b.indexOf(s)!==-1 || s.indexOf(b)!==-1) return true;
+  // Sous-chaine uniquement si différence <= 2 chars (scan partiel/débordement)
+  if(Math.abs(b.length-s.length)<=2 && (b.indexOf(s)!==-1||s.indexOf(b)!==-1)) return true;
   return false;
 }
 function extraireSN(b) {
@@ -991,13 +1033,48 @@ function exportWord() {
   setTimeout(function(){ window._skipUnload = false; }, 1000);
   // Vider les données après export
   setTimeout(function() {
+    // Données et stockage
     data = [];
+    editId = null;
     localStorage.removeItem('mds4');
     localStorage.removeItem('mds4h');
-    majTab();
-    ['hSite','hInterv','hBrand','hDate'].forEach(function(id){ g(id).value=''; });
+
+    // En-tête rapport
+    g('hSite').value = '';
+    g('hInterv').value = '';
+    g('hBrand').value = 'ZEBRA';
     g('hDate').value = today();
-    showToast('✅ Export réussi — Rapport réinitialisé.');
+
+    // Formulaire complet
+    ['fZone','fModele','fSerial','fLieu','fRem'].forEach(function(id){ g(id).value=''; });
+    g('fCell').value = 'OK';
+    g('fDot').value  = 'OK';
+    g('fRoll').value = 'OK';
+    g('fImp').value  = 'OK';
+    g('fGen').value  = 'OK';
+
+    // IP
+    g('fIpPrefix').value = '';
+    g('fIpSuffix').value = '';
+    g('fIp').value = '';
+    g('fIpSelect').value = '';
+    g('btnSuppReseau').style.display = 'none';
+
+    // Photo
+    supprimerPhoto();
+
+    // Mode édition — reset si actif
+    g('submitBtn').textContent = 'Ajouter au tableau';
+    g('submitBtn').style.background = '';
+    g('submitBtn').style.color = '';
+    g('cancelEditBtn').style.display = 'none';
+    g('formTitle').textContent = 'Ajouter un équipement';
+    g('formTitle').style.color = '';
+
+    // Tableau et compteur
+    majTab();
+
+    showToast('✅ Export réussi — Application réinitialisée.');
   }, 500);
 }
 
