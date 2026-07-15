@@ -946,42 +946,53 @@ function exportWord() {
   var date  = g('hDate').value||today();
   var logo  = g('logoImg').src;
   var lignes='', photos='', hasP=false, allPhotos=[];
+  // Grouper par zone comme dans l'app
+  var grpZ={}, ordreZ=[];
   data.forEach(function(r){
-    var clr=r.gen==='Critique'?'color:#dc2626;font-weight:bold':r.gen==='A surveiller'?'color:#d97706;font-weight:bold':'';
-    lignes+='<tr>'
-      +'<td style="text-align:left">'+(r.zone||'')+'</td>'
-      +'<td style="text-align:left;font-weight:bold">'+(r.modele||'-')+'<br><span style="color:#64748b;font-size:8pt">'+(r.lieu||'')+'</span></td>'
-      +'<td style="font-weight:bold">'+(r.serial||'-')+'</td>'
-      +'<td>'+(r.ip||'-')+'</td>'
-      +'<td>'+(r.cell||'-')+'</td>'
-      +'<td>'+(r.dot||'-')+'</td>'
-      +'<td>'+(r.roll||'-')+'</td>'
-      +'<td>'+(r.imp||'-')+'</td>'
-      +'<td style="'+clr+'">'+(r.gen||'-')+'</td>'
-      +'<td style="text-align:left">'+( r.rem ? r.rem.split(' - ').join('<br>- ') : '' )+'</td>'
- 
-    if(r.photos&&r.photos.length){
-      hasP=true;
-      // Collecter chaque photo avec sa légende (S/N + lieu)
-      r.photos.forEach(function(ph){
-        allPhotos.push({
-          src:    ph,
-          legende: 'S/N : '+(r.serial||'—')+(r.lieu?' — '+r.lieu:'')+(r.zone?' ('+r.zone+')':'')
-        });
-      });
+    var cle=r.zone||'';
+    if(!grpZ[cle]){ grpZ[cle]=[]; ordreZ.push(cle); }
+    grpZ[cle].push(r);
+  });
+  ordreZ.forEach(function(cle){
+    // Bandeau zone bleu MDS (colspan 9 car Zone n'est plus une colonne)
+    if(cle){
+      lignes+='<tr>'
+        +'<td colspan="9" style="background:#0d1f8c;color:#fff;font-weight:bold;'
+        +'font-size:9pt;padding:5px 8px;text-align:left;">&#128205; '+cle+'</td>'
+        +'</tr>';
     }
+    grpZ[cle].forEach(function(r){
+      var clr=r.gen==='Critique'?'color:#dc2626;font-weight:bold':r.gen==='A surveiller'?'color:#d97706;font-weight:bold':'';
+      lignes+='<tr>'
+        +'<td style="text-align:left;font-weight:bold">'+(r.modele||'-')
+        +'<br><span style="color:#64748b;font-size:8pt">'+(r.lieu||'')+'</span></td>'
+        +'<td style="font-weight:bold">'+(r.serial||'-')+'</td>'
+        +'<td>'+(r.ip||'-')+'</td>'
+        +'<td>'+(r.cell||'-')+'</td>'
+        +'<td>'+(r.dot||'-')+'</td>'
+        +'<td>'+(r.roll||'-')+'</td>'
+        +'<td>'+(r.imp||'-')+'</td>'
+        +'<td style="'+clr+'">'+(r.gen||'-')+'</td>'
+        +'<td style="text-align:left">'+( r.rem ? r.rem.split(' - ').join('<br>- ') : '' )+'</td>'
+        +'</tr>';
+      if(r.photos&&r.photos.length){
+        hasP=true;
+        r.photos.forEach(function(ph){
+          allPhotos.push({
+            src:ph,
+            legende:'S/N : '+(r.serial||'—')+(r.lieu?' — '+r.lieu:'')+(r.zone?' ('+r.zone+')':'')
+          });
+        });
+      }
+    });
   });
 
   // ── Construire la grille photos : 6 par page (3 lignes x 2 colonnes)
   if (hasP && allPhotos.length) {
     photos = '<div class="pb"></div>';
     photos += '<h2 style="color:#0d1f8c;font-family:Arial,sans-serif;font-size:14pt;margin-bottom:8pt;">Photos Jointes</h2>';
-    // Dimensions fixes 10x4 en Word :
-    // 280pt = 373px (1pt = 1.333px) — chaque cellule = 50% de la page paysage
-    // height = 280pt / 2.5 = 112pt (ratio 10/4)
-    var IMG_W_PT = 280, IMG_H_PT = 112;
-    var IMG_W_PX = Math.round(IMG_W_PT * 1.333);
-    var IMG_H_PX = Math.round(IMG_H_PT * 1.333);
+    var IMG_W_PT=280, IMG_H_PT=112;
+    var IMG_W_PX=Math.round(IMG_W_PT*1.333), IMG_H_PX=Math.round(IMG_H_PT*1.333);
     for (var pi=0; pi<allPhotos.length; pi+=6) {
       if (pi>0) photos += '<div class="pb"></div>';
       var page = allPhotos.slice(pi, pi+6);
@@ -989,11 +1000,10 @@ function exportWord() {
         photos += '<table style="border:none;border-collapse:collapse;width:100%;margin-bottom:6pt;"><tr>';
         for (var ci=ri; ci<Math.min(ri+2, page.length); ci++) {
           photos += '<td style="border:none;padding:3pt;width:50%;vertical-align:top;">';
-          // width/height en px pour Word + style pt pour cohérence + mso pour forcer
           photos += '<img src="'+page[ci].src+'"'
-            + ' width="'+IMG_W_PX+'" height="'+IMG_H_PX+'"'
-            + ' style="width:'+IMG_W_PT+'pt;height:'+IMG_H_PT+'pt;'
-            + 'mso-width-source:absolute;mso-height-source:absolute;border:1px solid #cbd5e1;display:block;">';
+            +' width="'+IMG_W_PX+'" height="'+IMG_H_PX+'"'
+            +' style="width:'+IMG_W_PT+'pt;height:'+IMG_H_PT+'pt;'
+            +'mso-width-source:absolute;mso-height-source:absolute;border:1px solid #cbd5e1;display:block;">';
           photos += '<div style="font-size:8pt;font-family:Arial,sans-serif;color:#374151;margin-top:2pt;font-weight:bold;">'+page[ci].legende+'</div>';
           photos += '</td>';
         }
@@ -1023,7 +1033,7 @@ function exportWord() {
     +'<td><b>Parc :</b> '+parc+'</td><td><b>Date :</b> '+date+'</td>'
     +'<td><b>Équipements :</b> '+data.length+'</td></tr></table>'
     +'<table><thead><tr>'
-    +'<th style="width:9%;text-align:left">Zone</th><th style="width:16%;text-align:left">Modèle / ID</th>'
+    +'<th style="width:20%;text-align:left">Modèle / ID</th>'
     +'<th style="width:13%">S/N</th><th style="width:11%">Adresse IP</th>'
     +'<th style="width:7%">Capteurs</th><th style="width:8%">État Dot</th>'
     +'<th style="width:7%">Roller</th><th style="width:7%">Test Imp.</th>'
