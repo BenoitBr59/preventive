@@ -962,7 +962,7 @@ function exportWord() {
         +'</tr>';
     }
     grpZ[cle].forEach(function(r){
-      var clr=r.gen==='Critique'?'color:#dc2626;font-weight:bold':r.gen==='A surveiller'?'color:#d97706;font-weight:bold':'';
+      var clr=r.gen==='Voir Rem'?'color:#dc2626;font-weight:bold':'';
       lignes+='<tr>'
         +'<td style="text-align:left;font-weight:bold">'+(r.modele||'-')
         +'<br><span style="color:#64748b;font-size:8pt">'+(r.lieu||'')+'</span></td>'
