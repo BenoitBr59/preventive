@@ -3,7 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rapport Maintenance MDS</title>
+<title>MDS — Maintenance Préventive</title>
+
+<!-- Favicon & icône PWA -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjgwIiBmaWxsPSIjMGQxZjhjIi8+CiAgPHRleHQgeD0iMjU2IiB5PSIzMTAiIGZvbnQtZmFtaWx5PSJBcmlhbCBCbGFjayxBcmlhbCxzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iOTAwIgogICAgZm9udC1zaXplPSIyODAiIGZpbGw9IiNmZmZmZmYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPk08L3RleHQ+CiAgPGNpcmNsZSBjeD0iMzkwIiBjeT0iMzcwIiByPSI1NSIgZmlsbD0iI2Y1YTExYyIvPgo8L3N2Zz4=">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjgwIiBmaWxsPSIjMGQxZjhjIi8+CiAgPHRleHQgeD0iMjU2IiB5PSIzMTAiIGZvbnQtZmFtaWx5PSJBcmlhbCBCbGFjayxBcmlhbCxzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iOTAwIgogICAgZm9udC1zaXplPSIyODAiIGZpbGw9IiNmZmZmZmYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPk08L3RleHQ+CiAgPGNpcmNsZSBjeD0iMzkwIiBjeT0iMzcwIiByPSI1NSIgZmlsbD0iI2Y1YTExYyIvPgo8L3N2Zz4=">
+
+<!-- Manifest PWA (raccourci application) -->
+<link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIk1EUyBNYWludGVuYW5jZSBQcsOpdmVudGl2ZSIsCiAgInNob3J0X25hbWUiOiAiTURTIE1haW50ZW5hbmNlIiwKICAiZGVzY3JpcHRpb24iOiAiUmFwcG9ydCBkZSBtYWludGVuYW5jZSBwcsOpdmVudGl2ZSDigJQgUGFyYyBpbXByaW1hbnRlcyIsCiAgInN0YXJ0X3VybCI6ICIuLyIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzBkMWY4YyIsCiAgInRoZW1lX2NvbG9yIjogIiMwZDFmOGMiLAogICJvcmllbnRhdGlvbiI6ICJwb3J0cmFpdCIsCiAgImljb25zIjogWwogICAgeyJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCNGJXeHVjejBpYUhSMGNEb3ZMM2QzZHk1M015NXZjbWN2TWpBd01DOXpkbWNpSUhacFpYZENiM2c5SWpBZ01DQTFNVElnTlRFeUlqNEtJQ0E4Y21WamRDQjNhV1IwYUQwaU5URXlJaUJvWldsbmFIUTlJalV4TWlJZ2NuZzlJamd3SWlCbWFXeHNQU0lqTUdReFpqaGpJaTgrQ2lBZ1BIUmxlSFFnZUQwaU1qVTJJaUI1UFNJek1UQWlJR1p2Ym5RdFptRnRhV3g1UFNKQmNtbGhiQ0JDYkdGamF5eEJjbWxoYkN4ellXNXpMWE5sY21sbUlpQm1iMjUwTFhkbGFXZG9kRDBpT1RBd0lnb2dJQ0FnWm05dWRDMXphWHBsUFNJeU9EQWlJR1pwYkd3OUlpTm1abVptWm1ZaUlIUmxlSFF0WVc1amFHOXlQU0p0YVdSa2JHVWlQazA4TDNSbGVIUStDaUFnUEdOcGNtTnNaU0JqZUQwaU16a3dJaUJqZVQwaU16Y3dJaUJ5UFNJMU5TSWdabWxzYkQwaUkyWTFZVEV4WXlJdlBnbzhMM04yWno0PSIsICJzaXplcyI6ICJhbnkiLCAidHlwZSI6ICJpbWFnZS9zdmcreG1sIiwgInB1cnBvc2UiOiAiYW55IG1hc2thYmxlIn0KICBdCn0=">
+
+<!-- Métadonnées mobiles -->
+<meta name="theme-color" content="#0d1f8c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MDS Maintenance">
+<meta name="description" content="Application de maintenance préventive — Parc imprimantes Zebra">
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
@@ -66,7 +81,7 @@
     </select>
   </div>
   <div>
-    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Parc imprimante</label>
+    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Parc d'imprimantes</label>
     <select id="hBrand" onchange="save()" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
       <option>ZEBRA</option><option>HONEYWELL</option><option>TOSHIBA</option><option>INTERMEC</option>
     </select>
@@ -111,14 +126,14 @@
     </div>
     <div>
       <label class="block text-xs font-medium text-gray-700 mb-1">État Dot (Tête)</label>
-      <select id="fDot" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>Dots HS</option><option>Dots usée</option><option>surchauffe</option></select>
+      <select id="fDot" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>Dots HS</option><option>Dots usées</option><option>Surchauffe</option></select>
     </div>
     <div>
       <label class="block text-xs font-medium text-gray-700 mb-1">Pressing Roller</label>
-      <select id="fRoll" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>Manque matière</option><option>cutter</option></select>
+      <select id="fRoll" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option</option><option>Cutter</option></select>
     </div>
     <div>
-      <label class="block text-xs font-medium text-gray-700 mb-1">Test Impression</label>
+      <label class="block text-xs font-medium text-gray-700 mb-1">Test d'impression</label>
       <select id="fImp" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>NOK</option></select>
     </div>
   </div>
@@ -288,7 +303,7 @@
 <!-- MODAL CROPPER -->
 <div id="cropModal" style="display:none;visibility:hidden;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;align-items:center;justify-content:center;padding:16px;">
   <div style="background:#fff;border-radius:8px;padding:16px;width:100%;max-width:580px;display:flex;flex-direction:column;max-height:90vh;">
-    <h3 style="font-size:13px;font-weight:bold;text-transform:uppercase;margin:0 0 10px;">Recadrage photo (10×4)</h3>
+    <h3 style="font-size:13px;font-weight:bold;text-transform:uppercase;margin:0 0 10px;">Recadrage photo</h3>
     <div style="overflow:hidden;flex:1;background:#f3f4f6;border-radius:4px;min-height:280px;max-height:55vh;">
       <img id="cropImg" src="" style="max-width:100%;display:block;">
     </div>
@@ -962,7 +977,7 @@ function exportWord() {
         +'</tr>';
     }
     grpZ[cle].forEach(function(r){
-      var clr=r.gen==='Voir Rem'?'color:#dc2626;font-weight:bold':'';
+      var clr=r.gen==='Critique'?'color:#dc2626;font-weight:bold':r.gen==='A surveiller'?'color:#d97706;font-weight:bold':'';
       lignes+='<tr>'
         +'<td style="text-align:left;font-weight:bold">'+(r.modele||'-')
         +'<br><span style="color:#64748b;font-size:8pt">'+(r.lieu||'')+'</span></td>'
@@ -1151,12 +1166,12 @@ function ajouterReseau() {
     // Mettre le focus sur le champ préfixe pour que l'utilisateur le saisisse
     g('fIpPrefix').focus();
     g('fIpPrefix').placeholder = 'Ex: 192.168.1.';
-    showToast('Saisissez le préfixe puis appuyez sur +');
+    showToast('ℹ️ Saisissez le préfixe puis appuyez sur +');
     return;
   }
   if (!prefix.endsWith('.')) prefix += '.';
   if (ipReseaux.indexOf(prefix) !== -1) {
-    showToast('Ce réseau est déjà mémorisé.');
+    showToast('ℹ️ Ce réseau est déjà mémorisé.');
     return;
   }
   ipReseaux.push(prefix);
@@ -1178,7 +1193,7 @@ function supprimerReseau() {
   g('fIpPrefix').value = '';
   g('fIpSuffix').value = '';
   g('fIp').value = '';
-  showToast('Réseau supprimé.');
+  showToast('✅ Réseau supprimé.');
 }
 
 function majIpFull() {
