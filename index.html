@@ -189,9 +189,8 @@
       Appareil photo / Galerie
     </button>
     <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none;">
-    <div id="photoBox" style="display:none;" class="flex flex-col items-center gap-1 border-l pl-4 border-blue-200">
-      <img id="photoPreview" src="" class="h-16 rounded border bg-white" style="aspect-ratio:10/4;object-fit:cover;">
-      <button type="button" onclick="supprimerPhoto()" class="text-xs text-red-500 font-bold">✕ Supprimer</button>
+    <div id="photoBox" style="display:none;" class="flex flex-wrap items-center gap-2 border-l pl-4 border-blue-200">
+      <div id="photoGallery" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
     </div>
   </div>
   <div class="md:col-span-4 flex justify-end gap-3 mt-2">
@@ -334,7 +333,7 @@ function showToast(msg) {
 
 // == DONNÉES ==
 var data = [];
-var photoB64 = null;
+var photosArr = [];
 var cropInst = null;
 
 var MODELES = [
@@ -388,6 +387,10 @@ function loadSession() {
 }
 function today() { return new Date().toISOString().split('T')[0]; }
 function g(id) { return document.getElementById(id); }
+// Remet les 5 selects de diagnostic à leur valeur par défaut 'OK'
+function resetEtatsSelects() {
+  ['fCell','fDot','fRoll','fImp','fGen'].forEach(function(id){ g(id).value = 'OK'; });
+}
 // Échappe les caractères HTML dangereux dans les champs texte utilisateur
 function escHtml(s) {
   if (s === null || s === undefined) return '';
@@ -419,7 +422,7 @@ function ajouterEquip(e) {
       data[idx].imp    = g('fImp').value;
       data[idx].gen    = g('fGen').value;
       data[idx].rem    = g('fRem').value.trim();
-      if (photoB64) data[idx].photos = [photoB64];
+      if (photosArr.length) data[idx].photos = photosArr.slice();
     }
     annulerEdit();
   } else {
@@ -442,7 +445,7 @@ function ajouterEquip(e) {
       imp:    g('fImp').value,
       gen:    g('fGen').value,
       rem:    g('fRem').value.trim(),
-      photos: photoB64 ? [photoB64] : []
+      photos: photosArr.slice()
     });
   }
   save();
@@ -453,11 +456,7 @@ function ajouterEquip(e) {
   g('fIpSuffix').value = '';
   g('fIp').value = '';
   // Remettre les états à OK pour ne pas hériter du diagnostic de la machine précédente
-  g('fCell').value = 'OK';
-  g('fDot').value  = 'OK';
-  g('fRoll').value = 'OK';
-  g('fImp').value  = 'OK';
-  g('fGen').value  = 'OK';
+  resetEtatsSelects();
   supprimerPhoto();
   // Feedback visuel + focus pour enchaîner rapidement
   showToast('✅ Équipement ajouté au tableau.');
@@ -506,12 +505,9 @@ function editer(id) {
   g('fImp').value    = r.imp    || 'OK';
   g('fGen').value    = r.gen    || 'OK';
   g('fRem').value    = r.rem    || '';
-  // Afficher la photo existante si présente
-  if (r.photos && r.photos.length) {
-    photoB64 = r.photos[0];
-    g('photoPreview').src = photoB64;
-    g('photoBox').style.display = 'flex';
-  }
+  // Afficher les photos existantes si présentes
+  photosArr = (r.photos && r.photos.length) ? r.photos.slice() : [];
+  rafraichirGaleriePhotos();
   // Changer l'UI du formulaire en mode édition
   g('submitBtn').textContent  = '💾 Mettre à jour';
   g('submitBtn').style.background = '#d97706';
@@ -527,8 +523,7 @@ function annulerEdit() {
   ['fModele','fSerial','fLieu','fRem','fZone'].forEach(function(id){ g(id).value=''; });
   g('fIpPrefix').value=''; g('fIpSuffix').value=''; g('fIp').value='';
   g('fIpSelect').value=''; g('btnSuppReseau').style.display='none';
-  g('fCell').value = 'OK'; g('fDot').value = 'OK';
-  g('fRoll').value = 'OK'; g('fImp').value = 'OK'; g('fGen').value = 'OK';
+  resetEtatsSelects();
   supprimerPhoto();
   g('submitBtn').textContent = 'Ajouter au tableau';
   g('submitBtn').style.background = '';
@@ -640,9 +635,9 @@ function validerCrop() {
   // Appliquer un filtre de netteté (unsharp mask) via convolution
   var sharpened = appliquerNettete(cropped);
   // JPEG qualité maximale pour les détails fins de tête d'impression
-  photoB64 = sharpened.toDataURL('image/jpeg', 0.97);
-  g('photoPreview').src = photoB64;
-  g('photoBox').style.display = 'flex';
+  var nouvellePhoto = sharpened.toDataURL('image/jpeg', 0.97);
+  photosArr.push(nouvellePhoto);
+  rafraichirGaleriePhotos();
   annulerCrop();
 }
 
@@ -695,9 +690,31 @@ function annulerCrop() {
   if (cropInst) { cropInst.destroy(); cropInst = null; }
   g('camInput').value = '';
 }
+function rafraichirGaleriePhotos() {
+  var gal = g('photoGallery');
+  if (photosArr.length === 0) {
+    g('photoBox').style.display = 'none';
+    gal.innerHTML = '';
+    return;
+  }
+  g('photoBox').style.display = 'flex';
+  gal.innerHTML = photosArr.map(function(src, i) {
+    return '<div style="position:relative;">'
+      + '<img src="'+src+'" style="height:64px;width:auto;aspect-ratio:10/4;object-fit:cover;border-radius:4px;border:1px solid #93c5fd;">'
+      + '<button type="button" onclick="supprimerUnePhoto('+i+')" '
+      + 'style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;border:none;border-radius:999px;width:18px;height:18px;font-size:11px;line-height:1;cursor:pointer;">✕</button>'
+      + '</div>';
+  }).join('');
+}
+
+function supprimerUnePhoto(i) {
+  photosArr.splice(i, 1);
+  rafraichirGaleriePhotos();
+}
+
 function supprimerPhoto() {
-  photoB64 = null;
-  g('photoPreview').src = '';
+  photosArr = [];
+  g('photoGallery').innerHTML = '';
   g('photoBox').style.display = 'none';
 }
 
@@ -1063,8 +1080,8 @@ function exportWord() {
     +'<head><meta charset="utf-8"><title>Rapport MDS</title><style>'
     +'@page Section1{size:29.7cm 21cm;mso-page-orientation:landscape;margin:1.2cm;mso-header-margin:.5cm;mso-footer-margin:.5cm;mso-paper-source:0;}div.Section1{page:Section1;}'
     +'body{font-family:Arial,sans-serif;font-size:9pt;color:#222}table{border-collapse:collapse;width:100%}'
-    +'th{background:#0d1f8c;color:#fff;padding:5px 4px;border:1px solid #0d1f8c;font-size:8.5pt;text-align:center}'
-    +'td{padding:5px 4px;border:1px solid #cbd5e1;font-size:8.5pt;vertical-align:middle;text-align:center}'
+    +'th{background:#0d1f8c;color:#fff;padding:5px 4px;border:1px solid #ffffff;font-size:8.5pt;text-align:center}'
+    +'td{padding:5px 4px;border:1px solid #94a3b8;font-size:8.5pt;vertical-align:middle;text-align:center}'
     +'.m td{border:1px solid #c7cef5;background:#eef0fb;padding:7px;font-size:9pt}'
     +'h1{color:#0d1f8c;font-size:16pt;margin:0 0 2px;text-transform:uppercase}.pb{page-break-before:always}'
     +'</style></head><body><div class="Section1">'
@@ -1077,11 +1094,11 @@ function exportWord() {
     +'<td><b>Imprimante :</b> '+parc+'</td><td><b>Date :</b> '+date+'</td>'
     +'<td><b>Équipements :</b> '+data.length+'</td></tr></table>'
     +'<table><thead><tr>'
-    +'<th style="width:22%;text-align:left">Modèle / ID</th>'
+    +'<th style="width:15%;text-align:left">Modèle / ID</th>'
     +'<th style="width:15%">S/N — Adresse IP</th>'
     +'<th style="width:8%">Capteurs</th><th style="width:10%">État tête d\'impression</th>'
     +'<th style="width:9%">Platen Roller</th><th style="width:8%">Test Imp.</th>'
-    +'<th style="width:8%">Général</th><th style="width:20%;text-align:left">Remarques</th>'
+    +'<th style="width:8%">Général</th><th style="width:27%;text-align:left">Remarques</th>'
     +'</tr></thead><tbody>'+lignes+'</tbody></table>'
     +'<div style="margin-top:14px;font-size:9pt;line-height:1.5;">'
     +'<p style="margin:0 0 4px;text-decoration:underline;font-weight:bold;">Remarque :</p>'
@@ -1113,11 +1130,7 @@ function exportWord() {
 
     // Formulaire complet
     ['fZone','fModele','fSerial','fLieu','fRem'].forEach(function(id){ g(id).value=''; });
-    g('fCell').value = 'OK';
-    g('fDot').value  = 'OK';
-    g('fRoll').value = 'OK';
-    g('fImp').value  = 'OK';
-    g('fGen').value  = 'OK';
+    resetEtatsSelects();
 
     // IP
     g('fIpPrefix').value = '';
