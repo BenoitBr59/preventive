@@ -452,6 +452,12 @@ function ajouterEquip(e) {
   ['fModele','fSerial','fLieu','fRem'].forEach(function(id){ g(id).value=''; });
   g('fIpSuffix').value = '';
   g('fIp').value = '';
+  // Remettre les états à OK pour ne pas hériter du diagnostic de la machine précédente
+  g('fCell').value = 'OK';
+  g('fDot').value  = 'OK';
+  g('fRoll').value = 'OK';
+  g('fImp').value  = 'OK';
+  g('fGen').value  = 'OK';
   supprimerPhoto();
   // Feedback visuel + focus pour enchaîner rapidement
   showToast('✅ Équipement ajouté au tableau.');
@@ -463,6 +469,15 @@ function ajouterEquip(e) {
 function editer(id) {
   var r = data.find(function(r){ return r.id === id; });
   if (!r) return;
+  // Sécurité : si une saisie est en cours (formulaire non vide) sur une AUTRE
+  // machine que celle déjà en édition, demander confirmation avant d'écraser
+  var saisieEnCours = (g('fSerial').value.trim() !== '' || g('fModele').value.trim() !== '');
+  if (saisieEnCours && editId !== id) {
+    var confirmMsg = editId !== null
+      ? 'Vous modifiez déjà un équipement. Passer à un autre annulera les changements non enregistrés. Continuer ?'
+      : 'Une saisie en cours sera perdue si vous modifiez cette machine. Continuer ?';
+    if (!confirm(confirmMsg)) return;
+  }
   editId = id;
   // Remplir le formulaire avec les données de la ligne
   g('fZone').value   = r.zone   || '';
