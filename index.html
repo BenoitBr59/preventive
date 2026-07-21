@@ -130,7 +130,7 @@
     </div>
     <div>
       <label class="block text-xs font-medium text-gray-700 mb-1">Pressing Roller</label>
-      <select id="fRoll" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>Manque Matiere</option><option>Cutter</option></select>
+      <select id="fRoll" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>Manque matière</option><option>Cutter</option></select>
     </div>
     <div>
       <label class="block text-xs font-medium text-gray-700 mb-1">Test d'impression</label>
@@ -985,17 +985,17 @@ function exportWord() {
     // Bandeau zone bleu MDS (colspan 9 car Zone n'est plus une colonne)
     if(cle){
       lignes+='<tr>'
-        +'<td colspan="9" style="background:#0d1f8c;color:#fff;font-weight:bold;'
-        +'font-size:9pt;padding:5px 8px;text-align:left;">&#128205; '+escHtml(cle)+'</td>'
+        +'<td colspan="8" style="background:#f5a11c;color:#1a1a1a;font-weight:bold;'
+        +'font-size:9pt;padding:5px 8px;text-align:center;">&#128205; '+escHtml(cle)+'</td>'
         +'</tr>';
     }
     grpZ[cle].forEach(function(r){
-      var clr=r.gen==='Critique'?'color:#dc2626;font-weight:bold':r.gen==='A surveiller'?'color:#d97706;font-weight:bold':'';
+      var clr=r.gen==='Voir Rem'?'color:#dc2626;font-weight:bold':'';
       lignes+='<tr>'
         +'<td style="text-align:left;font-weight:bold">'+escHtml(r.modele||'-')
         +'<br><span style="color:#64748b;font-size:8pt">'+escHtml(r.lieu||'')+'</span></td>'
-        +'<td style="font-weight:bold">'+escHtml(r.serial||'-')+'</td>'
-        +'<td>'+escHtml(r.ip||'-')+'</td>'
+        +'<td style="font-weight:bold">'+escHtml(r.serial||'-')
+        +'<br><span style="font-weight:normal;color:#475569;font-size:8pt">'+escHtml(r.ip||'')+'</span></td>'
         +'<td>'+escHtml(r.cell||'-')+'</td>'
         +'<td>'+escHtml(r.dot||'-')+'</td>'
         +'<td>'+escHtml(r.roll||'-')+'</td>'
@@ -1018,7 +1018,8 @@ function exportWord() {
   // ── Construire la grille photos : 6 par page (3 lignes x 2 colonnes)
   if (hasP && allPhotos.length) {
     photos = '<div class="pb"></div>';
-    photos += '<h2 style="color:#0d1f8c;font-family:Arial,sans-serif;font-size:14pt;margin-bottom:8pt;">Photos Jointes</h2>';
+    photos += '<h2 style="color:#0d1f8c;font-family:Arial,sans-serif;font-size:14pt;margin-bottom:6pt;">Annexes Photos</h2>';
+    photos += '<p style="font-family:Arial,sans-serif;font-size:9pt;color:#222;line-height:1.5;margin:0 0 12pt;">Ci-dessous, les t\u00eates d\'impression pr\u00e9sentant un d\u00e9faut d\'impression \u00e0 un ou plusieurs endroits soumis \u00e0 votre attention pour un changement \u00e9ventuel ou n\u00e9cessaire, ainsi que les traces de manque de mati\u00e8re.</p>';
     var IMG_W_PT=280, IMG_H_PT=112;
     var IMG_W_PX=Math.round(IMG_W_PT*1.333), IMG_H_PX=Math.round(IMG_H_PT*1.333);
     for (var pi=0; pi<allPhotos.length; pi+=6) {
@@ -1061,11 +1062,11 @@ function exportWord() {
     +'<td><b>Parc :</b> '+parc+'</td><td><b>Date :</b> '+date+'</td>'
     +'<td><b>Équipements :</b> '+data.length+'</td></tr></table>'
     +'<table><thead><tr>'
-    +'<th style="width:20%;text-align:left">Modèle / ID</th>'
-    +'<th style="width:13%">S/N</th><th style="width:11%">Adresse IP</th>'
-    +'<th style="width:7%">Capteurs</th><th style="width:8%">État Dot</th>'
-    +'<th style="width:7%">Roller</th><th style="width:7%">Test Imp.</th>'
-    +'<th style="width:8%">Général</th><th style="width:14%;text-align:left">Remarques</th>'
+    +'<th style="width:22%;text-align:left">Modèle / ID</th>'
+    +'<th style="width:15%">S/N — Adresse IP</th>'
+    +'<th style="width:8%">Capteurs</th><th style="width:9%">État Dot</th>'
+    +'<th style="width:8%">Roller</th><th style="width:8%">Test Imp.</th>'
+    +'<th style="width:9%">Général</th><th style="width:21%;text-align:left">Remarques</th>'
     +'</tr></thead><tbody>'+lignes+'</tbody></table>'
     +'<div style="margin-top:14px;font-size:9pt;line-height:1.5;">'
     +'<p style="margin:0 0 4px;text-decoration:underline;font-weight:bold;">Remarque :</p>'
