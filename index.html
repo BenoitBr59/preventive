@@ -1005,7 +1005,7 @@ function exportWord() {
   var parc  = g('hBrand').value;
   var date  = g('hDate').value||today();
   var logo  = g('logoImg').src;
-  var lignes='', photos='', hasP=false, allPhotos=[];
+  var lignes='', photos='';
   // Grouper par zone comme dans l'app
   var grpZ={}, ordreZ=[];
   data.forEach(function(r){
@@ -1035,44 +1035,78 @@ function exportWord() {
         +'<td style="'+clr+'">'+escHtml(r.gen||'-')+'</td>'
         +'<td style="text-align:left">'+( r.rem ? escHtml(r.rem).replace(/(^|\s)-\s*/g, '$1<br>- ').replace(/^<br>/, '') : '' )+'</td>'
         +'</tr>';
-      if(r.photos&&r.photos.length){
-        hasP=true;
-        r.photos.forEach(function(ph){
-          allPhotos.push({
-            src:ph,
-            legende:'S/N\u00a0: '+escHtml(r.serial||'\u2014')+(r.lieu?' \u2014 '+escHtml(r.lieu):'')+(r.zone?' ('+escHtml(r.zone)+')':'')
-          });
-        });
-      }
     });
   });
 
-  // ── Construire la grille photos : 6 par page (3 lignes x 2 colonnes)
-  if (hasP && allPhotos.length) {
+  // ── Construire les FICHES DÉTAILLÉES : 2 par page, pour les machines avec photo(s)
+  var fiches = data.filter(function(r){ return r.photos && r.photos.length > 0; });
+  if (fiches.length) {
     photos = '<div class="pb"></div>';
-    photos += '<h2 style="color:#0d1f8c;font-family:Arial,sans-serif;font-size:14pt;margin-bottom:6pt;">Annexes Photos</h2>';
-    photos += '<p style="font-family:Arial,sans-serif;font-size:9pt;color:#222;line-height:1.5;margin:0 0 12pt;">Ci-dessous, les t\u00eates d\'impression pr\u00e9sentant un d\u00e9faut d\'impression \u00e0 un ou plusieurs endroits soumis \u00e0 votre attention pour un changement \u00e9ventuel ou n\u00e9cessaire, ainsi que les traces de manque de mati\u00e8re.</p>';
-    var IMG_W_PT=280, IMG_H_PT=112;
+    photos += '<h2 style="color:#0d1f8c;font-family:Arial,sans-serif;font-size:14pt;margin-bottom:6pt;">Fiches Détaillées — Imprimantes avec Observations</h2>';
+    photos += '<p style="font-family:Arial,sans-serif;font-size:9pt;color:#222;line-height:1.5;margin:0 0 12pt;">Ci-dessous, le détail des imprimantes présentant un défaut d\'impression à un ou plusieurs endroits soumis à votre attention pour un changement éventuel ou nécessaire, ainsi que les traces de manque de matière.</p>';
+
+    var IMG_W_PT=132, IMG_H_PT=53;
     var IMG_W_PX=Math.round(IMG_W_PT*1.333), IMG_H_PX=Math.round(IMG_H_PT*1.333);
-    for (var pi=0; pi<allPhotos.length; pi+=6) {
-      if (pi>0) photos += '<div class="pb"></div>';
-      var page = allPhotos.slice(pi, pi+6);
-      for (var ri=0; ri<page.length; ri+=2) {
-        photos += '<table style="border:none;border-collapse:collapse;width:100%;margin-bottom:6pt;"><tr>';
-        for (var ci=ri; ci<Math.min(ri+2, page.length); ci++) {
-          photos += '<td style="border:none;padding:3pt;width:50%;vertical-align:top;">';
-          photos += '<img src="'+page[ci].src+'"'
-            +' width="'+IMG_W_PX+'" height="'+IMG_H_PX+'"'
-            +' style="width:'+IMG_W_PT+'pt;height:'+IMG_H_PT+'pt;'
-            +'mso-width-source:absolute;mso-height-source:absolute;border:1px solid #cbd5e1;display:block;">';
-          photos += '<div style="font-size:8pt;font-family:Arial,sans-serif;color:#374151;margin-top:2pt;font-weight:bold;">'+page[ci].legende+'</div>';
-          photos += '</td>';
+
+    function buildFiche(r) {
+      var clr = r.gen==='Voir Rem' ? 'color:#dc2626;font-weight:bold' : '';
+      var remHtml = r.rem ? escHtml(r.rem).replace(/(^|\s)-\s*/g, '$1<br>- ').replace(/^<br>/, '') : 'Rien à signaler';
+      var f = '<table style="border:2px solid #0d1f8c;border-collapse:collapse;width:100%;margin-bottom:4pt;">';
+      // En-tête fiche : modèle + S/N + zone/lieu
+      f += '<tr><td colspan="2" style="background:#0d1f8c;color:#fff;font-weight:bold;font-size:10pt;padding:5pt 8pt;border:none;text-align:left;">'
+         + escHtml(r.modele||'-') + (r.lieu ? ' — '+escHtml(r.lieu) : '') + (r.zone ? ' &#128205; '+escHtml(r.zone) : '')
+         + '</td></tr>';
+      // Ligne info : S/N + IP
+      f += '<tr><td colspan="2" style="font-size:8.5pt;padding:4pt 8pt;border:1px solid #94a3b8;text-align:left;background:#eef0fb;">'
+         + '<b>S/N\u00a0:</b> ' + escHtml(r.serial||'-') + (r.ip ? '  &nbsp;|&nbsp;  <b>IP\u00a0:</b> '+escHtml(r.ip) : '')
+         + '</td></tr>';
+      // Mini tableau état
+      f += '<tr><td colspan="2" style="border:none;padding:0;">';
+      f += '<table style="border-collapse:collapse;width:100%;"><tr>'
+         + '<th style="font-size:7.5pt;padding:3pt;border:1px solid #ffffff;">Capteurs</th>'
+         + '<th style="font-size:7.5pt;padding:3pt;border:1px solid #ffffff;">État Tête</th>'
+         + '<th style="font-size:7.5pt;padding:3pt;border:1px solid #ffffff;">Platen Roller</th>'
+         + '<th style="font-size:7.5pt;padding:3pt;border:1px solid #ffffff;">Test Imp.</th>'
+         + '<th style="font-size:7.5pt;padding:3pt;border:1px solid #ffffff;">Général</th>'
+         + '</tr><tr>'
+         + '<td style="font-size:8pt;padding:3pt;border:1px solid #94a3b8;">'+escHtml(r.cell||'-')+'</td>'
+         + '<td style="font-size:8pt;padding:3pt;border:1px solid #94a3b8;">'+escHtml(r.dot||'-')+'</td>'
+         + '<td style="font-size:8pt;padding:3pt;border:1px solid #94a3b8;">'+escHtml(r.roll||'-')+'</td>'
+         + '<td style="font-size:8pt;padding:3pt;border:1px solid #94a3b8;">'+escHtml(r.imp||'-')+'</td>'
+         + '<td style="font-size:8pt;padding:3pt;border:1px solid #94a3b8;'+clr+'">'+escHtml(r.gen||'-')+'</td>'
+         + '</tr></table></td></tr>';
+      // Remarques
+      f += '<tr><td colspan="2" style="font-size:8.5pt;padding:5pt 8pt;border:1px solid #94a3b8;text-align:left;">'
+         + '<b>Remarques\u00a0:</b> ' + remHtml + '</td></tr>';
+      // Photos de la fiche (jusqu'à 4, 2 par ligne)
+      f += '<tr><td colspan="2" style="border:1px solid #94a3b8;padding:5pt;">';
+      var photosF = r.photos.slice(0, 4);
+      for (var pi=0; pi<photosF.length; pi+=2) {
+        f += '<table style="border:none;border-collapse:collapse;width:100%;"><tr>';
+        for (var pj=pi; pj<Math.min(pi+2, photosF.length); pj++) {
+          f += '<td style="border:none;padding:2pt;width:50%;text-align:center;">';
+          f += '<img src="'+photosF[pj]+'" width="'+IMG_W_PX+'" height="'+IMG_H_PX+'" '
+             + 'style="width:'+IMG_W_PT+'pt;height:'+IMG_H_PT+'pt;mso-width-source:absolute;mso-height-source:absolute;'
+             + 'object-fit:cover;border:1px solid #cbd5e1;display:block;margin:0 auto;">';
+          f += '</td>';
         }
-        if (page.slice(ri,ri+2).length===1) {
-          photos += '<td style="border:none;width:50%;"></td>';
-        }
-        photos += '</tr></table>';
+        if (photosF.slice(pi,pi+2).length===1) f += '<td style="border:none;width:50%;"></td>';
+        f += '</tr></table>';
       }
+      f += '</td></tr></table>';
+      return f;
+    }
+
+    for (var fi=0; fi<fiches.length; fi+=2) {
+      if (fi>0) photos += '<div class="pb"></div>';
+      photos += '<table style="border:none;border-collapse:collapse;width:100%;"><tr>';
+      photos += '<td style="border:none;width:50%;vertical-align:top;padding:0 6pt 0 0;">' + buildFiche(fiches[fi]) + '</td>';
+      if (fiches[fi+1]) {
+        photos += '<td style="border:none;width:50%;vertical-align:top;padding:0 0 0 6pt;">' + buildFiche(fiches[fi+1]) + '</td>';
+      } else {
+        photos += '<td style="border:none;width:50%;"></td>';
+      }
+      photos += '</tr></table>';
     }
   }
 
@@ -1105,7 +1139,7 @@ function exportWord() {
     +'<p style="margin:0 0 6px;">Faire un nettoyage régulier des têtes et rollers, vous permettra de gagner en qualité d\'impression et en longévité des têtes d\'impression.</p>'
     +'<p style="margin:0;">&#9888;&#65039; Ne pas utiliser de cutter pour enlever les étiquettes collées sur le roller afin de ne pas l\'abimer, utiliser de la bombe décolle étiquettes.</p>'
     +'</div>'
-    +(hasP?photos:'')
+    +photos
     +'</div></body></html>';
   var blob=new Blob(['\ufeff'+html],{type:'application/msword'});
   var a=document.createElement('a');
