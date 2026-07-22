@@ -1026,7 +1026,9 @@ function exportWord() {
       lignes+='<tr>'
         +'<td style="text-align:left;font-weight:bold">'+escHtml(r.modele||'-')
         +'<br><span style="color:#64748b;font-size:8pt">'+escHtml(r.lieu||'')+'</span></td>'
-        +'<td style="font-weight:bold">'+escHtml(r.serial||'-')
+        +'<td style="font-weight:bold">'+( r.photos && r.photos.length
+          ? '<a href="#fiche_'+r.id+'" style="color:#0d1f8c;text-decoration:underline;">'+escHtml(r.serial||'-')+' &#128247;</a>'
+          : escHtml(r.serial||'-') )
         +'<br><span style="font-weight:normal;color:#475569;font-size:8pt">'+escHtml(r.ip||'')+'</span></td>'
         +'<td>'+escHtml(r.cell||'-')+'</td>'
         +'<td>'+escHtml(r.dot||'-')+'</td>'
@@ -1051,10 +1053,12 @@ function exportWord() {
     function buildFiche(r) {
       var clr = r.gen==='Voir Rem' ? 'color:#dc2626;font-weight:bold' : '';
       var remHtml = r.rem ? escHtml(r.rem).replace(/(^|\s)-\s*/g, '$1<br>- ').replace(/^<br>/, '') : 'Rien à signaler';
-      var f = '<table style="border:2px solid #0d1f8c;border-collapse:collapse;width:100%;margin-bottom:4pt;">';
-      // En-tête fiche : modèle + S/N + zone/lieu
+      var f = '<a name="fiche_'+r.id+'"></a>';
+      f += '<table style="border:2px solid #0d1f8c;border-collapse:collapse;width:100%;margin-bottom:4pt;">';
+      // En-tête fiche : modèle + S/N + zone/lieu + retour au tableau
       f += '<tr><td colspan="2" style="background:#0d1f8c;color:#fff;font-weight:bold;font-size:10pt;padding:5pt 8pt;border:none;text-align:left;">'
          + escHtml(r.modele||'-') + (r.lieu ? ' — '+escHtml(r.lieu) : '') + (r.zone ? ' &#128205; '+escHtml(r.zone) : '')
+         + '&nbsp;&nbsp;<a href="#tableau_recap" style="color:#93c5fd;font-size:8pt;font-weight:normal;text-decoration:underline;">&#8593; retour au tableau</a>'
          + '</td></tr>';
       // Ligne info : S/N + IP
       f += '<tr><td colspan="2" style="font-size:8.5pt;padding:4pt 8pt;border:1px solid #94a3b8;text-align:left;background:#eef0fb;">'
@@ -1127,6 +1131,7 @@ function exportWord() {
     +'<td><b>Client / Site :</b> '+site+'</td><td><b>Intervenant :</b> '+interv+'</td>'
     +'<td><b>Imprimante :</b> '+parc+'</td><td><b>Date :</b> '+date+'</td>'
     +'<td><b>Équipements :</b> '+data.length+'</td></tr></table>'
+    +'<a name="tableau_recap"></a>'
     +'<table><thead><tr>'
     +'<th style="width:15%;text-align:left">Modèle / ID</th>'
     +'<th style="width:15%">S/N — Adresse IP</th>'
