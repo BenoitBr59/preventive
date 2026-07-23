@@ -1027,7 +1027,7 @@ function exportWord() {
         +'<td style="text-align:left;font-weight:bold">'+escHtml(r.modele||'-')
         +'<br><span style="color:#64748b;font-size:8pt">'+escHtml(r.lieu||'')+'</span></td>'
         +'<td style="font-weight:bold">'+( r.photos && r.photos.length
-          ? '<a href="#fiche_'+r.id+'" style="color:#0d1f8c;text-decoration:underline;">'+escHtml(r.serial||'-')+' &#128247;</a>'
+          ? '<a href="#fiche_'+r.id+'" title="Ctrl+clic pour voir la fiche détaillée" style="color:#0d1f8c;text-decoration:underline;">'+escHtml(r.serial||'-')+'</a>'
           : escHtml(r.serial||'-') )
         +'<br><span style="font-weight:normal;color:#475569;font-size:8pt">'+escHtml(r.ip||'')+'</span></td>'
         +'<td>'+escHtml(r.cell||'-')+'</td>'
@@ -1047,14 +1047,11 @@ function exportWord() {
     photos += '<h2 style="color:#0d1f8c;font-family:Arial,sans-serif;font-size:14pt;margin-bottom:6pt;">Fiches Détaillées — Imprimantes avec Observations</h2>';
     photos += '<p style="font-family:Arial,sans-serif;font-size:9pt;color:#222;line-height:1.5;margin:0 0 12pt;">Ci-dessous, le détail des imprimantes présentant un défaut d\'impression à un ou plusieurs endroits soumis à votre attention pour un changement éventuel ou nécessaire, ainsi que les traces de manque de matière.</p>';
 
-    var IMG_W_PT=132, IMG_H_PT=53;
-    var IMG_W_PX=Math.round(IMG_W_PT*1.333), IMG_H_PX=Math.round(IMG_H_PT*1.333);
-
     function buildFiche(r) {
       var clr = r.gen==='Voir Rem' ? 'color:#dc2626;font-weight:bold' : '';
       var remHtml = r.rem ? escHtml(r.rem).replace(/(^|\s)-\s*/g, '$1<br>- ').replace(/^<br>/, '') : 'Rien à signaler';
       var f = '<a name="fiche_'+r.id+'"></a>';
-      f += '<table style="border:2px solid #0d1f8c;border-collapse:collapse;width:100%;margin-bottom:4pt;">';
+      f += '<table style="border:2px solid #0d1f8c;border-collapse:collapse;width:100%;margin-bottom:4pt;page-break-inside:avoid;mso-break-wrap:none;">';
       // En-tête fiche : modèle + S/N + zone/lieu + retour au tableau
       f += '<tr><td colspan="2" style="background:#0d1f8c;color:#fff;font-weight:bold;font-size:10pt;padding:5pt 8pt;border:none;text-align:left;">'
          + escHtml(r.modele||'-') + (r.lieu ? ' — '+escHtml(r.lieu) : '') + (r.zone ? ' &#128205; '+escHtml(r.zone) : '')
@@ -1082,19 +1079,29 @@ function exportWord() {
       // Remarques
       f += '<tr><td colspan="2" style="font-size:8.5pt;padding:5pt 8pt;border:1px solid #94a3b8;text-align:left;">'
          + '<b>Remarques\u00a0:</b> ' + remHtml + '</td></tr>';
-      // Photos de la fiche (jusqu'à 4, 2 par ligne)
+      // Photos de la fiche (jusqu'à 4), taille adaptée à leur nombre
       f += '<tr><td colspan="2" style="border:1px solid #94a3b8;padding:5pt;">';
       var photosF = r.photos.slice(0, 4);
-      for (var pi=0; pi<photosF.length; pi+=2) {
+      var nbP = photosF.length;
+      // Dimensions adaptatives : moins de photos = plus grandes (ratio 10/4 conservé)
+      var pW, pH, parLigne;
+      if (nbP === 1)      { pW = 260; pH = 104; parLigne = 1; }
+      else if (nbP === 2) { pW = 260; pH = 104; parLigne = 1; } // empilées, même taille que 1 seule
+      else                { pW = 130; pH = 52;  parLigne = 2; } // 3 ou 4 photos
+      var pW_PX = Math.round(pW*1.333), pH_PX = Math.round(pH*1.333);
+      var cellW = Math.floor(100/parLigne);
+      for (var pi=0; pi<photosF.length; pi+=parLigne) {
         f += '<table style="border:none;border-collapse:collapse;width:100%;"><tr>';
-        for (var pj=pi; pj<Math.min(pi+2, photosF.length); pj++) {
-          f += '<td style="border:none;padding:2pt;width:50%;text-align:center;">';
-          f += '<img src="'+photosF[pj]+'" width="'+IMG_W_PX+'" height="'+IMG_H_PX+'" '
-             + 'style="width:'+IMG_W_PT+'pt;height:'+IMG_H_PT+'pt;mso-width-source:absolute;mso-height-source:absolute;'
+        for (var pj=pi; pj<Math.min(pi+parLigne, photosF.length); pj++) {
+          f += '<td style="border:none;padding:2pt;width:'+cellW+'%;text-align:center;">';
+          f += '<img src="'+photosF[pj]+'" width="'+pW_PX+'" height="'+pH_PX+'" '
+             + 'style="width:'+pW+'pt;height:'+pH+'pt;mso-width-source:absolute;mso-height-source:absolute;'
              + 'object-fit:cover;border:1px solid #cbd5e1;display:block;margin:0 auto;">';
           f += '</td>';
         }
-        if (photosF.slice(pi,pi+2).length===1) f += '<td style="border:none;width:50%;"></td>';
+        if (photosF.slice(pi,pi+parLigne).length < parLigne) {
+          for (var e=photosF.slice(pi,pi+parLigne).length; e<parLigne; e++) f += '<td style="border:none;width:'+cellW+'%;"></td>';
+        }
         f += '</tr></table>';
       }
       f += '</td></tr></table>';
@@ -1124,7 +1131,7 @@ function exportWord() {
     +'h1{color:#0d1f8c;font-size:16pt;margin:0 0 2px;text-transform:uppercase}.pb{page-break-before:always}'
     +'</style></head><body><div class="Section1">'
     +'<table style="margin-bottom:10px;border:none"><tr>'
-    +'<td style="border:none;width:58px;vertical-align:middle"><img src="'+logo+'" style="height:35px;width:auto"></td>'
+    +'<td style="border:none;width:auto;vertical-align:middle"><img src="'+logo+'" width="151" height="151" style="height:4cm;width:4cm;mso-width-source:absolute;mso-height-source:absolute;"></td>'
     +'<td style="border:none;vertical-align:middle"><h1>Rapport de Maintenance Préventive</h1>'
     +'<div style="color:#555;font-size:9pt">Identification Automatique — Parc Imprimantes</div></td></tr></table>'
     +'<table class="m" style="margin-bottom:14px"><tr>'
@@ -1133,11 +1140,11 @@ function exportWord() {
     +'<td><b>Équipements :</b> '+data.length+'</td></tr></table>'
     +'<a name="tableau_recap"></a>'
     +'<table><thead><tr>'
-    +'<th style="width:15%;text-align:left">Modèle / ID</th>'
+    +'<th style="width:12%;text-align:left">Modèle / ID</th>'
     +'<th style="width:15%">S/N — Adresse IP</th>'
     +'<th style="width:8%">Capteurs</th><th style="width:10%">État tête d\'impression</th>'
     +'<th style="width:9%">Platen Roller</th><th style="width:8%">Test Imp.</th>'
-    +'<th style="width:8%">Général</th><th style="width:27%;text-align:left">Remarques</th>'
+    +'<th style="width:8%">Général</th><th style="width:30%;text-align:left">Remarques</th>'
     +'</tr></thead><tbody>'+lignes+'</tbody></table>'
     +'<div style="margin-top:14px;font-size:9pt;line-height:1.5;">'
     +'<p style="margin:0 0 4px;text-decoration:underline;font-weight:bold;">Remarque :</p>'
