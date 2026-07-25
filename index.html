@@ -114,6 +114,12 @@
   <div>
     <label class="block text-xs font-medium text-gray-700 mb-1">Modèle (P/N)</label>
     <input type="text" id="fModele" class="w-full bg-yellow-50 border border-gray-300 rounded px-3 py-1.5 text-sm font-semibold" placeholder="Scanné ou saisi" required>
+    <select id="fOption" class="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs mt-1">
+      <option value="">Option — Aucune</option>
+      <option value="Cutter">Cutter</option>
+      <option value="Rembobineur">Rembobineur</option>
+      <option value="Peel-off">Peel-off</option>
+    </select>
   </div>
   <div>
     <label class="block text-xs font-medium text-gray-700 mb-1">Machine ID / Lieu</label>
@@ -421,6 +427,7 @@ function ajouterEquip(e) {
     if (idx !== -1) {
       data[idx].zone   = g('fZone').value.trim();
       data[idx].modele = g('fModele').value.trim();
+      data[idx].option = g('fOption').value;
       data[idx].lieu   = g('fLieu').value.trim();
       data[idx].serial = g('fSerial').value.trim();
       data[idx].ip     = g('fIp').value.trim();
@@ -439,6 +446,7 @@ function ajouterEquip(e) {
       id:     Date.now(),
       zone:   g('fZone').value.trim(),
       modele: g('fModele').value.trim(),
+      option: g('fOption').value,
       lieu:   g('fLieu').value.trim(),
       serial: g('fSerial').value.trim(),
       ip:     (function(){
@@ -461,6 +469,7 @@ function ajouterEquip(e) {
   // En mode ajout : vider les champs clés mais garder la zone (gain de temps)
   // Garder fZone et fIpPrefix pour l'entrée suivante
   ['fModele','fSerial','fLieu','fRem'].forEach(function(id){ g(id).value=''; });
+  g('fOption').value = '';
   g('fIpSuffix').value = '';
   g('fIp').value = '';
   // Remettre les états à OK pour ne pas hériter du diagnostic de la machine précédente
@@ -489,6 +498,7 @@ function editer(id) {
   // Remplir le formulaire avec les données de la ligne
   g('fZone').value   = r.zone   || '';
   g('fModele').value = r.modele || '';
+  g('fOption').value = r.option || '';
   g('fLieu').value   = r.lieu   || '';
   g('fSerial').value = r.serial || '';
   // Découper l'IP en préfixe + suffixe
@@ -528,7 +538,7 @@ function editer(id) {
 
 function annulerEdit() {
   editId = null;
-  ['fModele','fSerial','fLieu','fRem','fZone'].forEach(function(id){ g(id).value=''; });
+  ['fModele','fSerial','fLieu','fRem','fZone','fOption'].forEach(function(id){ g(id).value=''; });
   g('fIpPrefix').value=''; g('fIpSuffix').value=''; g('fIp').value='';
   g('fIpSelect').value=''; g('btnSuppReseau').style.display='none';
   resetEtatsSelects();
@@ -592,9 +602,13 @@ function majTab() {
       var photoBadge = (r.photos && r.photos.length)
         ? '<span style="display:inline-block;margin-left:6px;background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:bold;padding:1px 6px;border-radius:999px;white-space:nowrap;">&#128247; '+r.photos.length+'</span>'
         : '';
+      var optionBadge = r.option
+        ? '<span style="display:inline-block;margin-left:6px;background:#fef3c7;color:#92400e;font-size:10px;font-weight:bold;padding:1px 6px;border-radius:999px;white-space:nowrap;">'+escHtml(r.option)+'</span>'
+        : '';
       html += '<tr class="hover:bg-blue-50 text-xs border-b border-gray-100">'
         + '<td class="px-4 py-2 text-left">'
         + '<span style="font-weight:bold;color:#111827;">'+escHtml(r.modele)+'</span>'
+        + optionBadge
         + lieuLine
         + '</td>'
         + '<td class="px-3 py-2 text-center font-mono font-bold text-gray-700 tracking-wider">'+escHtml(r.serial)+photoBadge+'</td>'
@@ -1056,6 +1070,7 @@ function exportWord() {
       var clr=r.gen==='Voir Rem'?'color:#dc2626;font-weight:bold':'';
       lignes+='<tr>'
         +'<td style="text-align:left;font-weight:bold">'+escHtml(r.modele||'-')
+        +( r.option ? ' <span style="background:#fef3c7;color:#92400e;font-size:7.5pt;font-weight:bold;padding:1px 4px;border-radius:6px;">'+escHtml(r.option)+'</span>' : '' )
         +'<br><span style="color:#64748b;font-size:8pt">'+escHtml(r.lieu||'')+'</span></td>'
         +'<td style="font-weight:bold">'+( r.photos && r.photos.length
           ? '<a href="#fiche_'+r.id+'" title="Ctrl+clic pour voir la fiche détaillée" style="color:#0d1f8c;text-decoration:underline;">'+escHtml(r.serial||'-')+'</a>'
@@ -1085,7 +1100,7 @@ function exportWord() {
       f += '<table style="border:2px solid #0d1f8c;border-collapse:collapse;width:100%;table-layout:fixed;margin-bottom:4pt;page-break-inside:avoid;mso-break-wrap:none;">';
       // En-tête fiche : modèle + S/N + zone/lieu + retour au tableau
       f += '<tr><td colspan="2" style="background:#0d1f8c;color:#fff;font-weight:bold;font-size:10pt;padding:5pt 8pt;border:none;text-align:left;">'
-         + escHtml(r.modele||'-') + (r.lieu ? ' — '+escHtml(r.lieu) : '') + (r.zone ? ' &#128205; '+escHtml(r.zone) : '')
+         + escHtml(r.modele||'-') + (r.option ? ' ['+escHtml(r.option)+']' : '') + (r.lieu ? ' — '+escHtml(r.lieu) : '') + (r.zone ? ' &#128205; '+escHtml(r.zone) : '')
          + '&nbsp;&nbsp;<a href="#tableau_recap" style="color:#93c5fd;font-size:8pt;font-weight:normal;text-decoration:underline;">&#8593; retour au tableau</a>'
          + '</td></tr>';
       // Ligne info : S/N + IP
