@@ -83,7 +83,7 @@
   <div>
     <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Parc d'imprimantes</label>
     <select id="hBrand" onchange="save()" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
-      <option>ZEBRA</option><option>HONEYWELL</option><option>TOSHIBA</option><option>INTERMEC</option>
+      <option>ZEBRA</option><option>HONEYWELL</option><option>TOSHIBA</option><option>INTERMEC</option><option>CAB</option><option>SATO</option>
     </select>
   </div>
   <div>
@@ -200,8 +200,12 @@
 </form>
 
 <!-- TABLEAU -->
-<div class="flex items-center justify-between mb-2">
-  <span id="compteurEquip" class="text-xs font-bold text-gray-500"></span>
+<div class="flex items-center justify-between mb-2 gap-2">
+  <div class="relative flex-1">
+    <input type="text" id="fRecherche" oninput="majTab()" placeholder="🔍 Rechercher (modèle, S/N, lieu, zone...)"
+      class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-xs">
+  </div>
+  <span id="compteurEquip" class="text-xs font-bold text-gray-500 whitespace-nowrap"></span>
 </div>
 <div class="overflow-x-auto border border-gray-200 rounded-lg mb-4">
   <table class="min-w-full divide-y divide-gray-200 text-sm text-center">
@@ -345,7 +349,11 @@ var MODELES = [
   'ZD421 - 8dots','ZD421 - 12dots','ZD621 - 8dots','ZD621 - 12dots','ZM400 - 8dots','ZM600 - 8dots',
   'ZQ230 - 8dots','ZQ300 - 8dots','ZQ600 - 8dots','ZQ600 - 12dots','S4M+ - 8dots','S4M+ - 12dots',
   'PM42 - 8dots','PM43 - 8dots','PM43c - 8dots','PM45 - 8dots','PD43 - 8dots','PD45 - 8dots',
-  'PC43t - 8dots','PF4i - 8dots','PF4i - 12dots','B-EX4T1 - 8dots','B-SA4TM - 8dots','PX4ie - 8dots'
+  'PC43t - 8dots','PF4i - 8dots','PF4i - 12dots','B-EX4T1 - 8dots','B-SA4TM - 8dots','PX4ie - 8dots',
+  'CAB A4+ - 8dots','CAB A4+ - 12dots','CAB A6+ - 8dots','CAB A6+ - 12dots','CAB A8+ - 8dots',
+  'CAB EOS1 - 8dots','CAB EOS2 - 8dots','CAB EOS5 - 8dots','CAB MACH4 - 8dots','CAB SQUIX 4 - 8dots','CAB SQUIX 6 - 8dots',
+  'SATO CL4NX - 8dots','SATO CL4NX - 12dots','SATO CL6NX - 8dots','SATO CL6NX - 12dots',
+  'SATO CT4-LX - 8dots','SATO CT4-LX - 12dots','SATO S84NX - 8dots','SATO FX3-LX - 8dots'
 ];
 
 // == SESSION ==
@@ -536,6 +544,16 @@ function annulerEdit() {
 // == TABLEAU ==
 function majTab() {
   var tb = g('tbody');
+  // Filtrer selon le texte de recherche (modèle, S/N, lieu, zone)
+  var q = (g('fRecherche') ? g('fRecherche').value : '').trim().toLowerCase();
+  var dataAffichee = q
+    ? data.filter(function(r){
+        return (r.modele||'').toLowerCase().indexOf(q) !== -1
+            || (r.serial||'').toLowerCase().indexOf(q) !== -1
+            || (r.lieu||'').toLowerCase().indexOf(q) !== -1
+            || (r.zone||'').toLowerCase().indexOf(q) !== -1;
+      })
+    : data;
   if (!data.length) {
     tb.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine.</td></tr>';
     // Compteur global
@@ -543,10 +561,16 @@ function majTab() {
     if (ctr) ctr.textContent = '';
     return;
   }
+  if (!dataAffichee.length) {
+    tb.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucun résultat pour cette recherche.</td></tr>';
+    var ctr2 = g('compteurEquip');
+    if (ctr2) ctr2.textContent = '0 / ' + data.length + ' équipement' + (data.length > 1 ? 's' : '');
+    return;
+  }
   // Grouper par ZONE uniquement
   var groupes = {};
   var ordre = [];
-  data.forEach(function(r) {
+  dataAffichee.forEach(function(r) {
     var cle = r.zone || '';
     if (!groupes[cle]) { groupes[cle]=[]; ordre.push(cle); }
     groupes[cle].push(r);
@@ -565,12 +589,15 @@ function majTab() {
       var lieuLine = r.lieu
         ? '<div style="font-size:11px;color:#6b7280;font-style:italic;font-weight:normal;">'+escHtml(r.lieu)+'</div>'
         : '';
+      var photoBadge = (r.photos && r.photos.length)
+        ? '<span style="display:inline-block;margin-left:6px;background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:bold;padding:1px 6px;border-radius:999px;white-space:nowrap;">&#128247; '+r.photos.length+'</span>'
+        : '';
       html += '<tr class="hover:bg-blue-50 text-xs border-b border-gray-100">'
         + '<td class="px-4 py-2 text-left">'
         + '<span style="font-weight:bold;color:#111827;">'+escHtml(r.modele)+'</span>'
         + lieuLine
         + '</td>'
-        + '<td class="px-3 py-2 text-center font-mono font-bold text-gray-700 tracking-wider">'+escHtml(r.serial)+'</td>'
+        + '<td class="px-3 py-2 text-center font-mono font-bold text-gray-700 tracking-wider">'+escHtml(r.serial)+photoBadge+'</td>'
         + '<td class="px-3 py-2 text-center" style="white-space:nowrap;">'
         + '<button type="button" onclick="editer('+r.id+')" title="Modifier" style="color:#2563eb;font-size:18px;background:none;border:none;cursor:pointer;margin-right:8px;">&#9998;</button>'
         + '<button type="button" onclick="del('+r.id+')" title="Supprimer" style="color:#ef4444;font-size:18px;background:none;border:none;cursor:pointer;">&#128465;</button>'
@@ -578,9 +605,13 @@ function majTab() {
     });
   });
   tb.innerHTML = html;
-  // Mettre à jour le compteur global
+  // Mettre à jour le compteur global (avec indication du filtrage actif)
   var ctr = g('compteurEquip');
-  if (ctr) ctr.textContent = data.length + ' équipement' + (data.length > 1 ? 's' : '');
+  if (ctr) {
+    ctr.textContent = q
+      ? dataAffichee.length + ' / ' + data.length + ' équipement' + (data.length > 1 ? 's' : '')
+      : data.length + ' équipement' + (data.length > 1 ? 's' : '');
+  }
 }
 function del(id) {
   var r = data.find(function(r){return r.id===id;});
@@ -1044,14 +1075,14 @@ function exportWord() {
   var fiches = data.filter(function(r){ return r.photos && r.photos.length > 0; });
   if (fiches.length) {
     photos = '<div class="pb"></div>';
-    photos += '<h2 style="color:#0d1f8c;font-family:Arial,sans-serif;font-size:14pt;margin-bottom:6pt;">Fiches Détaillées — Imprimantes avec Observations</h2>';
-    photos += '<p style="font-family:Arial,sans-serif;font-size:9pt;color:#222;line-height:1.5;margin:0 0 12pt;">Ci-dessous, le détail des imprimantes présentant un défaut d\'impression à un ou plusieurs endroits soumis à votre attention pour un changement éventuel ou nécessaire, ainsi que les traces de manque de matière.</p>';
+    photos += '<h2 style="color:#0d1f8c;font-family:Arial,sans-serif;font-size:14pt;margin-bottom:6pt;page-break-after:avoid;">Fiches Détaillées — Imprimantes avec Observations</h2>';
+    photos += '<p style="font-family:Arial,sans-serif;font-size:9pt;color:#222;line-height:1.5;margin:0 0 12pt;page-break-after:avoid;">Ci-dessous, le détail des imprimantes présentant un défaut d\'impression à un ou plusieurs endroits soumis à votre attention pour un changement éventuel ou nécessaire, ainsi que les traces de manque de matière.</p>';
 
     function buildFiche(r) {
       var clr = r.gen==='Voir Rem' ? 'color:#dc2626;font-weight:bold' : '';
       var remHtml = r.rem ? escHtml(r.rem).replace(/(^|\s)-\s*/g, '$1<br>- ').replace(/^<br>/, '') : 'Rien à signaler';
       var f = '<a name="fiche_'+r.id+'"></a>';
-      f += '<table style="border:2px solid #0d1f8c;border-collapse:collapse;width:100%;margin-bottom:4pt;page-break-inside:avoid;mso-break-wrap:none;">';
+      f += '<table style="border:2px solid #0d1f8c;border-collapse:collapse;width:100%;table-layout:fixed;margin-bottom:4pt;page-break-inside:avoid;mso-break-wrap:none;">';
       // En-tête fiche : modèle + S/N + zone/lieu + retour au tableau
       f += '<tr><td colspan="2" style="background:#0d1f8c;color:#fff;font-weight:bold;font-size:10pt;padding:5pt 8pt;border:none;text-align:left;">'
          + escHtml(r.modele||'-') + (r.lieu ? ' — '+escHtml(r.lieu) : '') + (r.zone ? ' &#128205; '+escHtml(r.zone) : '')
@@ -1063,39 +1094,39 @@ function exportWord() {
          + '</td></tr>';
       // Mini tableau état
       f += '<tr><td colspan="2" style="border:none;padding:0;">';
-      f += '<table style="border-collapse:collapse;width:100%;"><tr>'
-         + '<th style="font-size:7.5pt;padding:3pt;border:1px solid #ffffff;">Capt.</th>'
-         + '<th style="font-size:7.5pt;padding:3pt;border:1px solid #ffffff;">Tête</th>'
-         + '<th style="font-size:7.5pt;padding:3pt;border:1px solid #ffffff;">Roller</th>'
-         + '<th style="font-size:7.5pt;padding:3pt;border:1px solid #ffffff;">Imp.</th>'
-         + '<th style="font-size:7.5pt;padding:3pt;border:1px solid #ffffff;">Général</th>'
+      f += '<table style="border-collapse:collapse;width:100%;table-layout:fixed;"><tr>'
+         + '<th style="width:20%;font-size:7.5pt;padding:3pt;border:1px solid #ffffff;">Capt.</th>'
+         + '<th style="width:20%;font-size:7.5pt;padding:3pt;border:1px solid #ffffff;">Tête</th>'
+         + '<th style="width:20%;font-size:7.5pt;padding:3pt;border:1px solid #ffffff;">Roller</th>'
+         + '<th style="width:20%;font-size:7.5pt;padding:3pt;border:1px solid #ffffff;">Imp.</th>'
+         + '<th style="width:20%;font-size:7.5pt;padding:3pt;border:1px solid #ffffff;">Général</th>'
          + '</tr><tr>'
-         + '<td style="font-size:8pt;padding:3pt;border:1px solid #94a3b8;">'+escHtml(r.cell||'-')+'</td>'
-         + '<td style="font-size:8pt;padding:3pt;border:1px solid #94a3b8;">'+escHtml(r.dot||'-')+'</td>'
-         + '<td style="font-size:8pt;padding:3pt;border:1px solid #94a3b8;">'+escHtml(r.roll||'-')+'</td>'
-         + '<td style="font-size:8pt;padding:3pt;border:1px solid #94a3b8;">'+escHtml(r.imp||'-')+'</td>'
-         + '<td style="font-size:8pt;padding:3pt;border:1px solid #94a3b8;'+clr+'">'+escHtml(r.gen||'-')+'</td>'
+         + '<td style="width:20%;font-size:8pt;padding:3pt;border:1px solid #94a3b8;">'+escHtml(r.cell||'-')+'</td>'
+         + '<td style="width:20%;font-size:8pt;padding:3pt;border:1px solid #94a3b8;">'+escHtml(r.dot||'-')+'</td>'
+         + '<td style="width:20%;font-size:8pt;padding:3pt;border:1px solid #94a3b8;">'+escHtml(r.roll||'-')+'</td>'
+         + '<td style="width:20%;font-size:8pt;padding:3pt;border:1px solid #94a3b8;">'+escHtml(r.imp||'-')+'</td>'
+         + '<td style="width:20%;font-size:8pt;padding:3pt;border:1px solid #94a3b8;'+clr+'">'+escHtml(r.gen||'-')+'</td>'
          + '</tr></table></td></tr>';
       // Remarques
-      f += '<tr><td colspan="2" style="font-size:8.5pt;padding:5pt 8pt;border:1px solid #94a3b8;text-align:left;">'
+      f += '<tr><td colspan="2" style="font-size:8pt;padding:4pt 8pt;border:1px solid #94a3b8;text-align:left;line-height:1.3;">'
          + '<b>Remarques\u00a0:</b> ' + remHtml + '</td></tr>';
-      // Photos de la fiche (jusqu'à 4), taille adaptée à leur nombre
+      // Photos de la fiche (jusqu'à 4), taille calculée pour TOUJOURS tenir sur une page
       f += '<tr><td colspan="2" style="border:1px solid #94a3b8;padding:5pt;">';
       var photosF = r.photos.slice(0, 4);
       var nbP = photosF.length;
-      // Dimensions adaptatives : moins de photos = plus grandes (ratio 10/4 conservé)
-      var pW, pH, parLigne;
-      if (nbP === 1)      { pW = 260; pH = 104; parLigne = 1; }
-      else if (nbP === 2) { pW = 260; pH = 104; parLigne = 1; } // empilées, même taille que 1 seule
-      else                { pW = 130; pH = 52;  parLigne = 2; } // 3 ou 4 photos
-      var pW_PX = Math.round(pW*1.333), pH_PX = Math.round(pH*1.333);
+      // Budget de hauteur plafonné pour garantir que la fiche ne déborde jamais sur 2 pages
+      var pWcm, pHcm, parLigne;
+      if (nbP === 1)      { pWcm = 12; pHcm = 4.8; parLigne = 1; }
+      else if (nbP === 2) { pWcm = 10; pHcm = 4;   parLigne = 1; } // empilées, réduites pour tenir en hauteur
+      else                { pWcm = 6;  pHcm = 2.4; parLigne = 2; } // 3 ou 4 photos
+      var pW_PX = Math.round(pWcm*37.795), pH_PX = Math.round(pHcm*37.795);
       var cellW = Math.floor(100/parLigne);
       for (var pi=0; pi<photosF.length; pi+=parLigne) {
-        f += '<table style="border:none;border-collapse:collapse;width:100%;"><tr>';
+        f += '<table style="border:none;border-collapse:collapse;width:100%;table-layout:fixed;"><tr>';
         for (var pj=pi; pj<Math.min(pi+parLigne, photosF.length); pj++) {
           f += '<td style="border:none;padding:2pt;width:'+cellW+'%;text-align:center;">';
           f += '<img src="'+photosF[pj]+'" width="'+pW_PX+'" height="'+pH_PX+'" '
-             + 'style="width:'+pW+'pt;height:'+pH+'pt;mso-width-source:absolute;mso-height-source:absolute;'
+             + 'style="width:'+pWcm+'cm;height:'+pHcm+'cm;mso-width-source:absolute;mso-height-source:absolute;'
              + 'object-fit:cover;border:1px solid #cbd5e1;display:block;margin:0 auto;">';
           f += '</td>';
         }
@@ -1110,10 +1141,10 @@ function exportWord() {
 
     for (var fi=0; fi<fiches.length; fi+=2) {
       if (fi>0) photos += '<div class="pb"></div>';
-      photos += '<table style="border:none;border-collapse:collapse;width:100%;"><tr>';
-      photos += '<td style="border:none;width:50%;vertical-align:top;padding:0 6pt 0 0;">' + buildFiche(fiches[fi]) + '</td>';
+      photos += '<table style="border:none;border-collapse:collapse;width:100%;table-layout:fixed;page-break-inside:avoid;mso-break-wrap:none;"><tr style="page-break-inside:avoid;">';
+      photos += '<td style="border:none;width:50%;vertical-align:top;padding:0 6pt 0 0;page-break-inside:avoid;">' + buildFiche(fiches[fi]) + '</td>';
       if (fiches[fi+1]) {
-        photos += '<td style="border:none;width:50%;vertical-align:top;padding:0 0 0 6pt;">' + buildFiche(fiches[fi+1]) + '</td>';
+        photos += '<td style="border:none;width:50%;vertical-align:top;padding:0 0 0 6pt;page-break-inside:avoid;">' + buildFiche(fiches[fi+1]) + '</td>';
       } else {
         photos += '<td style="border:none;width:50%;"></td>';
       }
@@ -1123,13 +1154,16 @@ function exportWord() {
 
   var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
     +'<head><meta charset="utf-8"><title>Rapport MDS</title><style>'
-    +'@page Section1{size:29.7cm 21cm;mso-page-orientation:landscape;margin:1.2cm;mso-header-margin:.5cm;mso-footer-margin:.5cm;mso-paper-source:0;}div.Section1{page:Section1;}'
+    +'@page Section1{size:29.7cm 21cm;mso-page-orientation:landscape;margin:1.2cm;mso-header-margin:.5cm;mso-footer-margin:.5cm;mso-paper-source:0;mso-footer:f1;}div.Section1{page:Section1;}'
+    +'p.footerPage{text-align:center;font-size:8pt;color:#64748b;font-family:Arial,sans-serif;margin:0;}'
     +'body{font-family:Arial,sans-serif;font-size:9pt;color:#222}table{border-collapse:collapse;width:100%}'
     +'th{background:#0d1f8c;color:#fff;padding:5px 4px;border:1px solid #ffffff;font-size:8.5pt;text-align:center}'
     +'td{padding:5px 4px;border:1px solid #94a3b8;font-size:8.5pt;vertical-align:middle;text-align:center}'
     +'.m td{border:1px solid #c7cef5;background:#eef0fb;padding:7px;font-size:9pt}'
     +'h1{color:#0d1f8c;font-size:16pt;margin:0 0 2px;text-transform:uppercase}.pb{page-break-before:always}'
-    +'</style></head><body><div class="Section1">'
+    +'</style></head><body>'
+    +'<div style="mso-element:footer" id="f1"><p class="footerPage">Page <span style="mso-field-code:PAGE"></span> / <span style="mso-field-code:NUMPAGES"></span> \u2014 Rapport MDS Maintenance Pr\u00e9ventive</p></div>'
+    +'<div class="Section1">'
     +'<table style="margin-bottom:10px;border:none"><tr>'
     +'<td style="border:none;width:auto;vertical-align:middle"><img src="'+logo+'" width="151" height="151" style="height:4cm;width:4cm;mso-width-source:absolute;mso-height-source:absolute;"></td>'
     +'<td style="border:none;vertical-align:middle"><h1>Rapport de Maintenance Préventive</h1>'
@@ -1309,6 +1343,14 @@ window.addEventListener('beforeunload', function(e) {
   }
 });
 
+// Sauvegarde automatique quand l'app passe en arrière-plan (changement d'appli
+// sur mobile) — beforeunload n'étant pas fiable sur Android
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'hidden') {
+    save();
+  }
+});
+
 // == INIT — exécuté après chargement complet du DOM ==
 window.addEventListener('DOMContentLoaded', function() {
   loadSession();
@@ -1316,6 +1358,17 @@ window.addEventListener('DOMContentLoaded', function() {
   majTab();
   initPhoto();
   chargerReseaux();
+});
+
+// Sécurité : si la page est restaurée depuis le cache navigateur (retour après
+// changement d'appli sur mobile), s'assurer que les données affichées sont à jour
+window.addEventListener('pageshow', function(e) {
+  if (e.persisted) {
+    loadSession();
+    if (!g('hDate').value) g('hDate').value = today();
+    majTab();
+    chargerReseaux();
+  }
 });
 </script>
 </body>
