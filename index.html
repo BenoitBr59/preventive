@@ -85,9 +85,10 @@
   </div>
   <div>
     <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Parc d'imprimantes</label>
-    <select id="hBrand" onchange="save()" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
-      <option>ZEBRA</option><option>HONEYWELL</option><option>TOSHIBA</option><option>INTERMEC</option><option>CAB</option><option>SATO</option>
+    <select id="hBrand" onchange="save();majBandeauMixte();" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
+      <option>ZEBRA</option><option>HONEYWELL</option><option>TOSHIBA</option><option>INTERMEC</option><option>CAB</option><option>SATO</option><option>Mixte</option>
     </select>
+    <div id="bandeauMixte" style="display:none;margin-top:6px;background:#fef3c7;border-radius:6px;padding:6px 10px;font-size:11px;color:#92400e;"></div>
   </div>
   <div>
     <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Date</label>
@@ -123,6 +124,7 @@
       <option value="Rembobineur">Rembobineur</option>
       <option value="Peel-off">Peel-off</option>
     </select>
+    <input type="hidden" id="fMarque">
   </div>
   <div>
     <label class="block text-xs font-medium text-gray-700 mb-1">Machine ID / Lieu</label>
@@ -404,6 +406,23 @@ function loadSession() {
 }
 function today() { return new Date().toISOString().split('T')[0]; }
 function g(id) { return document.getElementById(id); }
+// Affiche la liste des marques détectées quand le Parc imprimante est en mode "Mixte"
+function majBandeauMixte() {
+  var bandeau = g('bandeauMixte');
+  if (!bandeau) return;
+  if (g('hBrand').value !== 'Mixte') { bandeau.style.display = 'none'; return; }
+  var marques = [];
+  data.forEach(function(r){
+    if (r.marque && marques.indexOf(r.marque) === -1) marques.push(r.marque);
+  });
+  if (marques.length) {
+    bandeau.style.display = 'block';
+    bandeau.innerHTML = '\u26a0\ufe0f Marques d\u00e9tect\u00e9es automatiquement : ' + marques.join(', ');
+  } else {
+    bandeau.style.display = 'block';
+    bandeau.innerHTML = '\u2139\ufe0f Scannez des imprimantes pour d\u00e9tecter les marques du parc.';
+  }
+}
 // Remet les 5 selects de diagnostic à leur valeur par défaut 'OK'
 function resetEtatsSelects() {
   ['fCell','fDot','fRoll','fImp','fGen'].forEach(function(id){ g(id).value = 'OK'; });
@@ -431,6 +450,7 @@ function ajouterEquip(e) {
       data[idx].zone   = g('fZone').value.trim();
       data[idx].modele = g('fModele').value.trim();
       data[idx].option = g('fOption').value;
+      data[idx].marque = g('fMarque').value;
       data[idx].lieu   = g('fLieu').value.trim();
       data[idx].serial = g('fSerial').value.trim();
       data[idx].ip     = g('fIp').value.trim();
@@ -450,6 +470,7 @@ function ajouterEquip(e) {
       zone:   g('fZone').value.trim(),
       modele: g('fModele').value.trim(),
       option: g('fOption').value,
+      marque: g('fMarque').value,
       lieu:   g('fLieu').value.trim(),
       serial: g('fSerial').value.trim(),
       ip:     (function(){
@@ -473,6 +494,7 @@ function ajouterEquip(e) {
   // Garder fZone et fIpPrefix pour l'entrée suivante
   ['fModele','fSerial','fLieu','fRem'].forEach(function(id){ g(id).value=''; });
   g('fOption').value = '';
+  g('fMarque').value = '';
   g('fIpSuffix').value = '';
   g('fIp').value = '';
   // Remettre les états à OK pour ne pas hériter du diagnostic de la machine précédente
@@ -502,6 +524,7 @@ function editer(id) {
   g('fZone').value   = r.zone   || '';
   g('fModele').value = r.modele || '';
   g('fOption').value = r.option || '';
+  g('fMarque').value = r.marque || '';
   g('fLieu').value   = r.lieu   || '';
   g('fSerial').value = r.serial || '';
   // Découper l'IP en préfixe + suffixe
@@ -541,7 +564,7 @@ function editer(id) {
 
 function annulerEdit() {
   editId = null;
-  ['fModele','fSerial','fLieu','fRem','fZone','fOption'].forEach(function(id){ g(id).value=''; });
+  ['fModele','fSerial','fLieu','fRem','fZone','fOption','fMarque'].forEach(function(id){ g(id).value=''; });
   g('fIpPrefix').value=''; g('fIpSuffix').value=''; g('fIp').value='';
   g('fIpSelect').value=''; g('btnSuppReseau').style.display='none';
   resetEtatsSelects();
@@ -608,9 +631,13 @@ function majTab() {
       var optionBadge = r.option
         ? '<span style="display:inline-block;margin-left:6px;background:#fef3c7;color:#92400e;font-size:10px;font-weight:bold;padding:1px 6px;border-radius:999px;white-space:nowrap;">'+escHtml(r.option)+'</span>'
         : '';
+      var marqueBadge = r.marque
+        ? '<span style="display:inline-block;margin-left:6px;background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:bold;padding:1px 6px;border-radius:999px;white-space:nowrap;">'+escHtml(r.marque)+'</span>'
+        : '';
       html += '<tr class="hover:bg-blue-50 text-xs border-b border-gray-100">'
         + '<td class="px-4 py-2 text-left">'
         + '<span style="font-weight:bold;color:#111827;">'+escHtml(r.modele)+'</span>'
+        + marqueBadge
         + optionBadge
         + lieuLine
         + '</td>'
@@ -629,6 +656,7 @@ function majTab() {
       ? dataAffichee.length + ' / ' + data.length + ' équipement' + (data.length > 1 ? 's' : '')
       : data.length + ' équipement' + (data.length > 1 ? 's' : '');
   }
+  majBandeauMixte();
 }
 function del(id) {
   var r = data.find(function(r){return r.id===id;});
@@ -767,12 +795,12 @@ function supprimerPhoto() {
 }
 
 // == SCANNER ==
-var snOk=null, pnOk=null, mode='SN', manuel=false;
+var snOk=null, pnOk=null, marqueOk=null, mode='SN', manuel=false;
 var stream=null, track=null, raf=null, det=null;
 var flash=false, lastCode='', lastAt=0;
 
 function ouvrirScanner() {
-  snOk=null; pnOk=null; mode='SN'; manuel=false;
+  snOk=null; pnOk=null; marqueOk=null; mode='SN'; manuel=false;
   lastCode=''; lastAt=0; flash=false;
   resetScanUI();
   g('scanModal').style.cssText = 'display:flex;visibility:visible;flex-direction:column;position:fixed;inset:0;background:#000;z-index:100;';
@@ -887,6 +915,7 @@ function traiter(txt) {
     var m=identModele(brut);
     if (m) {
       pnOk=m;
+      marqueOk=identMarque(brut);
       g('rPN').textContent='✅ '+m; g('rPN').style.color='#4ade80';
       g('btnVal').disabled=false; g('btnVal').style.opacity='1';
       setTimeout(validerScan, 600);
@@ -953,6 +982,7 @@ function validerScan() {
     g('fModele').style.background='#dcfce7';
     setTimeout(function(){ g('fModele').style.background='#fefce8'; }, 1500);
   }
+  if (marqueOk) { g('fMarque').value = marqueOk; }
   fermerScanner();
 }
 function fermerScanner() {
@@ -1019,7 +1049,51 @@ function identModele(pn) {
   for(var k in C){if(t.startsWith(k)){var dd=t.charAt(6);return C[k]+' - '+(dd==='3'?'12dots':dd==='6'?'24dots':'8dots');}}
   var S={'41J':'ZT411 - 8dots','42J':'ZT421 - 8dots','23J':'ZT231 - 8dots','23C':'ZT231 - 8dots','33J':'ZD421 - 8dots','41A':'ZT410 - 8dots','42A':'ZT420 - 8dots'};
   for(var k in S){if(t.startsWith(k))return S[k];}
+  // SATO : préfixe W
+  if(/^W/.test(t)){
+    if(t.startsWith('WWCLP'))  return 'CL4NX Plus - 8dots';
+    if(t.startsWith('WWCT'))   return 'CT4-LX - 12dots';
+    if(t.startsWith('WD212'))  return 'WS4-2 - 8dots';
+    if(t.startsWith('WWPV'))   return 'PV4 - 8dots';
+    return null;
+  }
+  // CAB : 7 chiffres commençant par 59
+  if(/^59\d{5}$/.test(t)){
+    if(t==='5977001') return 'SQUIX 4 - 300dpi';
+    if(t==='5977002') return 'SQUIX 4 - 600dpi';
+    if(t==='5977014') return 'SQUIX 4.3 - renforcée';
+    if(t==='5978202') return 'EOS2/300 - 300dpi';
+    return null;
+  }
+  // Honeywell : préfixe P suivi de C/D/M/X (PC/PD/PM/PX) puis chiffres
+  if(/^P[CDMX]\d/.test(t)){
+    if(t.startsWith('PC42')) return 'PC42t - 8dots';
+    if(t.startsWith('PD45')) return 'PD45S - 8dots';
+    if(t.startsWith('PM43')) return 'PM43 - 8dots';
+    if(t.startsWith('PX94')) return 'PX940V - 12dots';
+    return null;
+  }
+  // Toshiba Tec : préfixe B-
+  if(/^B-/.test(t)){
+    if(t.startsWith('B-FV4T'))  return 'B-FV4T - 8dots';
+    if(t.startsWith('B-EV4T'))  return 'B-EV4T - 8dots';
+    if(t.startsWith('B-EX4T1')) return 'B-EX4T1 - 8dots';
+    if(t.startsWith('B-EX6T1')) return 'B-EX6T1 - 8dots';
+    return null;
+  }
   if(t.indexOf('-')!==-1&&t.length>=8)return t;
+  return null;
+}
+
+// Déduit la marque du parc à partir du P/N scanné — utilisée pour le badge "Mixte"
+function identMarque(pn) {
+  var t=pn.toUpperCase().trim();
+  if(/^1P(ZT|ZD|ZM)/.test(t) || /^P1(ZT|ZD|ZM)/.test(t) || /^P(ZT|ZD|ZM)/.test(t) || /^(ZT|ZD|ZM)\d/.test(t)) return 'ZEBRA';
+  if(/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/.test(t)) return 'ZEBRA';
+  if(/^W/.test(t)) return 'SATO';
+  if(/^59\d{5}$/.test(t)) return 'CAB';
+  if(/^P[CDMX]\d/.test(t)) return 'HONEYWELL';
+  if(/^B-/.test(t)) return 'TOSHIBA';
   return null;
 }
 
@@ -1080,6 +1154,7 @@ function exportWord() {
       var clr=r.gen==='Voir Rem'?'color:#dc2626;font-weight:bold':'';
       lignes+='<tr>'
         +'<td style="text-align:left;font-weight:bold">'+escHtml(r.modele||'-')
+        +( r.marque ? ' <span style="background:#dbeafe;color:#1d4ed8;font-size:7.5pt;font-weight:bold;padding:1px 4px;border-radius:6px;">'+escHtml(r.marque)+'</span>' : '' )
         +( r.option ? ' <span style="background:#fef3c7;color:#92400e;font-size:7.5pt;font-weight:bold;padding:1px 4px;border-radius:6px;">'+escHtml(r.option)+'</span>' : '' )
         +'<br><span style="color:#64748b;font-size:8pt">'+escHtml(r.lieu||'')+'</span></td>'
         +'<td style="font-weight:bold">'+( r.photos && r.photos.length
@@ -1110,7 +1185,7 @@ function exportWord() {
       f += '<table style="border:2px solid #0d1f8c;border-collapse:collapse;width:100%;table-layout:fixed;margin-bottom:4pt;page-break-inside:avoid;mso-break-wrap:none;">';
       // En-tête fiche : modèle + S/N + zone/lieu + retour au tableau
       f += '<tr><td colspan="2" style="background:#0d1f8c;color:#fff;font-weight:bold;font-size:10pt;padding:5pt 8pt;border:none;text-align:left;">'
-         + escHtml(r.modele||'-') + (r.option ? ' ['+escHtml(r.option)+']' : '') + (r.lieu ? ' — '+escHtml(r.lieu) : '') + (r.zone ? ' &#128205; '+escHtml(r.zone) : '')
+         + escHtml(r.modele||'-') + (r.marque ? ' ('+escHtml(r.marque)+')' : '') + (r.option ? ' ['+escHtml(r.option)+']' : '') + (r.lieu ? ' — '+escHtml(r.lieu) : '') + (r.zone ? ' &#128205; '+escHtml(r.zone) : '')
          + '&nbsp;&nbsp;<a href="#tableau_recap" style="color:#93c5fd;font-size:8pt;font-weight:normal;text-decoration:underline;">&#8593; retour au tableau</a>'
          + '</td></tr>';
       // Ligne info : S/N + IP
