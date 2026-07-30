@@ -86,7 +86,7 @@
   <div>
     <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Parc d'imprimantes</label>
     <select id="hBrand" onchange="save();majBandeauMixte();" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
-      <option>ZEBRA</option><option>HONEYWELL</option><option>TOSHIBA</option><option>INTERMEC</option><option>CAB</option><option>SATO</option><option>Mixte</option>
+      <option>ZEBRA</option><option>HONEYWELL</option><option>TOSHIBA</option><option>INTERMEC</option><option>CAB</option><option>SATO</option><option>TSC</option><option>Mixte</option>
     </select>
     <div id="bandeauMixte" style="display:none;margin-top:6px;background:#fef3c7;border-radius:6px;padding:6px 10px;font-size:11px;color:#92400e;"></div>
   </div>
@@ -287,9 +287,20 @@
       <div style="font-size:10px;color:#6b7280;font-weight:bold;text-transform:uppercase;margin-bottom:8px;">Modèles courants</div>
       <div id="suggBox" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>
     </div>
+    <div id="memoBox" style="display:none;width:100%;background:#1f2937;border-radius:8px;padding:12px 16px;display:flex;flex-direction:column;gap:8px;">
+      <div style="font-size:10px;color:#9ca3af;font-weight:bold;text-transform:uppercase;">P/N scanné non reconnu — mémoriser pour la prochaine fois ?</div>
+      <div id="pnRappel" style="color:#93c5fd;font-weight:bold;font-size:13px;font-family:monospace;">—</div>
+      <select id="memoMarque" style="width:100%;background:#111827;border:1px solid #374151;color:#fff;border-radius:4px;padding:8px;font-size:13px;">
+        <option value="">Marque — choisir</option>
+        <option value="ZEBRA">ZEBRA</option><option value="HONEYWELL">HONEYWELL</option>
+        <option value="TOSHIBA">TOSHIBA</option><option value="INTERMEC">INTERMEC</option>
+        <option value="CAB">CAB</option><option value="SATO">SATO</option><option value="TSC">TSC</option>
+      </select>
+      <button type="button" onclick="memoriserPN()" style="width:100%;background:#2563eb;color:#fff;font-weight:bold;padding:8px;border-radius:4px;border:none;font-size:13px;">💾 Mémoriser ce P/N</button>
+    </div>
     <div style="width:100%;display:flex;gap:8px;">
       <button type="button" onclick="retourScan()" style="flex:1;background:#374151;color:#fff;font-weight:bold;padding:10px;border-radius:4px;border:none;font-size:14px;">← Rescanner P/N</button>
-      <button type="button" onclick="validerManuel()" style="flex:1;background:#16a34a;color:#fff;font-weight:bold;padding:10px;border-radius:4px;border:none;font-size:14px;">&#10003; Valider</button>
+      <button type="button" onclick="validerManuel()" style="flex:1;background:#16a34a;color:#fff;font-weight:bold;padding:10px;border-radius:4px;border:none;font-size:14px;">✓ Valider</button>
     </div>
   </div>
   <!-- Panneau de contrôle -->
@@ -364,7 +375,9 @@ var MODELES = [
   'CAB A4+ - 8dots','CAB A4+ - 12dots','CAB A6+ - 8dots','CAB A6+ - 12dots','CAB A8+ - 8dots',
   'CAB EOS1 - 8dots','CAB EOS2 - 8dots','CAB EOS5 - 8dots','CAB MACH4 - 8dots','CAB SQUIX 4 - 8dots','CAB SQUIX 6 - 8dots',
   'SATO CL4NX - 8dots','SATO CL4NX - 12dots','SATO CL6NX - 8dots','SATO CL6NX - 12dots',
-  'SATO CT4-LX - 8dots','SATO CT4-LX - 12dots','SATO S84NX - 8dots','SATO FX3-LX - 8dots'
+  'SATO CT4-LX - 8dots','SATO CT4-LX - 12dots','SATO S84NX - 8dots','SATO FX3-LX - 8dots',
+  'TSC MH240T - 8dots','TSC MH241 - 8dots','TSC MH261 - 8dots','TSC TTP-225 - 8dots',
+  'TSC TTP-323 - 12dots','TSC TDP-225 - 8dots','TSC TDP-244 - 8dots','TSC TTP-244CE - 8dots'
 ];
 
 // == SESSION ==
@@ -796,11 +809,12 @@ function supprimerPhoto() {
 
 // == SCANNER ==
 var snOk=null, pnOk=null, marqueOk=null, mode='SN', manuel=false;
+var dernierPNBrut = null;
 var stream=null, track=null, raf=null, det=null;
 var flash=false, lastCode='', lastAt=0;
 
 function ouvrirScanner() {
-  snOk=null; pnOk=null; marqueOk=null; mode='SN'; manuel=false;
+  snOk=null; pnOk=null; marqueOk=null; dernierPNBrut=null; mode='SN'; manuel=false;
   lastCode=''; lastAt=0; flash=false;
   resetScanUI();
   g('scanModal').style.cssText = 'display:flex;visibility:visible;flex-direction:column;position:fixed;inset:0;background:#000;z-index:100;';
@@ -923,6 +937,7 @@ function traiter(txt) {
       g('rawTxt').textContent='⚠️ P/N non reconnu : '+brut;
       g('rawTxt').style.color='#fbbf24';
       g('btnMan').style.display='block';
+      dernierPNBrut = brut;
     }
   }
 }
@@ -956,6 +971,26 @@ function ouvrirManuel() {
   g('manZone').style.flexDirection='column';
   var inp=g('manInput'); inp.value='';
   setTimeout(function(){inp.focus();},100);
+  // Afficher le bloc de mémorisation uniquement si un P/N a été scanné mais non reconnu
+  if (dernierPNBrut) {
+    g('memoBox').style.display = 'flex';
+    g('pnRappel').textContent = dernierPNBrut;
+    g('memoMarque').value = '';
+  } else {
+    g('memoBox').style.display = 'none';
+  }
+}
+
+// Mémorise le P/N scanné non reconnu dans la base personnalisée
+function memoriserPN() {
+  var pn = dernierPNBrut;
+  var marque = g('memoMarque').value;
+  var modele = g('manInput').value.trim();
+  if (!pn) { showToast('⚠️ Aucun P/N à mémoriser.'); return; }
+  if (!marque) { showToast('⚠️ Choisissez une marque avant de mémoriser.'); return; }
+  ajouterBasePN(pn, marque, modele);
+  showToast('✅ P/N ' + pn + ' mémorisé (' + marque + (modele ? ' — '+modele : '') + ').');
+  g('memoBox').style.display = 'none';
 }
 function retourScan() {
   manuel=false; lastCode=''; lastAt=0;
@@ -968,7 +1003,10 @@ function retourScan() {
 function validerManuel() {
   var v=g('manInput').value.trim();
   if (!v) { alert('Saisissez un modèle.'); return; }
-  pnOk=v; validerScan();
+  pnOk=v;
+  // Si une marque a été choisie dans le bloc mémorisation, la transmettre aussi
+  if (g('memoMarque') && g('memoMarque').value) marqueOk = g('memoMarque').value;
+  validerScan();
 }
 function validerScan() {
   if (snOk) {
@@ -1052,10 +1090,19 @@ function identModele(pn) {
   // SATO : préfixe W
   if(/^W/.test(t)){
     if(t.startsWith('WWCLP'))  return 'CL4NX Plus - 8dots';
-    if(t.startsWith('WWCT'))   return 'CT4-LX - 12dots';
+    // CT4-LX : WWCT0x041 où x code résolution+techno (1=203DT,2=305DT,3=203TT,4=305TT)
+    var mCT = t.match(/^WWCT0(\d)041/);
+    if(mCT){
+      var code = mCT[1];
+      var res = (code==='2'||code==='4') ? '12dots' : '8dots';
+      var tech = (code==='3'||code==='4') ? 'TT' : 'DT';
+      return 'CT4-LX - '+res+' ('+tech+')';
+    }
     if(t.startsWith('WD212'))  return 'WS4-2 - 8dots';
+    if(t==='WWPV41260')        return 'PV4 - 8dots';
+    if(t==='WWPV41280')        return 'PV4 - 8dots (WiFi)';
     if(t.startsWith('WWPV'))   return 'PV4 - 8dots';
-    return null;
+    return (basePN[t] && basePN[t].modele) ? basePN[t].modele : null;
   }
   // CAB : 7 chiffres commençant par 59
   if(/^59\d{5}$/.test(t)){
@@ -1063,7 +1110,7 @@ function identModele(pn) {
     if(t==='5977002') return 'SQUIX 4 - 600dpi';
     if(t==='5977014') return 'SQUIX 4.3 - renforcée';
     if(t==='5978202') return 'EOS2/300 - 300dpi';
-    return null;
+    return (basePN[t] && basePN[t].modele) ? basePN[t].modele : null;
   }
   // Honeywell : préfixe P suivi de C/D/M/X (PC/PD/PM/PX) puis chiffres
   if(/^P[CDMX]\d/.test(t)){
@@ -1071,7 +1118,7 @@ function identModele(pn) {
     if(t.startsWith('PD45')) return 'PD45S - 8dots';
     if(t.startsWith('PM43')) return 'PM43 - 8dots';
     if(t.startsWith('PX94')) return 'PX940V - 12dots';
-    return null;
+    return (basePN[t] && basePN[t].modele) ? basePN[t].modele : null;
   }
   // Toshiba Tec : préfixe B-
   if(/^B-/.test(t)){
@@ -1079,8 +1126,20 @@ function identModele(pn) {
     if(t.startsWith('B-EV4T'))  return 'B-EV4T - 8dots';
     if(t.startsWith('B-EX4T1')) return 'B-EX4T1 - 8dots';
     if(t.startsWith('B-EX6T1')) return 'B-EX6T1 - 8dots';
-    return null;
+    return (basePN[t] && basePN[t].modele) ? basePN[t].modele : null;
   }
+  // TSC : préfixe 99- suivi d'un code produit
+  if(/^99-/.test(t)){
+    if(t.startsWith('99-060A047')) return 'MH240T - 8dots';
+    if(t.startsWith('99-040A023')) return 'TTP-225 - 8dots';
+    if(t.startsWith('99-040A011')) return 'TTP-323 - 12dots';
+    if(t.startsWith('99-143A001')) return 'TDP-244 - 8dots';
+    if(t.startsWith('99-039A001')) return 'TDP-225 - 8dots';
+    if(t.startsWith('99-033A031')) return 'TTP-244CE - 8dots';
+    return (basePN[t] && basePN[t].modele) ? basePN[t].modele : null;
+  }
+  // Base personnalisée : modèles ajoutés manuellement par l'utilisateur (P/N hors formats connus)
+  if(basePN[t] && basePN[t].modele) return basePN[t].modele;
   if(t.indexOf('-')!==-1&&t.length>=8)return t;
   return null;
 }
@@ -1094,7 +1153,34 @@ function identMarque(pn) {
   if(/^59\d{5}$/.test(t)) return 'CAB';
   if(/^P[CDMX]\d/.test(t)) return 'HONEYWELL';
   if(/^B-/.test(t)) return 'TOSHIBA';
+  if(/^99-/.test(t)) return 'TSC';
+  // Base personnalisée : marque ajoutée manuellement par l'utilisateur
+  if(basePN[t]) return basePN[t].marque;
   return null;
+}
+
+// == BASE P/N PERSONNALISÉE (enrichie manuellement par l'utilisateur) ==
+var basePN = {};
+function chargerBasePN() {
+  try {
+    var s = localStorage.getItem('mds_basepn');
+    basePN = s ? JSON.parse(s) : {};
+  } catch(e) { basePN = {}; }
+}
+function sauverBasePN() {
+  try { localStorage.setItem('mds_basepn', JSON.stringify(basePN)); } catch(e) {}
+}
+// Ajoute ou met à jour une entrée P/N -> marque + modèle dans la base personnalisée
+function ajouterBasePN(pn, marque, modele) {
+  var t = (pn||'').toUpperCase().trim();
+  if (!t || !marque) return false;
+  basePN[t] = { marque: marque, modele: (modele||'').trim() || null };
+  sauverBasePN();
+  return true;
+}
+function supprimerBasePN(pn) {
+  var t = (pn||'').toUpperCase().trim();
+  if (basePN[t]) { delete basePN[t]; sauverBasePN(); }
 }
 
 function estMemeCodeQueSN(brut) {
@@ -1458,6 +1544,7 @@ window.addEventListener('DOMContentLoaded', function() {
   majTab();
   initPhoto();
   chargerReseaux();
+  chargerBasePN();
 });
 
 // Sécurité : si la page est restaurée depuis le cache navigateur (retour après
