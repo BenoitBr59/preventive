@@ -1098,6 +1098,10 @@ function filtreSugg(f) {
 function choisir(m){g('manInput').value=m; filtreSugg(m);}
 
 // == IDENTIFICATION ==
+// Récupère le modèle depuis la base personnalisée si présent, sinon null
+function basePNModele(t) {
+  return (basePN[t] && basePN[t].modele) ? basePN[t].modele : null;
+}
 function identModele(pn) {
   var t=pn.toUpperCase().trim();
   // Gérer tous les préfixes Zebra : 1P, P1, P suivi de ZT/ZD/ZM
@@ -1131,7 +1135,7 @@ function identModele(pn) {
     if(t==='WWPV41260')        return 'PV4 - 8dots';
     if(t==='WWPV41280')        return 'PV4 - 8dots (WiFi)';
     if(t.startsWith('WWPV'))   return 'PV4 - 8dots';
-    return (basePN[t] && basePN[t].modele) ? basePN[t].modele : null;
+    return basePNModele(t);
   }
   // CAB : 7 chiffres commençant par 59
   if(/^59\d{5}$/.test(t)){
@@ -1139,7 +1143,7 @@ function identModele(pn) {
     if(t==='5977002') return 'SQUIX 4 - 600dpi';
     if(t==='5977014') return 'SQUIX 4.3 - renforcée';
     if(t==='5978202') return 'EOS2/300 - 300dpi';
-    return (basePN[t] && basePN[t].modele) ? basePN[t].modele : null;
+    return basePNModele(t);
   }
   // Honeywell : préfixe P suivi de C/D/M/X (PC/PD/PM/PX) puis chiffres
   if(/^P[CDMX]\d/.test(t)){
@@ -1147,7 +1151,7 @@ function identModele(pn) {
     if(t.startsWith('PD45')) return 'PD45S - 8dots';
     if(t.startsWith('PM43')) return 'PM43 - 8dots';
     if(t.startsWith('PX94')) return 'PX940V - 12dots';
-    return (basePN[t] && basePN[t].modele) ? basePN[t].modele : null;
+    return basePNModele(t);
   }
   // Toshiba Tec : préfixe B-
   if(/^B-/.test(t)){
@@ -1155,7 +1159,7 @@ function identModele(pn) {
     if(t.startsWith('B-EV4T'))  return 'B-EV4T - 8dots';
     if(t.startsWith('B-EX4T1')) return 'B-EX4T1 - 8dots';
     if(t.startsWith('B-EX6T1')) return 'B-EX6T1 - 8dots';
-    return (basePN[t] && basePN[t].modele) ? basePN[t].modele : null;
+    return basePNModele(t);
   }
   // TSC : préfixe 99- suivi d'un code produit
   if(/^99-/.test(t)){
@@ -1165,10 +1169,11 @@ function identModele(pn) {
     if(t.startsWith('99-143A001')) return 'TDP-244 - 8dots';
     if(t.startsWith('99-039A001')) return 'TDP-225 - 8dots';
     if(t.startsWith('99-033A031')) return 'TTP-244CE - 8dots';
-    return (basePN[t] && basePN[t].modele) ? basePN[t].modele : null;
+    return basePNModele(t);
   }
   // Base personnalisée : modèles ajoutés manuellement par l'utilisateur (P/N hors formats connus)
-  if(basePN[t] && basePN[t].modele) return basePN[t].modele;
+  var bpn = basePNModele(t);
+  if(bpn) return bpn;
   if(t.indexOf('-')!==-1&&t.length>=8)return t;
   return null;
 }
