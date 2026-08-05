@@ -657,9 +657,9 @@ function majTab() {
   ordre.forEach(function(cle) {
     if (cle) {
       html += '<tr style="background:#0d1f8c;">'
-      + '<td colspan="3" style="padding:8px 12px;color:#fff;font-weight:bold;font-size:12px;letter-spacing:.04em;display:flex;justify-content:space-between;align-items:center;">'
-      + '<span>&#128205; ' + escHtml(cle) + '</span>'
-      + '<span style="background:rgba(255,255,255,0.2);border-radius:12px;padding:2px 10px;font-size:11px;">'
+      + '<td colspan="3" style="padding:8px 12px;color:#fff;font-weight:bold;font-size:12px;letter-spacing:.04em;display:flex;flex-wrap:nowrap;justify-content:space-between;align-items:center;gap:8px;">'
+      + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">&#128205; ' + escHtml(cle) + '</span>'
+      + '<span style="background:rgba(255,255,255,0.2);border-radius:12px;padding:2px 10px;font-size:11px;white-space:nowrap;flex-shrink:0;">'
       + groupes[cle].length + ' impr.</span>'
       + '</td></tr>';
     }
