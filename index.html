@@ -368,6 +368,14 @@
   </div>
 </div>
 
+<!-- Boutons flottants navigation rapide -->
+<div id="navFlottante" style="position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:50;">
+  <button type="button" id="btnScrollTop" onclick="window.scrollTo({top:0,behavior:'smooth'})"
+    style="display:none;width:42px;height:42px;border-radius:999px;background:#0d1f8c;color:#fff;border:none;box-shadow:0 2px 8px rgba(0,0,0,0.25);font-size:18px;align-items:center;justify-content:center;">&#8593;</button>
+  <button type="button" id="btnScrollBottom" onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})"
+    style="display:none;width:42px;height:42px;border-radius:999px;background:#0d1f8c;color:#fff;border:none;box-shadow:0 2px 8px rgba(0,0,0,0.25);font-size:18px;align-items:center;justify-content:center;">&#8595;</button>
+</div>
+
 <div id="toast"></div>
 <script>
 // == SERVICE WORKER ==
@@ -377,6 +385,20 @@ if ('serviceWorker' in navigator) {
 window.addEventListener('offline', function(){ document.getElementById('offBanner').classList.add('show'); });
 window.addEventListener('online',  function(){ document.getElementById('offBanner').classList.remove('show'); });
 if (!navigator.onLine) document.getElementById('offBanner').classList.add('show');
+
+// == NAVIGATION RAPIDE HAUT/BAS ==
+function majBoutonsScroll() {
+  var y = window.scrollY || document.documentElement.scrollTop;
+  var maxScroll = document.body.scrollHeight - window.innerHeight;
+  var btnTop = g('btnScrollTop');
+  var btnBottom = g('btnScrollBottom');
+  // Bouton "remonter" visible seulement si on a suffisamment scrollé vers le bas
+  btnTop.style.display = (y > 300) ? 'flex' : 'none';
+  // Bouton "descendre" visible seulement s'il reste du contenu à voir en dessous
+  btnBottom.style.display = (maxScroll - y > 300) ? 'flex' : 'none';
+}
+window.addEventListener('scroll', majBoutonsScroll, { passive: true });
+window.addEventListener('resize', majBoutonsScroll);
 
 // == TOAST ==
 function showToast(msg) {
@@ -699,6 +721,7 @@ function majTab() {
       : data.length + ' équipement' + (data.length > 1 ? 's' : '');
   }
   majBandeauMixte();
+  setTimeout(majBoutonsScroll, 50); // léger délai pour laisser le DOM se redessiner
 }
 function del(id) {
   var r = data.find(function(r){return r.id===id;});
@@ -1708,6 +1731,7 @@ window.addEventListener('DOMContentLoaded', function() {
   initPhoto();
   chargerReseaux();
   chargerBasePN();
+  majBoutonsScroll();
 });
 
 // Sécurité : si la page est restaurée depuis le cache navigateur (retour après
