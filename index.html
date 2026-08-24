@@ -260,6 +260,7 @@
     <div id="basePNVide" style="display:none;font-size:12px;color:#92400e;background:#fef3c7;border-radius:4px;padding:8px;margin-top:8px;">
       Aucun P/N mémorisé pour l'instant sur cet appareil. Mémorisez-en un depuis le scanner (bouton "Mémoriser ce P/N") puis revenez ici.
     </div>
+    <div id="basePNListe" style="max-height:160px;overflow-y:auto;margin-top:10px;border-top:1px solid #e5e7eb;"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px;">
       <button type="button" onclick="configGitHub()" title="Configurer l'envoi automatique" style="background:none;border:none;color:#6b7280;font-size:11px;text-decoration:underline;cursor:pointer;">⚙️ Config GitHub</button>
       <div style="display:flex;gap:8px;">
@@ -1276,8 +1277,35 @@ function ouvrirExportBasePN() {
     });
     textarea.value = JSON.stringify(obj, null, 2);
   }
+  rafraichirListeBasePN();
   modal.style.display = 'flex';
   modal.style.visibility = 'visible';
+}
+
+// Affiche la liste des P/N mémorisés localement, chacun avec un bouton de suppression
+function rafraichirListeBasePN() {
+  var liste = g('basePNListe');
+  if (!liste) return;
+  var entries = Object.keys(basePN).sort();
+  if (!entries.length) { liste.innerHTML = ''; return; }
+  liste.innerHTML = entries.map(function(pn) {
+    var e = basePN[pn];
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 2px;border-bottom:1px solid #f1f5f9;font-size:11px;">'
+      + '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;margin-right:8px;">'
+      + '<b>'+escHtml(pn)+'</b> — '+escHtml(e.marque||'')+(e.modele ? ' ('+escHtml(e.modele)+')' : '')
+      + '</div>'
+      + '<button type="button" onclick="supprimerBasePNInterface(\''+pn.replace(/'/g,"\\\\'")+'\')" '
+      + 'style="background:#ef4444;color:#fff;border:none;border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer;flex-shrink:0;">Suppr.</button>'
+      + '</div>';
+  }).join('');
+}
+
+// Supprime une entrée depuis l'interface, avec confirmation et rafraîchissement complet
+function supprimerBasePNInterface(pn) {
+  if (!confirm('Supprimer le P/N mémorisé "' + pn + '" ?')) return;
+  supprimerBasePN(pn);
+  showToast('✅ P/N supprimé de la base locale.');
+  ouvrirExportBasePN(); // rafraîchit à la fois le textarea JSON et la liste
 }
 function fermerExportBasePN() {
   g('basePNModal').style.display = 'none';
@@ -1425,9 +1453,11 @@ function exportWord() {
     grpZ[cle].forEach(function(r){
       var clr=r.gen==='Voir Rem'?'color:#dc2626;font-weight:bold':'';
       lignes+='<tr>'
-        +'<td style="text-align:left;font-weight:bold">'+escHtml(r.modele||'-')
+        +'<td style="text-align:left;font-weight:bold;">'
+        +'<span style="white-space:nowrap;">'+escHtml(r.modele||'-')
         +( r.marque ? ' <span style="background:#dbeafe;color:#1d4ed8;font-size:7.5pt;font-weight:bold;padding:1px 4px;border-radius:6px;">'+escHtml(r.marque)+'</span>' : '' )
         +( r.option ? ' <span style="background:#fef3c7;color:#92400e;font-size:7.5pt;font-weight:bold;padding:1px 4px;border-radius:6px;">'+escHtml(r.option)+'</span>' : '' )
+        +'</span>'
         +'<br><span style="color:#64748b;font-size:8pt">'+escHtml(r.lieu||'')+'</span></td>'
         +'<td style="font-weight:bold">'+( r.photos && r.photos.length
           ? '<a href="#fiche_'+r.id+'" title="Ctrl+clic pour voir la fiche détaillée" style="color:#0d1f8c;text-decoration:underline;">'+escHtml(r.serial||'-')+'</a>'
@@ -1537,7 +1567,7 @@ function exportWord() {
     +'<div style="mso-element:footer" id="f1"><p class="footerPage">Page <span style="mso-field-code:PAGE"></span> / <span style="mso-field-code:NUMPAGES"></span> \u2014 Rapport MDS Maintenance Pr\u00e9ventive</p></div>'
     +'<div class="Section1">'
     +'<table style="margin-bottom:10px;border:none"><tr>'
-    +'<td style="border:none;width:auto;vertical-align:middle"><img src="'+logo+'" width="151" height="151" style="height:4cm;width:4cm;mso-width-source:absolute;mso-height-source:absolute;"></td>'
+    +'<td style="border:none;width:auto;vertical-align:middle"><img src="'+logo+'" width="113" height="113" style="height:3cm;width:3cm;mso-width-source:absolute;mso-height-source:absolute;"></td>'
     +'<td style="border:none;vertical-align:middle"><h1>Rapport de Maintenance Préventive</h1>'
     +'<div style="color:#555;font-size:9pt">Identification Automatique — Parc Imprimantes</div></td></tr></table>'
     +'<table class="m" style="margin-bottom:14px"><tr>'
@@ -1546,11 +1576,11 @@ function exportWord() {
     +'<td><b>Équipements :</b> '+data.length+'</td></tr></table>'
     +'<a name="tableau_recap"></a>'
     +'<table><thead><tr>'
-    +'<th style="width:12%;text-align:left">Modèle / ID</th>'
+    +'<th style="width:17%;text-align:left">Modèle / ID</th>'
     +'<th style="width:15%">S/N — Adresse IP</th>'
     +'<th style="width:8%">Capteurs</th><th style="width:10%">État tête d\'impression</th>'
     +'<th style="width:9%">Platen Roller</th><th style="width:8%">Test Imp.</th>'
-    +'<th style="width:8%">Général</th><th style="width:30%;text-align:left">Remarques</th>'
+    +'<th style="width:8%">Général</th><th style="width:25%;text-align:left">Remarques</th>'
     +'</tr></thead><tbody>'+lignes+'</tbody></table>'
     +'<div style="margin-top:14px;font-size:9pt;line-height:1.5;">'
     +'<p style="margin:0 0 4px;text-decoration:underline;font-weight:bold;">Remarque :</p>'
@@ -1581,7 +1611,7 @@ function exportWord() {
     g('hDate').value = today();
 
     // Formulaire complet
-    ['fZone','fModele','fSerial','fLieu','fRem'].forEach(function(id){ g(id).value=''; });
+    ['fZone','fModele','fSerial','fLieu','fRem','fOption','fMarque'].forEach(function(id){ g(id).value=''; });
     resetEtatsSelects();
 
     // IP
