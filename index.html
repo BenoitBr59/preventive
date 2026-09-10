@@ -1220,8 +1220,8 @@ function identMarque(pn) {
   // Formats de P/N bruts (scan)
   if(/^1P(ZT|ZD|ZM)/.test(t) || /^P1(ZT|ZD|ZM)/.test(t) || /^P(ZT|ZD|ZM)/.test(t) || /^(ZT|ZD|ZM)\d/.test(t)) return 'ZEBRA';
   if(/^(41J|42J|23J|33J|23C|34J|41A|42A|12C)/.test(t)) return 'ZEBRA';
-  // Libellés de suggestions Zebra (ex: "ZT411 - 8dots", "S4M+ - 8dots", "PM43 - 8dots")
-  if(/^(ZT|ZD|ZM|ZQ|S4M|PM|PD|PC|PF|PX)/.test(t)) return 'ZEBRA';
+  // Libellés de suggestions Zebra (ex: "ZT411 - 8dots", "S4M+ - 8dots")
+  if(/^(ZT|ZD|ZM|ZQ|S4M)/.test(t)) return 'ZEBRA';
   if(/^W/.test(t)) return 'SATO';
   if(/^59\d{5}$/.test(t)) return 'CAB';
   if(/^P[CDMX]\d/.test(t)) return 'HONEYWELL';
