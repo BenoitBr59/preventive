@@ -69,7 +69,7 @@
 </div>
 
 <!-- INFOS -->
-<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 rounded-lg border sb">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 rounded-lg border sb">
   <div>
     <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Client / Site</label>
     <input type="text" id="hSite" oninput="save()" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm" placeholder="Ex: Site Paris">
@@ -83,18 +83,13 @@
       <option>Pascal CARTON / Benoît BRACKMAN</option>
     </select>
   </div>
-  <div>
-    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Parc d'imprimantes</label>
-    <select id="hBrand" onchange="save();majBandeauMixte();" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
-      <option>ZEBRA</option><option>HONEYWELL</option><option>TOSHIBA</option><option>INTERMEC</option><option>CAB</option><option>SATO</option><option>TSC</option><option>Mixte</option>
-    </select>
-    <div id="bandeauMixte" style="display:none;margin-top:6px;background:#fef3c7;border-radius:6px;padding:6px 10px;font-size:11px;color:#92400e;"></div>
-  </div>
+  <input type="hidden" id="hBrand" value="ZEBRA">
   <div>
     <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Date</label>
     <input type="date" id="hDate" onchange="save()" class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm">
   </div>
 </div>
+<div id="bandeauMixte" style="display:none;margin:-12px 0 20px;background:#fef3c7;border-radius:6px;padding:8px 14px;font-size:12px;color:#92400e;"></div>
 
 <!-- FORMULAIRE -->
 <form id="theForm" onsubmit="ajouterEquip(event)" class="p-4 rounded-lg border mb-6 grid grid-cols-1 md:grid-cols-4 gap-4 sb">
@@ -475,17 +470,24 @@ function g(id) { return document.getElementById(id); }
 function majBandeauMixte() {
   var bandeau = g('bandeauMixte');
   if (!bandeau) return;
-  if (g('hBrand').value !== 'Mixte') { bandeau.style.display = 'none'; return; }
+  // Lister les marques distinctes réellement détectées dans le tableau
   var marques = [];
   data.forEach(function(r){
     if (r.marque && marques.indexOf(r.marque) === -1) marques.push(r.marque);
   });
-  if (marques.length) {
-    bandeau.style.display = 'block';
-    bandeau.innerHTML = '\u26a0\ufe0f Marques d\u00e9tect\u00e9es automatiquement : ' + marques.join(', ');
+  if (marques.length === 0) {
+    // Aucune machine scannée pour l'instant : valeur par défaut neutre
+    g('hBrand').value = 'ZEBRA';
+    bandeau.style.display = 'none';
+  } else if (marques.length === 1) {
+    // Une seule marque détectée : parc homogène, pas besoin de bandeau
+    g('hBrand').value = marques[0];
+    bandeau.style.display = 'none';
   } else {
+    // Plusieurs marques détectées : parc mixte, afficher le détail
+    g('hBrand').value = 'Mixte';
     bandeau.style.display = 'block';
-    bandeau.innerHTML = '\u2139\ufe0f Scannez des imprimantes pour d\u00e9tecter les marques du parc.';
+    bandeau.innerHTML = '\u26a0\ufe0f Parc mixte d\u00e9tect\u00e9 automatiquement : ' + marques.join(', ');
   }
 }
 // Remet les 5 selects de diagnostic à leur valeur par défaut 'OK'
