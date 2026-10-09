@@ -229,11 +229,22 @@
 </div>
 
 <!-- EXPORT -->
-<div class="flex justify-between items-center mt-4">
+<div class="flex justify-between items-center mt-4 gap-2 flex-wrap">
   <button type="button" onclick="ouvrirExportBasePN()" class="text-xs text-gray-500 underline flex items-center gap-1">
     <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
     Partager ma base P/N
   </button>
+  <div class="flex items-center gap-3">
+    <button type="button" onclick="exporterRapportJSON()" class="text-xs text-gray-500 underline flex items-center gap-1">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H8a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      Partager mon rapport
+    </button>
+    <button type="button" onclick="g('rapportFileInput').click()" class="text-xs text-gray-500 underline flex items-center gap-1">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+      Importer un rapport
+    </button>
+    <input type="file" id="rapportFileInput" accept=".json" style="display:none;" onchange="importerRapportJSON(this.files[0])">
+  </div>
   <button type="button" onclick="exportWord()" class="bp font-bold text-sm px-6 py-2.5 rounded shadow flex items-center gap-2">
     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
     Exporter
@@ -1275,6 +1286,70 @@ function supprimerBasePN(pn) {
   if (basePN[t]) { delete basePN[t]; sauverBasePN(); }
 }
 
+// == PARTAGE DE RAPPORT ENTRE TECHNICIENS (fusion manuelle, hors ligne) ==
+// Exporte toutes les données du rapport en cours dans un fichier JSON téléchargeable
+function exporterRapportJSON() {
+  if (!data.length) { showToast('⚠️ Tableau vide — rien à partager.'); return; }
+  var contenu = {
+    _app: 'MDS Maintenance',
+    header: {
+      site: g('hSite').value, interv: g('hInterv').value, date: g('hDate').value
+    },
+    equipements: data
+  };
+  var blob = new Blob([JSON.stringify(contenu, null, 2)], {type:'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'Rapport_partage_' + (g('hSite').value || 'site').replace(/[^a-z0-9]/gi,'_') + '_' + today() + '.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  showToast('✅ Fichier de partage téléchargé — envoyez-le à votre collègue.');
+}
+
+// Importe un fichier JSON d'un autre technicien et fusionne avec les données locales.
+// En cas de doublon de S/N, demande confirmation pour chaque conflit.
+function importerRapportJSON(file) {
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var contenu;
+    try { contenu = JSON.parse(e.target.result); } catch(err) {
+      showToast('❌ Fichier invalide — impossible de le lire.');
+      return;
+    }
+    if (!contenu || !Array.isArray(contenu.equipements)) {
+      showToast('❌ Ce fichier ne correspond pas à un rapport MDS valide.');
+      return;
+    }
+    var ajoutes = 0, remplaces = 0, ignores = 0;
+    contenu.equipements.forEach(function(eq) {
+      var idxExist = data.findIndex(function(r){ return r.serial && eq.serial && r.serial === eq.serial; });
+      if (idxExist === -1) {
+        // Pas de conflit : ajout direct avec un nouvel id local
+        var copie = Object.assign({}, eq, { id: Date.now() + Math.random() });
+        data.push(copie);
+        ajoutes++;
+      } else {
+        // Conflit de S/N : demander à l'utilisateur quoi faire
+        var existant = data[idxExist];
+        var msg = 'S/N en double : ' + eq.serial + '\n\n'
+          + 'Déjà présent : ' + (existant.modele||'-') + ' (' + (existant.zone||'sans zone') + ')\n'
+          + 'Dans l\'import : ' + (eq.modele||'-') + ' (' + (eq.zone||'sans zone') + ')\n\n'
+          + 'OK = remplacer par celle importée\nAnnuler = garder la mienne';
+        if (confirm(msg)) {
+          data[idxExist] = Object.assign({}, eq, { id: existant.id });
+          remplaces++;
+        } else {
+          ignores++;
+        }
+      }
+    });
+    save(); majTab();
+    showToast('✅ Import terminé : ' + ajoutes + ' ajouté(s), ' + remplaces + ' remplacé(s), ' + ignores + ' conservé(s).');
+    g('rapportFileInput').value = '';
+  };
+  reader.readAsText(file);
+}
+
 // Génère le JSON prêt à coller dans basepn-partagee.json et l'affiche dans la modale
 function ouvrirExportBasePN() {
   var entries = Object.keys(basePN);
@@ -1559,7 +1634,9 @@ function exportWord() {
     }
 
     for (var fi=0; fi<fiches.length; fi+=2) {
-      if (fi>0) photos += '<div class="pb"></div>';
+      if (fi>0) {
+        photos += '<div class="pb"></div>';
+      }
       photos += '<table style="border:none;border-collapse:collapse;width:100%;table-layout:fixed;page-break-inside:avoid;mso-break-wrap:none;"><tr style="page-break-inside:avoid;">';
       photos += '<td style="border:none;width:50%;vertical-align:top;padding:0 6pt 0 0;page-break-inside:avoid;">' + buildFiche(fiches[fi]) + '</td>';
       if (fiches[fi+1]) {
@@ -1573,7 +1650,7 @@ function exportWord() {
 
   var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
     +'<head><meta charset="utf-8"><title>Rapport MDS</title><style>'
-    +'@page Section1{size:29.7cm 21cm;mso-page-orientation:landscape;margin:1.2cm;mso-header-margin:.5cm;mso-footer-margin:.5cm;mso-paper-source:0;mso-footer:f1;}div.Section1{page:Section1;}'
+    +'@page Section1{size:29.7cm 21cm;mso-page-orientation:landscape;margin:1.2cm;mso-header-margin:.5cm;mso-footer-margin:.5cm;mso-paper-source:0;}div.Section1{page:Section1;}'
     +'p.footerPage{text-align:center;font-size:8pt;color:#64748b;font-family:Arial,sans-serif;margin:0;}'
     +'body{font-family:Arial,sans-serif;font-size:9pt;color:#222}table{border-collapse:collapse;width:100%}'
     +'th{background:#0d1f8c;color:#fff;padding:5px 4px;border:1px solid #ffffff;font-size:8.5pt;text-align:center}'
@@ -1581,8 +1658,7 @@ function exportWord() {
     +'.m td{border:1px solid #c7cef5;background:#eef0fb;padding:7px;font-size:9pt}'
     +'h1{color:#0d1f8c;font-size:16pt;margin:0 0 2px;text-transform:uppercase}.pb{page-break-before:always}'
     +'</style></head><body>'
-    +'<div style="mso-element:footer" id="f1"><p class="footerPage">Page <span style="mso-field-code:PAGE"></span> / <span style="mso-field-code:NUMPAGES"></span> \u2014 Rapport MDS Maintenance Pr\u00e9ventive</p></div>'
-    +'<div class="Section1">'
+        +'<div class="Section1">'
     +'<table style="margin-bottom:10px;border:none"><tr>'
     +'<td style="border:none;width:auto;vertical-align:middle"><img src="'+logo+'" width="113" height="113" style="height:3cm;width:3cm;mso-width-source:absolute;mso-height-source:absolute;"></td>'
     +'<td style="border:none;vertical-align:middle"><h1>Rapport de Maintenance Préventive</h1>'
