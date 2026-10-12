@@ -128,26 +128,26 @@
   <div class="md:col-span-2 grid grid-cols-2 gap-4 bg-white p-3 rounded border border-gray-200">
     <div>
       <label class="block text-xs font-medium text-gray-700 mb-1">Cellules / Capteurs</label>
-      <select id="fCell" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>NOK</option><option>-</option></select>
+      <select id="fCell" onchange="majGenAuto()" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>NOK</option><option>-</option></select>
     </div>
     <div>
       <label class="block text-xs font-medium text-gray-700 mb-1">État Dot (Tête)</label>
-      <select id="fDot" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>Dots HS</option><option>Dots usées</option><option>Surchauffe</option></select>
+      <select id="fDot" onchange="majGenAuto()" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>Dots HS</option><option>Dots usées</option><option>Surchauffe</option></select>
     </div>
     <div>
       <label class="block text-xs font-medium text-gray-700 mb-1">Pressing Roller</label>
-      <select id="fRoll" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>Manque matière</option><option>Cutter</option></select>
+      <select id="fRoll" onchange="majGenAuto()" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>Manque matière</option><option>Cutter</option></select>
     </div>
     <div>
       <label class="block text-xs font-medium text-gray-700 mb-1">Test d'impression</label>
-      <select id="fImp" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>NOK</option></select>
+      <select id="fImp" onchange="majGenAuto()" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>NOK</option></select>
     </div>
   </div>
   <div class="md:col-span-2 grid grid-cols-1 gap-4">
     <!-- État Général seul sur sa ligne -->
     <div>
       <label class="block text-xs font-medium text-gray-700 mb-1">État Général</label>
-      <select id="fGen" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm"><option>OK</option><option>Voir Rem</option></select>
+      <select id="fGen" onchange="genManuel=true" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm"><option>OK</option><option>Voir Rem</option></select>
     </div>
     <!-- Adresse IP sur toute la largeur -->
     <div>
@@ -341,6 +341,13 @@
   </div>
   <!-- Panneau de contrôle -->
   <div id="ctrlPanel" style="background:#111827;padding:12px 16px;display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+    <div id="zoomBox" style="display:none;align-items:center;gap:8px;color:#9ca3af;font-size:11px;font-weight:bold;">
+      <span>&#128269; Zoom</span>
+      <input type="range" id="zoomRange" min="1" max="1" step="0.1" value="1" oninput="appliquerZoom(this.value)" style="flex:1;">
+      <span id="zoomVal" style="min-width:34px;text-align:right;">x1</span>
+    </div>
+    <button type="button" onclick="g('scanPhotoInput').click()" style="width:100%;background:#2563eb;color:#fff;font-weight:bold;font-size:12px;padding:8px;border-radius:4px;border:none;">&#128247; Scanner depuis une photo (&eacute;tiquette difficile d'acc&egrave;s)</button>
+    <input type="file" id="scanPhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="scannerPhoto(this.files[0]); this.value='';">
     <button type="button" id="btnFlash" onclick="toggleFlash()" class="bs" style="width:100%;font-weight:bold;font-size:12px;padding:8px;border-radius:4px;border:none;text-transform:uppercase;letter-spacing:.05em;">&#9889; Flash ON / OFF</button>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
       <div id="cPN" style="background:#1f2937;border-radius:4px;padding:8px;text-align:center;border:1px solid #374151;opacity:0.5;">
@@ -504,6 +511,18 @@ function majBandeauMixte() {
 // Remet les 5 selects de diagnostic à leur valeur par défaut 'OK'
 function resetEtatsSelects() {
   ['fCell','fDot','fRoll','fImp','fGen'].forEach(function(id){ g(id).value = 'OK'; });
+  genManuel = false;
+}
+// État Général automatique : "Voir Rem" dès qu'un test n'est pas OK, "OK" sinon.
+// Si l'utilisateur choisit lui-même l'état général, on ne l'écrase plus.
+var genManuel = false;
+function majGenAuto() {
+  if (genManuel) return;
+  var pb = ['fCell','fDot','fRoll','fImp'].some(function(id){
+    var v = g(id).value;
+    return v !== 'OK' && v !== '-';
+  });
+  g('fGen').value = pb ? 'Voir Rem' : 'OK';
 }
 // Échappe les caractères HTML dangereux dans les champs texte utilisateur
 function escHtml(s) {
@@ -626,6 +645,7 @@ function editer(id) {
   g('fRoll').value   = r.roll   || 'OK';
   g('fImp').value    = r.imp    || 'OK';
   g('fGen').value    = r.gen    || 'OK';
+  genManuel = true; // en modification, ne pas écraser l'état général existant
   g('fRem').value    = r.rem    || '';
   // Afficher les photos existantes si présentes
   photosArr = (r.photos && r.photos.length) ? r.photos.slice() : [];
@@ -640,6 +660,23 @@ function editer(id) {
   g('theForm').scrollIntoView({behavior:'smooth', block:'start'});
 }
 
+// Duplique uniquement la zone et le P/N (modèle, option, marque) pour saisir une machine identique
+function dupliquer(id) {
+  var r = data.find(function(r){ return r.id === id; });
+  if (!r) return;
+  var saisieEnCours = (g('fSerial').value.trim() !== '' || g('fModele').value.trim() !== '');
+  if (saisieEnCours && editId === null && !confirm('Une saisie en cours sera remplacée. Continuer ?')) return;
+  if (editId !== null && !confirm('Vous modifiez un équipement : les changements non enregistrés seront perdus. Continuer ?')) return;
+  annulerEdit();
+  g('fZone').value   = r.zone   || '';
+  g('fModele').value = r.modele || '';
+  g('fOption').value = r.option || '';
+  g('fMarque').value = r.marque || '';
+  showToast('\u2705 Zone et mod\u00e8le copi\u00e9s \u2014 scannez le nouveau S/N.');
+  var f = g('fSerial');
+  f.scrollIntoView({behavior:'smooth', block:'center'});
+  setTimeout(function(){ f.focus(); }, 300);
+}
 function annulerEdit() {
   editId = null;
   ['fModele','fSerial','fLieu','fRem','fZone','fOption','fMarque'].forEach(function(id){ g(id).value=''; });
@@ -721,6 +758,7 @@ function majTab() {
         + '</td>'
         + '<td class="px-3 py-2 text-center font-mono font-bold text-gray-700 tracking-wider">'+escHtml(r.serial)+photoBadge+'</td>'
         + '<td class="px-3 py-2 text-center" style="white-space:nowrap;">'
+        + '<button type="button" onclick="dupliquer('+r.id+')" title="Dupliquer (zone + P/N)" style="color:#16a34a;font-size:18px;background:none;border:none;cursor:pointer;margin-right:8px;">&#10064;</button>'
         + '<button type="button" onclick="editer('+r.id+')" title="Modifier" style="color:#2563eb;font-size:18px;background:none;border:none;cursor:pointer;margin-right:8px;">&#9998;</button>'
         + '<button type="button" onclick="del('+r.id+')" title="Supprimer" style="color:#ef4444;font-size:18px;background:none;border:none;cursor:pointer;">&#128465;</button>'
         + '</td></tr>';
@@ -896,6 +934,7 @@ function ouvrirScanner() {
     v.play().then(function() {
       track = s.getVideoTracks()[0];
       setTimeout(flashOn, 800);
+      setTimeout(initZoom, 300);
       if ('BarcodeDetector' in window) {
         useBD = true;
         det = new BarcodeDetector({formats:['code_128','code_39']});
@@ -1112,6 +1151,111 @@ function flashOn() {
     return;
   }
   track.applyConstraints({advanced:[{torch:true}]}).then(function(){flash=true;}).catch(function(){});
+}
+// Zoom caméra (si supporté par l'appareil)
+function initZoom() {
+  var box = g('zoomBox');
+  if (!box) return;
+  box.style.display = 'none';
+  if (!track || !track.getCapabilities) return;
+  var caps = track.getCapabilities();
+  if (!caps.zoom) return;
+  var r = g('zoomRange');
+  r.min = caps.zoom.min || 1;
+  r.max = Math.min(caps.zoom.max || 1, 8);
+  r.step = caps.zoom.step || 0.1;
+  r.value = r.min;
+  g('zoomVal').textContent = 'x' + parseFloat(r.value).toFixed(1);
+  box.style.display = 'flex';
+}
+function appliquerZoom(v) {
+  g('zoomVal').textContent = 'x' + parseFloat(v).toFixed(1);
+  if (track) track.applyConstraints({advanced:[{zoom:parseFloat(v)}]}).catch(function(){});
+}
+
+// Scan depuis une photo : permet de lire une étiquette inaccessible en direct
+function scannerPhoto(file) {
+  if (!file) return;
+  g('rawTxt').textContent = '\u23f3 Analyse de la photo...'; g('rawTxt').style.color = '#60a5fa';
+  var url = URL.createObjectURL(file);
+  var img = new Image();
+  img.onload = function() {
+    URL.revokeObjectURL(url);
+    var maxD = 2400, sc = Math.min(1, maxD / Math.max(img.width, img.height));
+    var w = Math.round(img.width * sc), h = Math.round(img.height * sc);
+    var cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    cv.getContext('2d').drawImage(img, 0, 0, w, h);
+    decoderCanvas(cv).then(function(codes) {
+      if (!codes.length) {
+        g('rawTxt').textContent = '\u26a0\ufe0f Aucun code lu sur la photo — rapprochez-vous, cadrez bien l\'\u00e9tiquette et r\u00e9essayez.';
+        g('rawTxt').style.color = '#fbbf24';
+        return;
+      }
+      // Plus large d'abord (le S/N est le plus grand), puis les autres
+      codes.sort(function(a, b) { return b.w - a.w; });
+      lastCode = ''; lastAt = 0;
+      traiterListePhoto(codes.map(function(c) { return c.v; }));
+    });
+  };
+  img.onerror = function() { g('rawTxt').textContent = '\u26a0\ufe0f Photo illisible.'; g('rawTxt').style.color = '#fbbf24'; };
+  img.src = url;
+}
+function traiterListePhoto(vals) {
+  var i = 0;
+  while (i < vals.length) {
+    var avant = mode;
+    lastCode = ''; lastAt = 0;
+    traiter(vals[i]);
+    i++;
+    // En mode S/N, tant que le S/N n'est pas trouvé, on continue ; une fois passé en P/N on traite les suivants
+    if (avant === 'PN' && pnOk) break;
+  }
+}
+function decoderCanvas(cv) {
+  return new Promise(function(resolve) {
+    var found = {};
+    function add(v, w) { if (v && !found[v]) found[v] = {v: v, w: w || 0}; }
+    function fin() { resolve(Object.keys(found).map(function(k) { return found[k]; })); }
+    if ('BarcodeDetector' in window) {
+      var d = new BarcodeDetector({formats: ['code_128', 'code_39']});
+      d.detect(cv).then(function(res) {
+        res.forEach(function(r) { add(r.rawValue, r.boundingBox ? r.boundingBox.width : 0); });
+      }).catch(function() {}).then(function() {
+        if (Object.keys(found).length) return fin();
+        // Dernier recours : bandes horizontales agrandies
+        var bandes = [[0, .5], [.25, .75], [.5, 1]], p = Promise.resolve();
+        bandes.forEach(function(b) {
+          p = p.then(function() {
+            var c2 = document.createElement('canvas'), sh = Math.round(cv.height * (b[1] - b[0]));
+            c2.width = cv.width; c2.height = sh;
+            c2.getContext('2d').drawImage(cv, 0, Math.round(cv.height * b[0]), cv.width, sh, 0, 0, cv.width, sh);
+            return d.detect(c2).then(function(res) { res.forEach(function(r) { add(r.rawValue, r.boundingBox ? r.boundingBox.width : 0); }); }).catch(function() {});
+          });
+        });
+        p.then(fin);
+      });
+    } else {
+      if (!window.ZXing) { chargerZXing(); setTimeout(function() { decoderCanvas(cv).then(resolve); }, 1500); return; }
+      var hints = new Map();
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39]);
+      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+      var reader = new ZXing.MultiFormatReader(); reader.setHints(hints);
+      var essais = [[0, 1], [0, .4], [.3, .7], [.6, 1], [0, .25], [.2, .45], [.4, .65], [.6, .85], [.75, 1]];
+      var idx = 0;
+      (function suite() {
+        if (idx >= essais.length) return fin();
+        var b = essais[idx++];
+        var c2 = document.createElement('canvas'), sh = Math.round(cv.height * (b[1] - b[0]));
+        c2.width = cv.width; c2.height = sh;
+        c2.getContext('2d').drawImage(cv, 0, Math.round(cv.height * b[0]), cv.width, sh, 0, 0, cv.width, sh);
+        try {
+          var res = reader.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(c2))));
+          if (res) add(res.getText(), res.getResultPoints ? Math.abs(res.getResultPoints()[1].getX() - res.getResultPoints()[0].getX()) : 0);
+        } catch (e) {}
+        setTimeout(suite, 0);
+      })();
+    }
+  });
 }
 function toggleFlash() {
   if (!track) return;
@@ -1564,6 +1708,22 @@ function exportWord() {
     });
   });
 
+  // ── Synthèse chiffrée affichée en haut du tableau
+  var nbOk = data.filter(function(r){ return r.gen !== 'Voir Rem'; }).length;
+  var nbRem = data.length - nbOk;
+  function compte(champ, bon) { return data.filter(function(r){ var v = r[champ]; return v && v !== 'OK' && v !== '-'; }).length; }
+  var det = [];
+  var nTete = compte('dot'), nRoll = compte('roll'), nCell = compte('cell'), nImp = compte('imp');
+  if (nTete) det.push('t\u00eates : ' + nTete);
+  if (nRoll) det.push('rollers : ' + nRoll);
+  if (nCell) det.push('capteurs : ' + nCell);
+  if (nImp)  det.push('tests d\'impression : ' + nImp);
+  var synthese = '<tr><td colspan="8" style="background:#fff;border:1px solid #94a3b8;padding:6px 8px;font-size:9pt;text-align:left;">'
+    + '<b>Synth\u00e8se :</b> ' + data.length + ' \u00e9quipement' + (data.length > 1 ? 's' : '') + ' \u2014 '
+    + '<b style="color:#16a34a;">' + nbOk + ' OK</b>'
+    + (nbRem ? ' \u2014 <b style="color:#dc2626;">' + nbRem + ' \u00e0 surveiller</b>' + (det.length ? ' (' + det.join(' \u00b7 ') + ')' : '') : '')
+    + '</td></tr>';
+
   // ── Construire les FICHES DÉTAILLÉES : 2 par page, pour les machines avec photo(s)
   var fiches = data.filter(function(r){ return r.photos && r.photos.length > 0; });
   if (fiches.length) {
@@ -1663,12 +1823,19 @@ function exportWord() {
     +'<td style="border:none;width:auto;vertical-align:middle"><img src="'+logo+'" width="113" height="113" style="height:3cm;width:3cm;mso-width-source:absolute;mso-height-source:absolute;"></td>'
     +'<td style="border:none;vertical-align:middle"><h1>Rapport de Maintenance Préventive</h1>'
     +'<div style="color:#555;font-size:9pt">Nettoyage et Entretien — Parc Imprimantes</div></td></tr></table>'
-    +'<table class="m" style="margin-bottom:14px"><tr>'
-    +'<td><b>Client / Site :</b> '+site+'</td><td><b>Intervenant :</b> '+interv+'</td>'
-    +'<td><b>Imprimante :</b> '+parc+'</td><td><b>Date :</b> '+date+'</td>'
-    +'<td><b>Équipements :</b> '+data.length+'</td></tr></table>'
     +'<a name="tableau_recap"></a>'
-    +'<table><thead><tr>'
+    +'<table style="table-layout:fixed;width:100%;border-collapse:collapse;"><colgroup>'
+    +'<col width="17%" style="width:17%"><col width="15%" style="width:15%"><col width="8%" style="width:8%"><col width="10%" style="width:10%">'
+    +'<col width="9%" style="width:9%"><col width="8%" style="width:8%"><col width="8%" style="width:8%"><col width="25%" style="width:25%">'
+    +'</colgroup><thead>'
+    +'<tr>'
+    +'<td colspan="8" style="background:#eef0fb;border:1px solid #94a3b8;padding:7px 8px;font-size:9pt;text-align:left;">'
+    +'<b>Client / Site :</b> '+escHtml(site)+' &nbsp;|&nbsp; <b>Intervenant :</b> '+escHtml(interv)
+    +' &nbsp;|&nbsp; <b>Imprimante :</b> '+escHtml(parc)+' &nbsp;|&nbsp; <b>Date :</b> '+escHtml(date)
+    +' &nbsp;|&nbsp; <b>\u00c9quipements :</b> '+data.length+'</td>'
+    +'</tr>'
+    +synthese
+    +'<tr>'
     +'<th style="width:17%;text-align:left">Modèle / ID</th>'
     +'<th style="width:15%">S/N — Adresse IP</th>'
     +'<th style="width:8%">Capteurs</th><th style="width:10%">État tête d\'impression</th>'
