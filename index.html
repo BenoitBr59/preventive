@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'none'; form-action 'none'; connect-src 'self' https://api.github.com">
+<meta name="referrer" content="no-referrer">
 <title>MDS — Maintenance Préventive</title>
 
 <!-- Favicon & icône PWA -->
@@ -103,7 +105,7 @@
   <div>
     <label class="block text-xs font-medium text-gray-700 mb-1">Numéro de Série (S/N)</label>
     <div class="flex">
-      <input type="text" id="fSerial" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm font-bold" placeholder="S/N" required>
+      <input type="text" id="fSerial" onchange="serialSaisi()" class="w-full bg-white border border-gray-300 rounded-l px-3 py-1.5 text-sm font-bold" placeholder="S/N" required>
       <button type="button" onclick="ouvrirScanner()" class="bs rounded-r px-4 text-xs font-bold whitespace-nowrap flex items-center gap-1.5">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h2M7 5h1M3 5v2M21 5h-2M17 5h-1M21 5v2M3 19h2M7 19h1M3 19v-2M21 19h-2M17 19h-1M21 19v-2"/><rect x="7" y="8" width="10" height="8" rx="1"/><line x1="5" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="19" y2="12"/></svg>
         SCANNER
@@ -125,6 +127,7 @@
     <label class="block text-xs font-medium text-gray-700 mb-1">Machine ID / Lieu</label>
     <input type="text" id="fLieu" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="ID Interne">
   </div>
+  <div id="rappelPrev" class="md:col-span-2" style="display:none;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:6px;padding:8px 10px;font-size:12px;line-height:1.5;"></div>
   <div class="md:col-span-2 grid grid-cols-2 gap-4 bg-white p-3 rounded border border-gray-200">
     <div>
       <label class="block text-xs font-medium text-gray-700 mb-1">Cellules / Capteurs</label>
@@ -235,6 +238,9 @@
     Partager ma base P/N
   </button>
   <div class="flex items-center gap-3">
+    <button type="button" onclick="ouvrirRepartir()" class="text-xs text-gray-500 underline flex items-center gap-1" style="font-weight:bold;color:#0d1f8c;">
+      &#8635; Repartir d'un ancien rapport
+    </button>
     <button type="button" onclick="exporterRapportJSON()" class="text-xs text-gray-500 underline flex items-center gap-1">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H8a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
       Partager mon rapport
@@ -250,6 +256,21 @@
     Exporter
   </button>
 </div>
+</div>
+
+<!-- MODAL REPARTIR D'UN ANCIEN RAPPORT -->
+<div id="repartirModal" style="display:none;visibility:hidden;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:8px;padding:16px;width:100%;max-width:520px;display:flex;flex-direction:column;max-height:85vh;">
+    <h3 style="font-size:13px;font-weight:bold;text-transform:uppercase;margin:0 0 8px;color:#0d1f8c;">Repartir d'un ancien rapport</h3>
+    <p style="font-size:12px;color:#555;margin:0 0 10px;line-height:1.5;">Le parc (zone, mod&egrave;le, S/N, IP, lieu) est recharg&eacute; : toutes les machines passent &laquo;&nbsp;&Agrave; faire&nbsp;&raquo; avec les &eacute;tats remis &agrave; OK. Scannez un S/N pour ouvrir sa fiche.<br><b>Rapport &agrave; deux&nbsp;:</b> cochez (ou choisissez) les archives de chacun pour les fusionner et retrouver <u>toutes</u> les machines, quel que soit le technicien qui les a faites.</p>
+    <div id="histListe" style="overflow:auto;flex:1;min-height:60px;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:10px;"></div>
+    <input type="file" id="repartirFileInput" accept=".json" multiple style="display:none;" onchange="repartirFichier(this.files); this.value='';">
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+      <button type="button" onclick="repartirSelection()" style="background:#16a34a;color:#fff;font-weight:bold;font-size:12px;padding:8px 14px;border-radius:4px;border:none;">Charger la s&eacute;lection</button>
+      <button type="button" onclick="g('repartirFileInput').click()" style="background:#2563eb;color:#fff;font-weight:bold;font-size:12px;padding:8px 14px;border-radius:4px;border:none;">&#128194; Choisir un ou plusieurs fichiers JSON</button>
+      <button type="button" onclick="fermerRepartir()" style="background:#d1d5db;color:#1f2937;font-weight:bold;font-size:12px;padding:8px 14px;border-radius:4px;border:none;">Fermer</button>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL EXPORT BASE P/N -->
@@ -445,14 +466,67 @@ var MODELES = [
   'TSC TTP-323 - 12dots','TSC TDP-225 - 8dots','TSC TDP-244 - 8dots','TSC TTP-244CE - 8dots'
 ];
 
+// == SÉCURITÉ : validation des données (import JSON, stockage local) ==
+var ETATS_OK = {
+  cell: ['OK','NOK','-'],
+  dot:  ['OK','Dots HS','Dots usées','Surchauffe'],
+  roll: ['OK','Manque matière','Cutter'],
+  imp:  ['OK','NOK'],
+  gen:  ['OK','Voir Rem']
+};
+var _idSeq = 0;
+function idUnique() { _idSeq = (_idSeq + 1) % 1000; return Date.now() * 1000 + _idSeq; }
+function txt(v, max, nl) { return (typeof v === 'string' ? v : (typeof v === 'number' ? String(v) : '')).replace(nl ? /[\u0000-\u0009\u000b-\u001f\u007f]/g : /[\u0000-\u001f\u007f]/g, ' ').slice(0, max); }
+function photoOk(s) { return typeof s === 'string' && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+\/=]+$/.test(s) && s.length < 6000000; }
+// Reconstruit un équipement propre : champs connus uniquement, types forcés, id numérique
+function normaliserEquip(e, idForce) {
+  if (!e || typeof e !== 'object') return null;
+  var o = {
+    id:     (typeof idForce === 'number') ? idForce : ((typeof e.id === 'number' && isFinite(e.id)) ? e.id : idUnique()),
+    zone:   txt(e.zone, 80),
+    modele: txt(e.modele, 80),
+    option: txt(e.option, 40),
+    marque: txt(e.marque, 30),
+    lieu:   txt(e.lieu, 120),
+    serial: txt(e.serial, 40),
+    ip:     txt(e.ip, 45),
+    rem:    txt(e.rem, 2000, true),
+    photos: Array.isArray(e.photos) ? e.photos.filter(photoOk).slice(0, 12) : [],
+    aFaire: e.aFaire === true,
+    prev:   null
+  };
+  if (e.prev && typeof e.prev === 'object') {
+    o.prev = { rem: txt(e.prev.rem, 2000, true) };
+    ['cell','dot','roll','imp','gen'].forEach(function(k){
+      o.prev[k] = ETATS_OK[k].indexOf(e.prev[k]) !== -1 ? e.prev[k] : 'OK';
+    });
+  }
+  ['cell','dot','roll','imp','gen'].forEach(function(k){
+    o[k] = ETATS_OK[k].indexOf(e[k]) !== -1 ? e[k] : 'OK';
+  });
+  return o;
+}
+// Clé P/N acceptable : pas de clé spéciale JS, longueur raisonnable, pas de caractères de contrôle
+function clePNOk(k) {
+  return typeof k === 'string' && k.length > 0 && k.length <= 60
+    && ['__proto__','constructor','prototype'].indexOf(k) === -1 && !/[\u0000-\u001f\u007f<>"'`\\]/.test(k);
+}
+// Entrée P/N propre ou null
+function entreePNOk(v) {
+  if (!v || typeof v !== 'object' || typeof v.marque !== 'string' || !v.marque) return null;
+  return { marque: txt(v.marque, 30), modele: v.modele ? txt(v.modele, 80) : null };
+}
+
 // == SESSION ==
+var ancienDate = ''; // date du rapport précédent quand on repart d'un ancien rapport
 function save() {
   try {
     localStorage.setItem('mds4', JSON.stringify(data));
     localStorage.setItem('mds4h', JSON.stringify({
       s: g('hSite').value, i: g('hInterv').value,
       b: g('hBrand').value, d: g('hDate').value,
-      e: editId  // Sauvegarde du mode édition
+      e: editId, // Sauvegarde du mode édition
+      p: ancienDate
     }));
   } catch(e) {
     // Quota localStorage dépassé (souvent trop de photos HD) — prévenir sans bloquer
@@ -463,13 +537,14 @@ function loadSession() {
   try {
     var d = localStorage.getItem('mds4');
     var h = localStorage.getItem('mds4h');
-    if (d) data = JSON.parse(d);
+    if (d) { var brut = JSON.parse(d); data = Array.isArray(brut) ? brut.map(function(e){ return normaliserEquip(e); }).filter(Boolean) : []; }
     if (h) {
       h = JSON.parse(h);
       g('hSite').value   = h.s || '';
-      g('hInterv').value = h.i || '';
+      if (h.i) choisirInterv(txt(h.i, 80)); else g('hInterv').value = '';
       g('hBrand').value  = h.b || 'ZEBRA';
       g('hDate').value   = h.d || today();
+      ancienDate = txt(h.p, 10);
       // Restaurer le mode édition si interrompu
       if (h.e !== null && h.e !== undefined) {
         editId = h.e;
@@ -481,6 +556,13 @@ function loadSession() {
       }
     }
   } catch(e) {}
+}
+// Sélectionne un intervenant dans la liste ; l'ajoute s'il n'existe pas encore (texte brut, sans HTML)
+function choisirInterv(nom) {
+  var sel = g('hInterv');
+  var existe = Array.prototype.some.call(sel.options, function(o){ return o.value === nom; });
+  if (!existe) { var o = document.createElement('option'); o.textContent = nom; o.value = nom; sel.appendChild(o); }
+  sel.value = nom;
 }
 function today() { return new Date().toISOString().split('T')[0]; }
 function g(id) { return document.getElementById(id); }
@@ -505,7 +587,7 @@ function majBandeauMixte() {
     // Plusieurs marques détectées : parc mixte, afficher le détail
     g('hBrand').value = 'Mixte';
     bandeau.style.display = 'block';
-    bandeau.innerHTML = '\u26a0\ufe0f Parc mixte d\u00e9tect\u00e9 automatiquement : ' + marques.join(', ');
+    bandeau.innerHTML = '\u26a0\ufe0f Parc mixte d\u00e9tect\u00e9 automatiquement : ' + marques.map(escHtml).join(', ');
   }
 }
 // Remet les 5 selects de diagnostic à leur valeur par défaut 'OK'
@@ -557,13 +639,14 @@ function ajouterEquip(e) {
       data[idx].imp    = g('fImp').value;
       data[idx].gen    = g('fGen').value;
       data[idx].rem    = g('fRem').value.trim();
+      data[idx].aFaire = false;
       if (photosArr.length) data[idx].photos = photosArr.slice();
     }
     annulerEdit();
   } else {
     // Mode ajout normal
     data.push({
-      id:     Date.now(),
+      id:     idUnique(),
       zone:   g('fZone').value.trim(),
       modele: g('fModele').value.trim(),
       option: g('fOption').value,
@@ -645,7 +728,13 @@ function editer(id) {
   g('fRoll').value   = r.roll   || 'OK';
   g('fImp').value    = r.imp    || 'OK';
   g('fGen').value    = r.gen    || 'OK';
-  genManuel = true; // en modification, ne pas écraser l'état général existant
+  genManuel = !r.aFaire; // machine déjà saisie : ne pas écraser l'état général ; machine « à faire » : calcul auto
+  var rp = g('rappelPrev');
+  if (r.aFaire && r.prev) {
+    rp.style.display = 'block';
+    rp.textContent = '\u21ba Pr\u00e9c\u00e9demment' + (ancienDate ? ' (' + ancienDate + ')' : '') + ' : Capteurs ' + r.prev.cell + ' \u00b7 T\u00eate ' + r.prev.dot
+      + ' \u00b7 Roller ' + r.prev.roll + ' \u00b7 Test ' + r.prev.imp + ' \u00b7 G\u00e9n\u00e9ral ' + r.prev.gen + (r.prev.rem ? ' \u2014 ' + r.prev.rem : '');
+  } else { rp.style.display = 'none'; }
   g('fRem').value    = r.rem    || '';
   // Afficher les photos existantes si présentes
   photosArr = (r.photos && r.photos.length) ? r.photos.slice() : [];
@@ -679,6 +768,7 @@ function dupliquer(id) {
 }
 function annulerEdit() {
   editId = null;
+  g('rappelPrev').style.display = 'none';
   ['fModele','fSerial','fLieu','fRem','fZone','fOption','fMarque'].forEach(function(id){ g(id).value=''; });
   g('fIpPrefix').value=''; g('fIpSuffix').value=''; g('fIp').value='';
   g('fIpSelect').value=''; g('btnSuppReseau').style.display='none';
@@ -740,6 +830,12 @@ function majTab() {
       var lieuLine = r.lieu
         ? '<div style="font-size:11px;color:#6b7280;font-style:italic;font-weight:normal;">'+escHtml(r.lieu)+'</div>'
         : '';
+      var afBadge = r.aFaire
+        ? '<span style="display:inline-block;margin-left:6px;background:#fed7aa;color:#9a3412;font-size:10px;font-weight:bold;padding:1px 6px;border-radius:999px;white-space:nowrap;">\u00c0 faire</span>'
+        : '';
+      var rappelLine = (r.aFaire && r.prev && (r.prev.rem || r.prev.gen === 'Voir Rem'))
+        ? '<div style="font-size:10px;color:#b45309;font-weight:normal;">\u21ba Avant : '+escHtml(r.prev.rem || 'Voir Rem')+'</div>'
+        : '';
       var photoBadge = (r.photos && r.photos.length)
         ? '<span style="display:inline-block;margin-left:6px;background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:bold;padding:1px 6px;border-radius:999px;white-space:nowrap;">&#128247; '+r.photos.length+'</span>'
         : '';
@@ -749,12 +845,14 @@ function majTab() {
       var marqueBadge = r.marque
         ? '<span style="display:inline-block;margin-left:6px;background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:bold;padding:1px 6px;border-radius:999px;white-space:nowrap;">'+escHtml(r.marque)+'</span>'
         : '';
-      html += '<tr class="hover:bg-blue-50 text-xs border-b border-gray-100">'
+      html += '<tr class="hover:bg-blue-50 text-xs border-b border-gray-100"'+(r.aFaire ? ' style="background:#fffbeb;"' : '')+'>'
         + '<td class="px-4 py-2 text-left">'
         + '<span style="font-weight:bold;color:#111827;">'+escHtml(r.modele)+'</span>'
         + marqueBadge
         + optionBadge
+        + afBadge
         + lieuLine
+        + rappelLine
         + '</td>'
         + '<td class="px-3 py-2 text-center font-mono font-bold text-gray-700 tracking-wider">'+escHtml(r.serial)+photoBadge+'</td>'
         + '<td class="px-3 py-2 text-center" style="white-space:nowrap;">'
@@ -768,9 +866,11 @@ function majTab() {
   // Mettre à jour le compteur global (avec indication du filtrage actif)
   var ctr = g('compteurEquip');
   if (ctr) {
-    ctr.textContent = q
+    var nbAF = data.filter(function(r){ return r.aFaire; }).length;
+    ctr.textContent = (q
       ? dataAffichee.length + ' / ' + data.length + ' équipement' + (data.length > 1 ? 's' : '')
-      : data.length + ' équipement' + (data.length > 1 ? 's' : '');
+      : data.length + ' équipement' + (data.length > 1 ? 's' : ''))
+      + (nbAF ? ' — ' + nbAF + ' à faire' : '');
   }
   majBandeauMixte();
   setTimeout(majBoutonsScroll, 50); // léger délai pour laisser le DOM se redessiner
@@ -893,7 +993,7 @@ function rafraichirGaleriePhotos() {
   g('photoBox').style.display = 'flex';
   gal.innerHTML = photosArr.map(function(src, i) {
     return '<div style="position:relative;">'
-      + '<img src="'+src+'" style="height:64px;width:auto;aspect-ratio:10/4;object-fit:cover;border-radius:4px;border:1px solid #93c5fd;">'
+      + '<img src="'+escHtml(src)+'" style="height:64px;width:auto;aspect-ratio:10/4;object-fit:cover;border-radius:4px;border:1px solid #93c5fd;">'
       + '<button type="button" onclick="supprimerUnePhoto('+i+')" '
       + 'style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;border:none;border-radius:999px;width:18px;height:18px;font-size:11px;line-height:1;cursor:pointer;">✕</button>'
       + '</div>';
@@ -951,6 +1051,7 @@ function ouvrirScanner() {
 }
 
 var useBD = false;
+var zxReader = null; // lecteur ZXing réutilisé entre les images
 
 function chargerZXing() {
   if (window.ZXing) return;
@@ -963,11 +1064,14 @@ function boucle() {
   if (manuel || !stream) return;
   var v = g('scanVid');
   if (v.readyState < 2) { raf=requestAnimationFrame(boucle); return; }
-  var cvs=g('scanCvs'), ctx=cvs.getContext('2d');
+  var cvs=g('scanCvs'), ctx=cvs.getContext('2d', {willReadFrequently:true});
   var vw=v.videoWidth, vh=v.videoHeight;
-  // Analyser toute la hauteur visible — pas de découpe qui ferait rater un code
-  cvs.width=vw; cvs.height=vh;
-  ctx.drawImage(v, 0,0,vw,vh, 0,0,vw,vh);
+  // Analyser toute la hauteur visible — pas de découpe qui ferait rater un code.
+  // ZXing (iOS) est allégé à 1600 px max ; la taille du canvas n'est modifiée que si besoin (évite une réallocation à chaque image)
+  var sc = (!useBD && vw > 1600) ? 1600 / vw : 1;
+  var cw = Math.round(vw * sc), ch = Math.round(vh * sc);
+  if (cvs.width !== cw || cvs.height !== ch) { cvs.width = cw; cvs.height = ch; }
+  ctx.drawImage(v, 0,0,vw,vh, 0,0,cw,ch);
   if (useBD) {
     det.detect(cvs).then(function(res) {
       if (!res || !res.length) return;
@@ -995,11 +1099,14 @@ function boucle() {
   } else {
     if (!window.ZXing) { raf=requestAnimationFrame(boucle); return; }
     try {
-      var hints = new Map();
-      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.CODE_39]);
-      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-      var reader = new ZXing.MultiFormatReader();
-      reader.setHints(hints);
+      if (!zxReader) {
+        var hints = new Map();
+        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.CODE_39]);
+        hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+        zxReader = new ZXing.MultiFormatReader();
+        zxReader.setHints(hints);
+      }
+      var reader = zxReader;
       var lum = new ZXing.HTMLCanvasElementLuminanceSource(cvs);
       var bmp = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
       var result = reader.decode(bmp);
@@ -1008,8 +1115,8 @@ function boucle() {
     raf = requestAnimationFrame(boucle);
   }
 }
-function traiter(txt) {
-  var brut=txt.trim(), now=Date.now();
+function traiter(code) {
+  var brut=code.trim(), now=Date.now();
   var debounce = (mode==='PN') ? 400 : 1200;
   if (brut===lastCode && (now-lastAt)<debounce) return;
 
@@ -1020,6 +1127,12 @@ function traiter(txt) {
     if (sn) {
       snOk=sn;
       g('rSN').textContent='✅ '+sn; g('rSN').style.color='#4ade80';
+      // Machine « À faire » déjà connue (ancien rapport) : inutile de scanner le P/N, on ouvre directement sa fiche
+      if (editId === null && data.some(function(x){ return x.aFaire && x.serial && x.serial.toUpperCase() === sn.toUpperCase(); })) {
+        g('rawTxt').textContent = '\u2705 Machine retrouv\u00e9e dans l\'ancien rapport';
+        setTimeout(validerScan, 300);
+        return;
+      }
       passerPN();
     } else { var m=identModele(brut); if(m) pnOk=m; }
   } else {
@@ -1119,7 +1232,34 @@ function validerManuel() {
   }
   validerScan();
 }
+// Retrouve une machine déjà présente (ancien rapport ou saisie précédente) par son S/N et ouvre sa fiche
+function ouvrirSiExistante(sn) {
+  if (!sn || editId !== null) return false;
+  var r = data.find(function(x){ return x.serial && x.serial.toUpperCase() === sn.toUpperCase(); });
+  if (!r) return false;
+  if (!r.aFaire && !confirm('Le S/N ' + sn + ' est d\u00e9j\u00e0 dans le tableau (' + (r.modele || '-') + '). Ouvrir sa fiche pour la modifier ?')) return false;
+  ['fSerial','fModele','fOption','fMarque','fLieu','fRem'].forEach(function(id){ g(id).value = ''; });
+  editer(r.id);
+  g('fSerial').scrollIntoView({behavior:'smooth', block:'center'});
+  showToast(r.aFaire ? '\u2705 Machine retrouv\u00e9e dans l\'ancien rapport \u2014 saisissez les \u00e9tats.' : '\u270f\ufe0f Fiche ouverte pour modification.');
+  return true;
+}
+function serialSaisi() {
+  ouvrirSiExistante(g('fSerial').value.trim());
+}
 function validerScan() {
+  if (snOk && editId === null) {
+    var sn = snOk;
+    fermerScanner();
+    if (ouvrirSiExistante(sn)) return;
+    snOk = sn;
+    g('fSerial').value = sn;
+    g('fSerial').style.background = '#dcfce7';
+    setTimeout(function(){ g('fSerial').style.background = ''; }, 1500);
+    if (pnOk) { g('fModele').value = pnOk; g('fModele').style.background = '#dcfce7'; setTimeout(function(){ g('fModele').style.background = '#fefce8'; }, 1500); }
+    if (marqueOk) { g('fMarque').value = marqueOk; }
+    return;
+  }
   if (snOk) {
     g('fSerial').value=snOk;
     // Flash vert pour confirmer le remplissage
@@ -1287,7 +1427,7 @@ function choisir(m){g('manInput').value=m; filtreSugg(m);}
 // == IDENTIFICATION ==
 // Récupère le modèle depuis la base personnalisée si présent, sinon null
 function basePNModele(t) {
-  return (basePN[t] && basePN[t].modele) ? basePN[t].modele : null;
+  return (Object.prototype.hasOwnProperty.call(basePN, t) && basePN[t].modele) ? basePN[t].modele : null;
 }
 function identModele(pn) {
   var t=pn.toUpperCase().trim();
@@ -1393,7 +1533,12 @@ var basePN = {};
 function chargerBasePN() {
   try {
     var s = localStorage.getItem('mds_basepn');
-    basePN = s ? JSON.parse(s) : {};
+    var brut = s ? JSON.parse(s) : {};
+    basePN = {};
+    if (brut && typeof brut === 'object') Object.keys(brut).forEach(function(k){
+      var v = clePNOk(k) ? entreePNOk(brut[k]) : null;
+      if (v) basePN[k] = v;
+    });
   } catch(e) { basePN = {}; }
   chargerBasePNPartagee();
 }
@@ -1408,19 +1553,19 @@ function chargerBasePNPartagee() {
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(data){
       if (!data) return;
-      for (var pn in data) {
-        if (pn.charAt(0) === '_') continue; // ignorer les clés de commentaire (_info, _exemple)
-        if (!basePN[pn] && data[pn] && data[pn].marque) {
-          basePN[pn] = data[pn];
-        }
-      }
+      if (typeof data !== 'object') return;
+      Object.keys(data).forEach(function(pn) {
+        if (pn.charAt(0) === '_' || !clePNOk(pn)) return; // ignorer les clés de commentaire (_info, _exemple)
+        var v = entreePNOk(data[pn]);
+        if (v && !Object.prototype.hasOwnProperty.call(basePN, pn)) basePN[pn] = v;
+      });
     })
     .catch(function(){ /* fichier absent ou hors-ligne : pas grave, base locale suffit */ });
 }
 // Ajoute ou met à jour une entrée P/N -> marque + modèle dans la base personnalisée
 function ajouterBasePN(pn, marque, modele) {
   var t = (pn||'').toUpperCase().trim();
-  if (!t || !marque) return false;
+  if (!clePNOk(t) || !marque) return false;
   basePN[t] = { marque: marque, modele: (modele||'').trim() || null };
   sauverBasePN();
   return true;
@@ -1428,6 +1573,144 @@ function ajouterBasePN(pn, marque, modele) {
 function supprimerBasePN(pn) {
   var t = (pn||'').toUpperCase().trim();
   if (basePN[t]) { delete basePN[t]; sauverBasePN(); }
+}
+
+// == ARCHIVE AUTOMATIQUE + REPRISE D'UN ANCIEN RAPPORT ==
+// Construit le rapport à archiver : sans photos ; les machines non contrôlées gardent leur dernier état connu
+function construireArchive() {
+  return {
+    _app: 'MDS Maintenance', _type: 'archive',
+    header: { site: g('hSite').value, interv: g('hInterv').value, date: g('hDate').value },
+    equipements: data.map(function(r) {
+      var base = Object.assign({}, r, (r.aFaire && r.prev) ? r.prev : {});
+      base.aFaire = false; base.prev = null; base.photos = [];
+      return base;
+    })
+  };
+}
+function histLire() {
+  try { var a = JSON.parse(localStorage.getItem('mds_hist') || '[]'); return Array.isArray(a) ? a : []; } catch(e) { return []; }
+}
+function sauverHistorique(archive) {
+  var liste = histLire().filter(function(x){ return !(x && x.header && x.header.site === archive.header.site && x.header.date === archive.header.date); });
+  liste.unshift(archive);
+  liste = liste.slice(0, 20);
+  for (var i = 0; i < 6; i++) {
+    try { localStorage.setItem('mds_hist', JSON.stringify(liste)); return true; }
+    catch(e) { if (liste.length <= 1) break; liste.pop(); }
+  }
+  return false;
+}
+function telechargerJSON(obj, nom) {
+  var blob = new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nom;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
+}
+function ouvrirRepartir() {
+  var liste = histLire(), box = g('histListe');
+  if (!liste.length) {
+    box.innerHTML = '<div style="padding:12px;font-size:12px;color:#6b7280;text-align:center;">Aucun rapport archiv\u00e9 sur cet appareil.<br>Choisissez un fichier JSON (Archive_&hellip;.json) \u00e0 la place.</div>';
+  } else {
+    box.innerHTML = liste.map(function(x, i) {
+      var hd = x.header || {};
+      var n = Array.isArray(x.equipements) ? x.equipements.length : 0;
+      return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #f1f5f9;font-size:12px;">'
+        + '<input type="checkbox" class="chkHist" data-i="' + i + '" style="width:18px;height:18px;flex-shrink:0;">'
+        + '<div style="flex:1;min-width:0;"><b>' + escHtml(hd.site || 'Sans nom') + '</b><br><span style="color:#6b7280;">' + escHtml(hd.date || '') + ' \u00b7 ' + n + ' machine' + (n > 1 ? 's' : '') + '</span></div>'
+        + '<button type="button" data-i="' + i + '" onclick="supprimerHist(parseInt(this.dataset.i, 10))" style="background:#ef4444;color:#fff;border:none;border-radius:4px;padding:6px 8px;font-size:11px;">&#128465;</button>'
+        + '</div>';
+    }).join('');
+  }
+  g('repartirModal').style.display = 'flex';
+  g('repartirModal').style.visibility = 'visible';
+}
+function fermerRepartir() {
+  g('repartirModal').style.display = 'none';
+  g('repartirModal').style.visibility = 'hidden';
+}
+function supprimerHist(i) {
+  var liste = histLire();
+  if (!liste[i] || !confirm('Supprimer cette archive de cet appareil ?')) return;
+  liste.splice(i, 1);
+  try { localStorage.setItem('mds_hist', JSON.stringify(liste)); } catch(e) {}
+  ouvrirRepartir();
+}
+// Fusionne plusieurs rapports (un par technicien) en un seul parc complet : une machine par S/N,
+// la version du rapport le plus récent l'emporte (à date égale, la première de la liste)
+function fusionnerRapports(liste) {
+  var valides = liste.filter(function(c){ return c && Array.isArray(c.equipements); });
+  if (!valides.length) return null;
+  if (valides.length === 1) return valides[0];
+  var tri = valides.slice().sort(function(a, b) {
+    var da = txt(a.header && a.header.date, 10), db = txt(b.header && b.header.date, 10);
+    return da < db ? 1 : (da > db ? -1 : 0);
+  });
+  var par = {}, tous = [];
+  tri.forEach(function(c) {
+    c.equipements.forEach(function(e) {
+      var s = e && typeof e.serial === 'string' ? e.serial.trim().toUpperCase() : '';
+      if (s) { if (par[s]) return; par[s] = true; }
+      tous.push(e);
+    });
+  });
+  return { header: tri[0].header || {}, equipements: tous, _fusion: valides.length };
+}
+function repartirSelection() {
+  var coches = Array.prototype.slice.call(document.querySelectorAll('.chkHist:checked'));
+  if (!coches.length) { showToast('\u26a0\ufe0f Cochez au moins une archive.'); return; }
+  var hist = histLire();
+  var rapports = coches.map(function(c){ return hist[parseInt(c.dataset.i, 10)]; });
+  repartirDe(fusionnerRapports(rapports));
+}
+function repartirHist(i) { repartirDe(histLire()[i]); }
+function repartirFichier(files) {
+  files = Array.prototype.slice.call(files || []);
+  if (!files.length) return;
+  if (files.some(function(f){ return f.size > 30 * 1024 * 1024; })) { showToast('\u274c Fichier trop volumineux (max 30 Mo).'); return; }
+  Promise.all(files.map(function(f) {
+    return new Promise(function(resolve) {
+      var reader = new FileReader();
+      reader.onload = function(e) { try { resolve(JSON.parse(e.target.result)); } catch(err) { resolve(null); } };
+      reader.onerror = function() { resolve(null); };
+      reader.readAsText(f);
+    });
+  })).then(function(liste) {
+    var fusion = fusionnerRapports(liste);
+    if (!fusion) { showToast('\u274c Aucun fichier valide.'); return; }
+    repartirDe(fusion);
+  });
+}
+// Recharge le parc d'un ancien rapport : tout passe « À faire », états à OK, anciens états gardés en rappel
+function repartirDe(c) {
+  if (!c || !Array.isArray(c.equipements)) { showToast('\u274c Ce fichier ne correspond pas \u00e0 un rapport MDS valide.'); return; }
+  if (data.length && !confirm('Le tableau actuel (' + data.length + ' machine' + (data.length > 1 ? 's' : '') + ') sera remplac\u00e9. Continuer ?')) return;
+  var hd = c.header || {};
+  var vus = {}, nouveau = [];
+  c.equipements.slice(0, 2000).forEach(function(brut) {
+    var e = normaliserEquip(brut);
+    if (!e) return;
+    var cle = e.serial.toUpperCase();
+    if (cle && vus[cle]) return; // doublon de S/N dans l'archive
+    vus[cle] = true;
+    var prev = { cell: e.cell, dot: e.dot, roll: e.roll, imp: e.imp, gen: e.gen, rem: e.rem };
+    e.id = idUnique();
+    e.cell = 'OK'; e.dot = 'OK'; e.roll = 'OK'; e.imp = 'OK'; e.gen = 'OK'; e.rem = '';
+    e.photos = []; e.aFaire = true; e.prev = prev;
+    nouveau.push(e);
+  });
+  if (!nouveau.length) { showToast('\u26a0\ufe0f Aucune machine dans ce rapport.'); return; }
+  data = nouveau;
+  editId = null;
+  ancienDate = txt(hd.date, 10);
+  if (hd.site) g('hSite').value = txt(hd.site, 120);
+  g('hDate').value = today();
+  annulerEdit();
+  save(); majTab();
+  fermerRepartir();
+  showToast('\u2705 ' + (c._fusion ? c._fusion + ' rapports fusionn\u00e9s : ' : '') + nouveau.length + ' machine' + (nouveau.length > 1 ? 's' : '') + ' \u00e0 faire. Scannez un S/N pour ouvrir sa fiche.');
 }
 
 // == PARTAGE DE RAPPORT ENTRE TECHNICIENS (fusion manuelle, hors ligne) ==
@@ -1453,6 +1736,7 @@ function exporterRapportJSON() {
 // En cas de doublon de S/N, demande confirmation pour chaque conflit.
 function importerRapportJSON(file) {
   if (!file) return;
+  if (file.size > 30 * 1024 * 1024) { showToast('\u274c Fichier trop volumineux (max 30 Mo).'); return; }
   var reader = new FileReader();
   reader.onload = function(e) {
     var contenu;
@@ -1464,14 +1748,34 @@ function importerRapportJSON(file) {
       showToast('❌ Ce fichier ne correspond pas à un rapport MDS valide.');
       return;
     }
+    // Rapport à deux : ajouter le nom de l'autre technicien à l'en-tête
+    var autre = txt(contenu.header && contenu.header.interv, 80).trim();
+    if (autre) {
+      var actuel = g('hInterv').value.trim();
+      if (!actuel) choisirInterv(autre);
+      else if (actuel.toLowerCase().indexOf(autre.toLowerCase()) === -1 && autre.toLowerCase().indexOf(actuel.toLowerCase()) === -1) {
+        // Cherche d'abord une option existante qui contient les deux noms (ex : « Pascal CARTON / Benoît BRACKMAN »)
+        var opts = Array.prototype.map.call(g('hInterv').options, function(o){ return o.value; });
+        var deux = opts.filter(function(v){ return v.toLowerCase().indexOf(actuel.toLowerCase()) !== -1 && v.toLowerCase().indexOf(autre.toLowerCase()) !== -1; })[0];
+        choisirInterv(deux || (actuel + ' / ' + autre));
+      }
+      save();
+    }
     var ajoutes = 0, remplaces = 0, ignores = 0;
-    contenu.equipements.forEach(function(eq) {
+    contenu.equipements.slice(0, 2000).forEach(function(eqBrut) {
+      var eq = normaliserEquip(eqBrut);
+      if (!eq) return;
       var idxExist = data.findIndex(function(r){ return r.serial && eq.serial && r.serial === eq.serial; });
       if (idxExist === -1) {
         // Pas de conflit : ajout direct avec un nouvel id local
-        var copie = Object.assign({}, eq, { id: Date.now() + Math.random() });
+        var copie = Object.assign({}, eq, { id: idUnique() });
         data.push(copie);
         ajoutes++;
+      } else if (eq.aFaire) {
+        ignores++; // la machine n'a pas été contrôlée chez l'autre technicien : on garde la nôtre
+      } else if (data[idxExist].aFaire) {
+        data[idxExist] = Object.assign({}, eq, { id: data[idxExist].id }); // pas encore contrôlée chez nous : on prend le résultat reçu
+        remplaces++;
       } else {
         // Conflit de S/N : demander à l'utilisateur quoi faire
         var existant = data[idxExist];
@@ -1491,6 +1795,7 @@ function importerRapportJSON(file) {
     showToast('✅ Import terminé : ' + ajoutes + ' ajouté(s), ' + remplaces + ' remplacé(s), ' + ignores + ' conservé(s).');
     g('rapportFileInput').value = '';
   };
+  reader.onerror = function() { showToast('\u274c Lecture du fichier impossible.'); };
   reader.readAsText(file);
 }
 
@@ -1529,7 +1834,7 @@ function rafraichirListeBasePN() {
       + '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;margin-right:8px;">'
       + '<b>'+escHtml(pn)+'</b> — '+escHtml(e.marque||'')+(e.modele ? ' ('+escHtml(e.modele)+')' : '')
       + '</div>'
-      + '<button type="button" onclick="supprimerBasePNInterface(\''+pn.replace(/'/g,"\\\\'")+'\')" '
+      + '<button type="button" data-pn="'+escHtml(pn)+'" onclick="supprimerBasePNInterface(this.dataset.pn)" '
       + 'style="background:#ef4444;color:#fff;border:none;border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer;flex-shrink:0;">Suppr.</button>'
       + '</div>';
   }).join('');
@@ -1550,7 +1855,8 @@ function fermerExportBasePN() {
 // == CONFIGURATION GITHUB (token stocké localement sur cet appareil uniquement) ==
 function configGitHub() {
   var actuel = localStorage.getItem('mds_gh_config');
-  var cfg = actuel ? JSON.parse(actuel) : {owner:'', repo:'preventive', token:''};
+  var cfg = {owner:'', repo:'preventive', token:''};
+  try { if (actuel) cfg = JSON.parse(actuel) || cfg; } catch(e) {}
   var owner = prompt('Nom du compte/organisation GitHub (ex: BenoitBr59) :', cfg.owner || '');
   if (owner === null) return;
   var repo = prompt('Nom du dépôt :', cfg.repo || 'preventive');
@@ -1558,7 +1864,11 @@ function configGitHub() {
   var token = prompt('Token GitHub (fine-grained, droits Contents:Read&Write) — reste stocké uniquement sur cet appareil :', '');
   if (token === null) return;
   var newCfg = { owner: owner.trim(), repo: repo.trim(), token: token.trim() };
-  localStorage.setItem('mds_gh_config', JSON.stringify(newCfg));
+  if (!/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(newCfg.owner) || !/^[A-Za-z0-9._-]{1,100}$/.test(newCfg.repo)) {
+    showToast('\u274c Nom de compte ou de d\u00e9p\u00f4t invalide.'); return;
+  }
+  if (!/^[A-Za-z0-9_]{20,255}$/.test(newCfg.token)) { showToast('\u274c Format de token invalide.'); return; }
+  try { localStorage.setItem('mds_gh_config', JSON.stringify(newCfg)); } catch(e) { showToast('\u274c Enregistrement impossible.'); return; }
   showToast('✅ Configuration GitHub enregistrée sur cet appareil.');
 }
 
@@ -1567,15 +1877,15 @@ function configGitHub() {
 function envoyerVersGitHub() {
   var cfgRaw = localStorage.getItem('mds_gh_config');
   if (!cfgRaw) { configGitHub(); return; }
-  var cfg = JSON.parse(cfgRaw);
-  if (!cfg.owner || !cfg.repo || !cfg.token) { configGitHub(); return; }
+  var cfg; try { cfg = JSON.parse(cfgRaw); } catch(e) { cfg = null; }
+  if (!cfg || !cfg.owner || !cfg.repo || !cfg.token) { configGitHub(); return; }
   if (!Object.keys(basePN).length) { showToast('⚠️ Aucun P/N mémorisé à envoyer.'); return; }
 
   var btn = g('btnEnvoyerGitHub');
   btn.textContent = '⏳ Envoi...'; btn.disabled = true;
-  var apiUrl = 'https://api.github.com/repos/'+cfg.owner+'/'+cfg.repo+'/contents/basepn-partagee.json';
+  var apiUrl = 'https://api.github.com/repos/'+encodeURIComponent(cfg.owner)+'/'+encodeURIComponent(cfg.repo)+'/contents/basepn-partagee.json';
 
-  fetch(apiUrl, { headers: { 'Authorization': 'token '+cfg.token, 'Accept':'application/vnd.github+json' } })
+  fetch(apiUrl, { headers: { 'Authorization': 'Bearer '+cfg.token, 'Accept':'application/vnd.github+json' } })
     .then(function(r){ return r.status === 404 ? {content:null, sha:null} : r.json(); })
     .then(function(existing){
       var distant = {};
@@ -1583,9 +1893,10 @@ function envoyerVersGitHub() {
         try { distant = JSON.parse(decodeURIComponent(escape(atob(existing.content.replace(/\n/g,''))))); } catch(e){}
       }
       // Fusion : le distant garde la priorité pour ses propres clés, on ajoute juste le nouveau
-      var fusion = Object.assign({}, distant);
+      var fusion = {};
+      Object.keys(distant).forEach(function(k){ if (k.charAt(0) === '_' || clePNOk(k)) fusion[k] = distant[k]; });
       Object.keys(basePN).forEach(function(pn){
-        if (!fusion[pn]) fusion[pn] = { marque: basePN[pn].marque, modele: basePN[pn].modele || null };
+        if (!Object.prototype.hasOwnProperty.call(fusion, pn)) fusion[pn] = { marque: basePN[pn].marque, modele: basePN[pn].modele || null };
       });
       if (!fusion._info) fusion._info = 'Base de P/N partagée MDS';
       var contenuJson = JSON.stringify(fusion, null, 2);
@@ -1599,7 +1910,7 @@ function envoyerVersGitHub() {
 
       return fetch(apiUrl, {
         method: 'PUT',
-        headers: { 'Authorization': 'token '+cfg.token, 'Accept':'application/vnd.github+json', 'Content-Type':'application/json' },
+        headers: { 'Authorization': 'Bearer '+cfg.token, 'Accept':'application/vnd.github+json', 'Content-Type':'application/json' },
         body: JSON.stringify(body)
       });
     })
@@ -1662,6 +1973,18 @@ function extraireSN(b) {
 // == EXPORT WORD ==
 function exportWord() {
   if (!data.length){alert('Tableau vide.');return;}
+  // Machines « À faire » (ancien rapport) non contrôlées : proposer de les laisser de côté
+  var ctrl = data.filter(function(r){ return !r.aFaire; });
+  var nbAF = data.length - ctrl.length;
+  if (!ctrl.length) { alert('Aucune machine n\'a encore \u00e9t\u00e9 contr\u00f4l\u00e9e (toutes sont \u00ab\u00a0\u00c0 faire\u00a0\u00bb).'); return; }
+  if (nbAF && !confirm(nbAF + ' machine' + (nbAF > 1 ? 's' : '') + ' de l\'ancien rapport n\'' + (nbAF > 1 ? 'ont' : 'a') + ' pas \u00e9t\u00e9 contr\u00f4l\u00e9e' + (nbAF > 1 ? 's' : '') + '.\n\nOK = exporter sans elles (elles restent dans l\'archive)\nAnnuler = revenir au tableau')) return;
+  // Archive (JSON sans photos) : conservée dans l'application + téléchargée, pour repartir de ce rapport la prochaine fois
+  var archive = construireArchive();
+  sauverHistorique(archive);
+  var nomArchive = 'Archive_' + (g('hSite').value || 'site').replace(/[^a-z0-9]/gi,'_') + '_' + (g('hDate').value || today()) + '.json';
+  setTimeout(function(){ telechargerJSON(archive, nomArchive); }, 900);
+  var ancien = ancienDate;
+  data = ctrl; // le Word ne contient que les machines contrôlées
   // Désactiver temporairement beforeunload pour ne pas bloquer le téléchargement
   window._skipUnload = true;
   var site  = g('hSite').value.trim()||'Non spécifié';
@@ -1718,11 +2041,30 @@ function exportWord() {
   if (nRoll) det.push('rollers : ' + nRoll);
   if (nCell) det.push('capteurs : ' + nCell);
   if (nImp)  det.push('tests d\'impression : ' + nImp);
+  // Évolution par rapport au rapport précédent (machines retrouvées par S/N)
+  var evolution = '';
+  if (ancien) {
+    var comp = data.filter(function(r){ return r.prev; });
+    var nbNouv = data.length - comp.length;
+    function nbPb(list, champ, avant) { return list.filter(function(r){ var v = avant ? r.prev[champ] : r[champ]; return v && v !== 'OK' && v !== '-'; }).length; }
+    var evo = [];
+    [['dot','t\u00eates'],['roll','rollers'],['cell','capteurs'],['imp','tests d\'impression']].forEach(function(c){
+      var a = nbPb(comp, c[0], true), b = nbPb(comp, c[0], false);
+      if (a || b) evo.push(c[1] + ' : ' + a + ' \u2192 ' + b);
+    });
+    evolution = '<tr><td colspan="8" style="background:#fff;border:1px solid #94a3b8;padding:6px 8px;font-size:9pt;text-align:left;">'
+      + '<b>\u00c9volution depuis le ' + escHtml(ancien) + ' :</b> ' + comp.length + ' machine' + (comp.length > 1 ? 's' : '') + ' compar\u00e9e' + (comp.length > 1 ? 's' : '')
+      + ' \u2014 ' + (evo.length ? evo.join(' \u00b7 ') : 'aucun point \u00e0 surveiller')
+      + (nbNouv ? ' \u2014 ' + nbNouv + ' nouvelle' + (nbNouv > 1 ? 's' : '') + ' machine' + (nbNouv > 1 ? 's' : '') : '')
+      + (nbAF ? ' \u2014 ' + nbAF + ' non contr\u00f4l\u00e9e' + (nbAF > 1 ? 's' : '') : '')
+      + '</td></tr>';
+  }
   var synthese = '<tr><td colspan="8" style="background:#fff;border:1px solid #94a3b8;padding:6px 8px;font-size:9pt;text-align:left;">'
     + '<b>Synth\u00e8se :</b> ' + data.length + ' \u00e9quipement' + (data.length > 1 ? 's' : '') + ' \u2014 '
     + '<b style="color:#16a34a;">' + nbOk + ' OK</b>'
     + (nbRem ? ' \u2014 <b style="color:#dc2626;">' + nbRem + ' \u00e0 surveiller</b>' + (det.length ? ' (' + det.join(' \u00b7 ') + ')' : '') : '')
-    + '</td></tr>';
+    + '</td></tr>'
+    + evolution;
 
   // ── Construire les FICHES DÉTAILLÉES : 2 par page, pour les machines avec photo(s)
   var fiches = data.filter(function(r){ return r.photos && r.photos.length > 0; });
@@ -1828,11 +2170,21 @@ function exportWord() {
     +'<col width="17%" style="width:17%"><col width="15%" style="width:15%"><col width="8%" style="width:8%"><col width="10%" style="width:10%">'
     +'<col width="9%" style="width:9%"><col width="8%" style="width:8%"><col width="8%" style="width:8%"><col width="25%" style="width:25%">'
     +'</colgroup><thead>'
-    +'<tr>'
-    +'<td colspan="8" style="background:#eef0fb;border:1px solid #94a3b8;padding:7px 8px;font-size:9pt;text-align:left;">'
-    +'<b>Client / Site :</b> '+escHtml(site)+' &nbsp;|&nbsp; <b>Intervenant :</b> '+escHtml(interv)
-    +' &nbsp;|&nbsp; <b>Imprimante :</b> '+escHtml(parc)+' &nbsp;|&nbsp; <b>Date :</b> '+escHtml(date)
-    +' &nbsp;|&nbsp; <b>\u00c9quipements :</b> '+data.length+'</td>'
+    +'<tr style="height:1pt;mso-height-rule:exactly;">'
+    +'<td style="width:17%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
+    +'<td style="width:15%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
+    +'<td style="width:8%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
+    +'<td style="width:10%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
+    +'<td style="width:9%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
+    +'<td style="width:8%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
+    +'<td style="width:8%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
+    +'<td style="width:25%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
+    +'</tr><tr>'
+    +'<td colspan="1" style="width:17%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;"><b>Client / Site :</b> '+escHtml(site)+'</td>'
+    +'<td colspan="2" style="width:23%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;"><b>Intervenant :</b> '+escHtml(interv)+'</td>'
+    +'<td colspan="2" style="width:19%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;"><b>Imprimante :</b> '+escHtml(parc)+'</td>'
+    +'<td colspan="2" style="width:16%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;"><b>Date :</b> '+escHtml(date)+'</td>'
+    +'<td colspan="1" style="width:25%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;"><b>\u00c9quipements :</b> '+data.length+'</td>'
     +'</tr>'
     +synthese
     +'<tr>'
@@ -1863,6 +2215,7 @@ function exportWord() {
     editId = null;
     localStorage.removeItem('mds4');
     localStorage.removeItem('mds4h');
+    ancienDate = '';
 
     // En-tête rapport
     g('hSite').value = '';
@@ -1923,7 +2276,7 @@ function majSelectReseau() {
   var current = sel.value;
   sel.innerHTML = '<option value="">— Choisir un réseau —</option>'
     + ipReseaux.map(function(r, i) {
-        return '<option value="' + i + '">' + r + '</option>';
+        return '<option value="' + i + '">' + escHtml(r) + '</option>';
       }).join('');
   // Restaurer la sélection si possible
   if (current !== '' && ipReseaux[parseInt(current)]) sel.value = current;
