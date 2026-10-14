@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'none'; form-action 'none'; connect-src 'self' https://api.github.com">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://api.github.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>MDS — Maintenance Préventive</title>
 
@@ -21,9 +21,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MDS Maintenance">
 <meta name="description" content="Application de maintenance préventive — Parc imprimantes Zebra">
-<script src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+<link rel="stylesheet" href="./tailwind.css">
+<link rel="stylesheet" href="./cropper.min.css">
+<script src="./cropper.min.js"></script>
 <style>
 :root{--b:#0d1f8c;--o:#f5a11c;}
 .bp{background-color:var(--b)!important;color:#fff!important;}
@@ -416,6 +416,16 @@
 // == SERVICE WORKER ==
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(function(){});
+  // Informe l'utilisateur la première fois que l'application est prête pour le mode hors ligne
+  navigator.serviceWorker.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'mds-offline-ready') {
+      var v = String(e.data.version || '');
+      try { if (localStorage.getItem('mds_offline_ok') === v) return; localStorage.setItem('mds_offline_ok', v); } catch(err) {}
+      showToast('\u2705 Application pr\u00eate pour le mode hors ligne.');
+    }
+  });
+  // Demande au navigateur de ne pas effacer les données de l'application en cas de manque de place
+  if (navigator.storage && navigator.storage.persist) { navigator.storage.persist().catch(function(){}); }
 }
 window.addEventListener('offline', function(){ document.getElementById('offBanner').classList.add('show'); });
 window.addEventListener('online',  function(){ document.getElementById('offBanner').classList.remove('show'); });
@@ -477,7 +487,7 @@ var ETATS_OK = {
 var _idSeq = 0;
 function idUnique() { _idSeq = (_idSeq + 1) % 1000; return Date.now() * 1000 + _idSeq; }
 function txt(v, max, nl) { return (typeof v === 'string' ? v : (typeof v === 'number' ? String(v) : '')).replace(nl ? /[\u0000-\u0009\u000b-\u001f\u007f]/g : /[\u0000-\u001f\u007f]/g, ' ').slice(0, max); }
-function photoOk(s) { return typeof s === 'string' && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+\/=]+$/.test(s) && s.length < 6000000; }
+function photoOk(s) { return typeof s === 'string' && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s) && s.length < 6000000; }
 // Reconstruit un équipement propre : champs connus uniquement, types forcés, id numérique
 function normaliserEquip(e, idForce) {
   if (!e || typeof e !== 'object') return null;
@@ -864,7 +874,7 @@ function majTab() {
   });
   tb.innerHTML = html;
   // Mettre à jour le compteur global (avec indication du filtrage actif)
-  var ctr = g('compteurEquip');
+  ctr = g('compteurEquip');
   if (ctr) {
     var nbAF = data.filter(function(r){ return r.aFaire; }).length;
     ctr.textContent = (q
@@ -1056,7 +1066,7 @@ var zxReader = null; // lecteur ZXing réutilisé entre les images
 function chargerZXing() {
   if (window.ZXing) return;
   var s = document.createElement('script');
-  s.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js';
+  s.src = './zxing.min.js';
   document.head.appendChild(s);
 }
 
@@ -1144,7 +1154,7 @@ function traiter(code) {
     }
     lastCode=brut; lastAt=now;
     g('rawTxt').textContent=brut; g('rawTxt').style.color='#4ade80';
-    var m=identModele(brut);
+    m=identModele(brut);
     if (m) {
       pnOk=m;
       marqueOk=identMarque(brut);
@@ -1446,7 +1456,7 @@ function identModele(pn) {
   var C={'ZT231':'ZT231','ZT230':'ZT230','ZT411':'ZT411','ZT421':'ZT421','ZD421':'ZD421','ZT410':'ZT410','ZT420':'ZT420','ZT610':'ZT610','ZT620':'ZT620','ZT630':'ZT630','ZM400':'ZM400','ZM600':'ZM600'};
   for(var k in C){if(t.startsWith(k)){var dd=t.charAt(6);return C[k]+' - '+(dd==='3'?'12dots':dd==='6'?'24dots':'8dots');}}
   var S={'41J':'ZT411 - 8dots','42J':'ZT421 - 8dots','23J':'ZT231 - 8dots','23C':'ZT231 - 8dots','33J':'ZD421 - 8dots','41A':'ZT410 - 8dots','42A':'ZT420 - 8dots'};
-  for(var k in S){if(t.startsWith(k))return S[k];}
+  for(k in S){if(t.startsWith(k))return S[k];}
   // SATO : préfixe W
   if(/^W/.test(t)){
     if(t.startsWith('WWCLP'))  return 'CL4NX Plus - 8dots';
@@ -1454,9 +1464,9 @@ function identModele(pn) {
     var mCT = t.match(/^WWCT0(\d)041/);
     if(mCT){
       var code = mCT[1];
-      var res = (code==='2'||code==='4') ? '12dots' : '8dots';
+      var resol = (code==='2'||code==='4') ? '12dots' : '8dots';
       var tech = (code==='3'||code==='4') ? 'TT' : 'DT';
-      return 'CT4-LX - '+res+' ('+tech+')';
+      return 'CT4-LX - '+resol+' ('+tech+')';
     }
     if(t.startsWith('WD212'))  return 'WS4-2 - 8dots';
     if(t==='WWPV41260')        return 'PV4 - 8dots';
@@ -1665,7 +1675,6 @@ function repartirSelection() {
   var rapports = coches.map(function(c){ return hist[parseInt(c.dataset.i, 10)]; });
   repartirDe(fusionnerRapports(rapports));
 }
-function repartirHist(i) { repartirDe(histLire()[i]); }
 function repartirFichier(files) {
   files = Array.prototype.slice.call(files || []);
   if (!files.length) return;
