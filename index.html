@@ -2040,6 +2040,10 @@ function exportWord() {
     });
   });
 
+  // Styles en ligne sur chaque cellule : rendu identique dans Word, Word mobile, LibreOffice...
+  var TD_BASE = 'border:1px solid #94a3b8;padding:5px 4px;font-size:8.5pt;vertical-align:middle;text-align:center;';
+  lignes = lignes.replace(/<td>/g, '<td style="' + TD_BASE + '">').replace(/<td style="/g, '<td style="' + TD_BASE);
+
   // ── Synthèse chiffrée affichée en haut du tableau
   var nbOk = data.filter(function(r){ return r.gen !== 'Voir Rem'; }).length;
   var nbRem = data.length - nbOk;
@@ -2162,7 +2166,7 @@ function exportWord() {
     +'@page Section1{size:29.7cm 21cm;mso-page-orientation:landscape;margin:1.2cm;mso-header-margin:.5cm;mso-footer-margin:.5cm;mso-paper-source:0;}div.Section1{page:Section1;}'
     +'p.footerPage{text-align:center;font-size:8pt;color:#64748b;font-family:Arial,sans-serif;margin:0;}'
     +'body{font-family:Arial,sans-serif;font-size:9pt;color:#222}table{border-collapse:collapse;width:100%}'
-    +'th{background:#0d1f8c;color:#fff;padding:5px 4px;border:1px solid #ffffff;font-size:8.5pt;text-align:center}'
+    +'th{background:#0d1f8c;color:#fff;padding:5px 4px;border:1px solid #94a3b8;font-size:8.5pt;text-align:center}'
     +'td{padding:5px 4px;border:1px solid #94a3b8;font-size:8.5pt;vertical-align:middle;text-align:center}'
     +'.m td{border:1px solid #c7cef5;background:#eef0fb;padding:7px;font-size:9pt}'
     +'h1{color:#0d1f8c;font-size:16pt;margin:0 0 2px;text-transform:uppercase}.pb{page-break-before:always}'
@@ -2173,7 +2177,7 @@ function exportWord() {
     +'<td style="border:none;vertical-align:middle"><h1>Rapport de Maintenance Préventive</h1>'
     +'<div style="color:#555;font-size:9pt">Nettoyage et Entretien — Parc Imprimantes</div></td></tr></table>'
     +'<a name="tableau_recap"></a>'
-    +'<table style="table-layout:fixed;width:100%;border-collapse:collapse;"><colgroup>'
+    +'<table cellspacing="0" style="table-layout:fixed;width:100%;border-collapse:collapse;border:1px solid #94a3b8;"><colgroup>'
     +'<col width="17%" style="width:17%"><col width="15%" style="width:15%"><col width="8%" style="width:8%"><col width="10%" style="width:10%">'
     +'<col width="9%" style="width:9%"><col width="8%" style="width:8%"><col width="8%" style="width:8%"><col width="25%" style="width:25%">'
     +'</colgroup><thead>'
@@ -2194,11 +2198,11 @@ function exportWord() {
     +'</tr>'
     +evolution
     +'<tr>'
-    +'<th style="width:17%;text-align:left">Modèle / ID</th>'
-    +'<th style="width:15%">S/N — Adresse IP</th>'
-    +'<th style="width:8%">Capteurs</th><th style="width:10%">État tête d\'impression</th>'
-    +'<th style="width:9%">Platen Roller</th><th style="width:8%">Test Imp.</th>'
-    +'<th style="width:8%">Général</th><th style="width:25%;text-align:left">Remarques</th>'
+    +'<th style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;padding:5px 4px;font-size:8.5pt;width:17%;text-align:left">Modèle / ID</th>'
+    +'<th style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;padding:5px 4px;font-size:8.5pt;width:15%">S/N — Adresse IP</th>'
+    +'<th style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;padding:5px 4px;font-size:8.5pt;width:8%">Capteurs</th><th style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;padding:5px 4px;font-size:8.5pt;width:10%">État tête d\'impression</th>'
+    +'<th style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;padding:5px 4px;font-size:8.5pt;width:9%">Platen Roller</th><th style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;padding:5px 4px;font-size:8.5pt;width:8%">Test Imp.</th>'
+    +'<th style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;padding:5px 4px;font-size:8.5pt;width:8%">Général</th><th style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;padding:5px 4px;font-size:8.5pt;width:25%;text-align:left">Remarques</th>'
     +'</tr></thead><tbody>'+lignes+'</tbody></table>'
     +'<div style="margin-top:14px;font-size:9pt;line-height:1.5;">'
     +'<p style="margin:0 0 4px;text-decoration:underline;font-weight:bold;">Remarque :</p>'
