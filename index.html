@@ -2068,12 +2068,10 @@ function exportWord() {
       + (nbAF ? ' \u2014 ' + nbAF + ' non contr\u00f4l\u00e9e' + (nbAF > 1 ? 's' : '') : '')
       + '</td></tr>';
   }
-  var synthese = '<tr><td colspan="8" style="background:#fff;border:1px solid #94a3b8;padding:6px 8px;font-size:9pt;text-align:left;">'
-    + '<b>Synth\u00e8se :</b> ' + data.length + ' \u00e9quipement' + (data.length > 1 ? 's' : '') + ' \u2014 '
-    + '<b style="color:#16a34a;">' + nbOk + ' OK</b>'
-    + (nbRem ? ' \u2014 <b style="color:#dc2626;">' + nbRem + ' \u00e0 surveiller</b>' + (det.length ? ' (' + det.join(' \u00b7 ') + ')' : '') : '')
-    + '</td></tr>'
-    + evolution;
+  // Synthèse affichée directement dans la dernière cellule du bandeau d'en-tête
+  var syntheseCell = '<b>Synth\u00e8se :</b> ' + data.length + ' \u00e9quipement' + (data.length > 1 ? 's' : '')
+    + '<br><b style="color:#16a34a;">' + nbOk + ' OK</b>'
+    + (nbRem ? ' \u2014 <b style="color:#dc2626;">' + nbRem + ' \u00e0 surveiller</b>' + (det.length ? '<br>' + det.join(' \u00b7 ') : '') : '');
 
   // ── Construire les FICHES DÉTAILLÉES : 2 par page, pour les machines avec photo(s)
   var fiches = data.filter(function(r){ return r.photos && r.photos.length > 0; });
@@ -2189,13 +2187,12 @@ function exportWord() {
     +'<td style="width:8%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
     +'<td style="width:25%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
     +'</tr><tr>'
-    +'<td colspan="1" style="width:17%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;"><b>Client / Site :</b> '+escHtml(site)+'</td>'
-    +'<td colspan="2" style="width:23%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;"><b>Intervenant :</b> '+escHtml(interv)+'</td>'
-    +'<td colspan="2" style="width:19%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;"><b>Imprimante :</b> '+escHtml(parc)+'</td>'
-    +'<td colspan="2" style="width:16%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;"><b>Date :</b> '+escHtml(date)+'</td>'
-    +'<td colspan="1" style="width:25%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;"><b>\u00c9quipements :</b> '+data.length+'</td>'
+    +'<td colspan="2" style="width:32%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;vertical-align:top;"><b>Client / Site :</b> '+escHtml(site)+'</td>'
+    +'<td colspan="2" style="width:18%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;vertical-align:top;"><b>Intervenant :</b> '+escHtml(interv)+'</td>'
+    +'<td colspan="3" style="width:25%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;vertical-align:top;"><b>Imprimante :</b> '+escHtml(parc)+'<br><b>Date :</b> '+escHtml(date)+'</td>'
+    +'<td colspan="1" style="width:25%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;vertical-align:top;">'+syntheseCell+'</td>'
     +'</tr>'
-    +synthese
+    +evolution
     +'<tr>'
     +'<th style="width:17%;text-align:left">Modèle / ID</th>'
     +'<th style="width:15%">S/N — Adresse IP</th>'
