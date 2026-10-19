@@ -503,6 +503,7 @@ function normaliserEquip(e, idForce) {
     rem:    txt(e.rem, 2000, true),
     photos: Array.isArray(e.photos) ? e.photos.filter(photoOk).slice(0, 12) : [],
     aFaire: e.aFaire === true,
+    nonVu:  (typeof e.nonVu === 'number' && isFinite(e.nonVu)) ? Math.max(0, Math.min(99, Math.floor(e.nonVu))) : 0,
     prev:   null
   };
   if (e.prev && typeof e.prev === 'object') {
@@ -583,6 +584,7 @@ function majBandeauMixte() {
   // Lister les marques distinctes réellement détectées dans le tableau
   var marques = [];
   data.forEach(function(r){
+    if (retireDuWord(r)) return; // machine retirée du Word : ne compte pas dans le parc
     if (r.marque && marques.indexOf(r.marque) === -1) marques.push(r.marque);
   });
   if (marques.length === 0) {
@@ -650,6 +652,7 @@ function ajouterEquip(e) {
       data[idx].gen    = g('fGen').value;
       data[idx].rem    = g('fRem').value.trim();
       data[idx].aFaire = false;
+      data[idx].nonVu  = 0;
       if (photosArr.length) data[idx].photos = photosArr.slice();
     }
     annulerEdit();
@@ -797,6 +800,12 @@ function majTab() {
   var tb = g('tbody');
   // Filtrer selon le texte de recherche (modèle, S/N, lieu, zone)
   var q = (g('fRecherche') ? g('fRecherche').value : '').trim().toLowerCase();
+  var nbVeille = data.filter(estEnVeille).length;
+  var base = (voirVeille || !nbVeille) ? data : data.filter(function(r){ return !estEnVeille(r); });
+  var veilleRow = nbVeille
+    ? '<tr><td colspan="3" style="padding:8px 12px;text-align:center;background:#f9fafb;"><button type="button" onclick="basculerVeille()" style="font-size:12px;color:#92400e;background:none;border:none;text-decoration:underline;cursor:pointer;">'
+      + (voirVeille ? 'Masquer' : 'Afficher') + ' les ' + nbVeille + ' machine' + (nbVeille > 1 ? 's' : '') + ' absente' + (nbVeille > 1 ? 's' : '') + ' depuis plusieurs préventives</button></td></tr>'
+    : '';
   var dataAffichee = q
     ? data.filter(function(r){
         return (r.modele||'').toLowerCase().indexOf(q) !== -1
@@ -804,7 +813,7 @@ function majTab() {
             || (r.lieu||'').toLowerCase().indexOf(q) !== -1
             || (r.zone||'').toLowerCase().indexOf(q) !== -1;
       })
-    : data;
+    : base;
   if (!data.length) {
     tb.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucune machine.</td></tr>';
     // Compteur global
@@ -813,7 +822,7 @@ function majTab() {
     return;
   }
   if (!dataAffichee.length) {
-    tb.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">Aucun résultat pour cette recherche.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-gray-500 text-center italic">' + (q ? 'Aucun résultat pour cette recherche.' : 'Aucune machine à afficher.') + '</td></tr>' + (q ? '' : veilleRow);
     var ctr2 = g('compteurEquip');
     if (ctr2) ctr2.textContent = '0 / ' + data.length + ' équipement' + (data.length > 1 ? 's' : '');
     return;
@@ -841,7 +850,7 @@ function majTab() {
         ? '<div style="font-size:11px;color:#6b7280;font-style:italic;font-weight:normal;">'+escHtml(r.lieu)+'</div>'
         : '';
       var afBadge = r.aFaire
-        ? '<span style="display:inline-block;margin-left:6px;background:#fed7aa;color:#9a3412;font-size:10px;font-weight:bold;padding:1px 6px;border-radius:999px;white-space:nowrap;">\u00c0 faire</span>'
+        ? '<span style="display:inline-block;margin-left:6px;background:#fed7aa;color:#9a3412;font-size:10px;font-weight:bold;padding:1px 6px;border-radius:999px;white-space:nowrap;">\u00c0 faire' + (r.nonVu ? ' \u00b7 non vue \u00d7' + r.nonVu : '') + '</span>'
         : '';
       var rappelLine = (r.aFaire && r.prev && (r.prev.rem || r.prev.gen === 'Voir Rem'))
         ? '<div style="font-size:10px;color:#b45309;font-weight:normal;">\u21ba Avant : '+escHtml(r.prev.rem || 'Voir Rem')+'</div>'
@@ -872,15 +881,16 @@ function majTab() {
         + '</td></tr>';
     });
   });
-  tb.innerHTML = html;
+  tb.innerHTML = html + (q ? '' : veilleRow);
   // Mettre à jour le compteur global (avec indication du filtrage actif)
   ctr = g('compteurEquip');
   if (ctr) {
-    var nbAF = data.filter(function(r){ return r.aFaire; }).length;
+    var nbAF = base.filter(function(r){ return r.aFaire; }).length;
     ctr.textContent = (q
       ? dataAffichee.length + ' / ' + data.length + ' équipement' + (data.length > 1 ? 's' : '')
-      : data.length + ' équipement' + (data.length > 1 ? 's' : ''))
-      + (nbAF ? ' — ' + nbAF + ' à faire' : '');
+      : base.length + ' équipement' + (base.length > 1 ? 's' : ''))
+      + (nbAF ? ' — ' + nbAF + ' à faire' : '')
+      + (nbVeille && !voirVeille && !q ? ' — ' + nbVeille + ' absente' + (nbVeille > 1 ? 's' : '') + ' masquée' + (nbVeille > 1 ? 's' : '') : '');
   }
   majBandeauMixte();
   setTimeout(majBoutonsScroll, 50); // léger délai pour laisser le DOM se redessiner
@@ -1593,6 +1603,7 @@ function construireArchive() {
     header: { site: g('hSite').value, interv: g('hInterv').value, date: g('hDate').value },
     equipements: data.map(function(r) {
       var base = Object.assign({}, r, (r.aFaire && r.prev) ? r.prev : {});
+      base.nonVu = r.aFaire ? Math.min(99, (r.nonVu || 0) + 1) : 0; // nombre de préventives consécutives sans la voir
       base.aFaire = false; base.prev = null; base.photos = [];
       return base;
     })
@@ -1662,7 +1673,15 @@ function fusionnerRapports(liste) {
   tri.forEach(function(c) {
     c.equipements.forEach(function(e) {
       var s = e && typeof e.serial === 'string' ? e.serial.trim().toUpperCase() : '';
-      if (s) { if (par[s]) return; par[s] = true; }
+      if (s) {
+        if (par[s] !== undefined) {
+          // Doublon : on garde la version la plus « vue » (compteur d'absences le plus bas), sinon la plus récente
+          var nv = function(x){ return x && typeof x.nonVu === 'number' ? x.nonVu : 0; };
+          if (nv(e) < nv(tous[par[s]])) tous[par[s]] = e;
+          return;
+        }
+        par[s] = tous.length;
+      }
       tous.push(e);
     });
   });
@@ -1713,13 +1732,17 @@ function repartirDe(c) {
   if (!nouveau.length) { showToast('\u26a0\ufe0f Aucune machine dans ce rapport.'); return; }
   data = nouveau;
   editId = null;
+  voirVeille = false;
   ancienDate = txt(hd.date, 10);
   if (hd.site) g('hSite').value = txt(hd.site, 120);
   g('hDate').value = today();
   annulerEdit();
   save(); majTab();
   fermerRepartir();
-  showToast('\u2705 ' + (c._fusion ? c._fusion + ' rapports fusionn\u00e9s : ' : '') + nouveau.length + ' machine' + (nouveau.length > 1 ? 's' : '') + ' \u00e0 faire. Scannez un S/N pour ouvrir sa fiche.');
+  var nbV = nouveau.filter(estEnVeille).length;
+  showToast('\u2705 ' + (c._fusion ? c._fusion + ' rapports fusionn\u00e9s : ' : '') + nouveau.length + ' machine' + (nouveau.length > 1 ? 's' : '') + ' \u00e0 faire'
+    + (nbV ? ' (dont ' + nbV + ' absente' + (nbV > 1 ? 's' : '') + ' depuis plusieurs pr\u00e9ventives, masqu\u00e9e' + (nbV > 1 ? 's' : '') + ')' : '')
+    + '. Scannez un S/N pour ouvrir sa fiche.');
 }
 
 // == PARTAGE DE RAPPORT ENTRE TECHNICIENS (fusion manuelle, hors ligne) ==
@@ -1979,21 +2002,42 @@ function extraireSN(b) {
   return null;
 }
 
+// == MACHINES ABSENTES (ancien rapport) ==
+// 1re absence : la machine apparaît dans le Word en « Non vu / non trouvé ».
+// À partir de la 2e absence de suite : retirée du Word (mais conservée dans l'archive JSON).
+function retireDuWord(r) { return r.aFaire === true && (r.nonVu || 0) >= 1; }
+// Déjà retirée d'un Word précédent : masquée du tableau de l'application (réaffichable)
+function estEnVeille(r) { return r.aFaire === true && (r.nonVu || 0) >= 2; }
+var voirVeille = false;
+function basculerVeille() { voirVeille = !voirVeille; majTab(); }
+
 // == EXPORT WORD ==
+// Vrai si au moins un test n'est pas « OK » (hors valeur vide / « - »)
+function pbEtat(r) {
+  return ['cell','dot','roll','imp'].some(function(k){ var v = r[k]; return v && v !== 'OK' && v !== '-'; }) || r.gen === 'Voir Rem';
+}
 function exportWord() {
   if (!data.length){alert('Tableau vide.');return;}
-  // Machines « À faire » (ancien rapport) non contrôlées : proposer de les laisser de côté
-  var ctrl = data.filter(function(r){ return !r.aFaire; });
-  var nbAF = data.length - ctrl.length;
+  // Machines « À faire » (ancien rapport) jamais scannées : elles restent dans le Word, marquées « Non vu / non trouvé »
+  var ctrl = data.filter(function(r){ return !r.aFaire; });   // machines réellement contrôlées
+  var retires = data.filter(retireDuWord);                     // absentes depuis 2 préventives ou plus : hors Word, gardées dans l'archive
+  var vusNon = data.filter(function(r){ return r.aFaire && !retireDuWord(r); }); // 1re absence : « Non vu / non trouvé »
+  var lignesData = data.filter(function(r){ return !retireDuWord(r); });         // machines qui figureront dans le tableau Word
+  var nbAF = vusNon.length, nbRet = retires.length;
+  var nbRetNouv = retires.filter(function(r){ return (r.nonVu || 0) === 1; }).length; // retirées pour la première fois
   if (!ctrl.length) { alert('Aucune machine n\'a encore \u00e9t\u00e9 contr\u00f4l\u00e9e (toutes sont \u00ab\u00a0\u00c0 faire\u00a0\u00bb).'); return; }
-  if (nbAF && !confirm(nbAF + ' machine' + (nbAF > 1 ? 's' : '') + ' de l\'ancien rapport n\'' + (nbAF > 1 ? 'ont' : 'a') + ' pas \u00e9t\u00e9 contr\u00f4l\u00e9e' + (nbAF > 1 ? 's' : '') + '.\n\nOK = exporter sans elles (elles restent dans l\'archive)\nAnnuler = revenir au tableau')) return;
+  if (nbAF || nbRetNouv) {
+    var msgs = [];
+    if (nbAF) msgs.push(nbAF + ' machine' + (nbAF > 1 ? 's' : '') + ' de l\'ancien rapport non scannée' + (nbAF > 1 ? 's' : '') + ' apparaîtr' + (nbAF > 1 ? 'ont' : 'a') + ' dans le Word avec « Non vu / non trouvé ».');
+    if (nbRetNouv) msgs.push(nbRetNouv + ' machine' + (nbRetNouv > 1 ? 's' : '') + ' non vue' + (nbRetNouv > 1 ? 's' : '') + ' pour la 2e fois de suite ne figurer' + (nbRetNouv > 1 ? 'ont' : 'a') + ' plus dans le Word (conservée' + (nbRetNouv > 1 ? 's' : '') + ' dans l\'archive JSON).');
+    if (!confirm(msgs.join('\n\n') + '\n\nOK = exporter\nAnnuler = revenir au tableau')) return;
+  }
   // Archive (JSON sans photos) : conservée dans l'application + téléchargée, pour repartir de ce rapport la prochaine fois
   var archive = construireArchive();
   sauverHistorique(archive);
   var nomArchive = 'Archive_' + (g('hSite').value || 'site').replace(/[^a-z0-9]/gi,'_') + '_' + (g('hDate').value || today()) + '.json';
   setTimeout(function(){ telechargerJSON(archive, nomArchive); }, 900);
   var ancien = ancienDate;
-  data = ctrl; // le Word ne contient que les machines contrôlées
   // Désactiver temporairement beforeunload pour ne pas bloquer le téléchargement
   window._skipUnload = true;
   var site  = g('hSite').value.trim()||'Non spécifié';
@@ -2004,7 +2048,7 @@ function exportWord() {
   var lignes='', photos='';
   // Grouper par zone comme dans l'app
   var grpZ={}, ordreZ=[];
-  data.forEach(function(r){
+  lignesData.forEach(function(r){
     var cle=r.zone||'';
     if(!grpZ[cle]){ grpZ[cle]=[]; ordreZ.push(cle); }
     grpZ[cle].push(r);
@@ -2018,24 +2062,32 @@ function exportWord() {
         +'</tr>';
     }
     grpZ[cle].forEach(function(r){
-      var clr=r.gen==='Voir Rem'?'color:#dc2626;font-weight:bold':'';
+      var nv = r.aFaire === true; // non vu / non trouvé
+      var bgNv = nv ? 'background:#fff7ed;' : '';
+      var clr = nv ? 'color:#b45309;font-weight:bold' : (r.gen==='Voir Rem'?'color:#dc2626;font-weight:bold':'');
+      var etat = function(v){ return nv ? '-' : (v||'-'); };
+      var remCell;
+      if (nv) remCell = '<b style="color:#b45309;">Non vu / non trouv\u00e9</b>';
+      else if (r.rem) remCell = escHtml(r.rem).replace(/(^|\s)-\s*/g, '$1<br>- ').replace(/^<br>/, '');
+      else if (pbEtat(r)) remCell = '';
+      else remCell = '<span style="color:#64748b;">Rien \u00e0 signaler</span>';
       lignes+='<tr>'
-        +'<td style="text-align:left;font-weight:bold;">'
+        +'<td style="'+bgNv+'text-align:left;font-weight:bold;">'
         +'<span style="white-space:nowrap;">'+escHtml(r.modele||'-')
         +( r.marque ? ' <span style="background:#dbeafe;color:#1d4ed8;font-size:7.5pt;font-weight:bold;padding:1px 4px;border-radius:6px;">'+escHtml(r.marque)+'</span>' : '' )
         +( r.option ? ' <span style="background:#fef3c7;color:#92400e;font-size:7.5pt;font-weight:bold;padding:1px 4px;border-radius:6px;">'+escHtml(r.option)+'</span>' : '' )
         +'</span>'
         +'<br><span style="color:#64748b;font-size:8pt">'+escHtml(r.lieu||'')+'</span></td>'
-        +'<td style="font-weight:bold">'+( r.photos && r.photos.length
+        +'<td style="'+bgNv+'font-weight:bold">'+( r.photos && r.photos.length
           ? '<a href="#fiche_'+r.id+'" title="Ctrl+clic pour voir la fiche détaillée" style="color:#0d1f8c;text-decoration:underline;">'+escHtml(r.serial||'-')+'</a>'
           : escHtml(r.serial||'-') )
         +'<br><span style="font-weight:normal;color:#475569;font-size:8pt">'+escHtml(r.ip||'')+'</span></td>'
-        +'<td>'+escHtml(r.cell||'-')+'</td>'
-        +'<td>'+escHtml(r.dot||'-')+'</td>'
-        +'<td>'+escHtml(r.roll||'-')+'</td>'
-        +'<td>'+escHtml(r.imp||'-')+'</td>'
-        +'<td style="'+clr+'">'+escHtml(r.gen||'-')+'</td>'
-        +'<td style="text-align:left">'+( r.rem ? escHtml(r.rem).replace(/(^|\s)-\s*/g, '$1<br>- ').replace(/^<br>/, '') : '' )+'</td>'
+        +'<td style="'+bgNv+'">'+escHtml(etat(r.cell))+'</td>'
+        +'<td style="'+bgNv+'">'+escHtml(etat(r.dot))+'</td>'
+        +'<td style="'+bgNv+'">'+escHtml(etat(r.roll))+'</td>'
+        +'<td style="'+bgNv+'">'+escHtml(etat(r.imp))+'</td>'
+        +'<td style="'+bgNv+clr+'">'+(nv ? 'Non vu' : escHtml(r.gen||'-'))+'</td>'
+        +'<td style="'+bgNv+'text-align:left">'+remCell+'</td>'
         +'</tr>';
     });
   });
@@ -2045,9 +2097,9 @@ function exportWord() {
   lignes = lignes.replace(/<td>/g, '<td style="' + TD_BASE + '">').replace(/<td style="/g, '<td style="' + TD_BASE);
 
   // ── Synthèse chiffrée affichée en haut du tableau
-  var nbOk = data.filter(function(r){ return r.gen !== 'Voir Rem'; }).length;
-  var nbRem = data.length - nbOk;
-  function compte(champ, bon) { return data.filter(function(r){ var v = r[champ]; return v && v !== 'OK' && v !== '-'; }).length; }
+  var nbOk = ctrl.filter(function(r){ return r.gen !== 'Voir Rem'; }).length;
+  var nbRem = ctrl.length - nbOk;
+  function compte(champ, bon) { return ctrl.filter(function(r){ var v = r[champ]; return v && v !== 'OK' && v !== '-'; }).length; }
   var det = [];
   var nTete = compte('dot'), nRoll = compte('roll'), nCell = compte('cell'), nImp = compte('imp');
   if (nTete) det.push('t\u00eates : ' + nTete);
@@ -2057,8 +2109,11 @@ function exportWord() {
   // Évolution par rapport au rapport précédent (machines retrouvées par S/N)
   var evolution = '';
   if (ancien) {
-    var comp = data.filter(function(r){ return r.prev; });
-    var nbNouv = data.length - comp.length;
+    var comp = ctrl.filter(function(r){ return r.prev; });
+    var nbNouv = ctrl.length - comp.length;
+    // S/N des machines de l'ancien rapport non vues (liste courte)
+    var snNv = vusNon.map(function(r){ return r.serial || '?'; });
+    var snNvTxt = snNv.slice(0, 8).join(', ') + (snNv.length > 8 ? ' (+' + (snNv.length - 8) + ')' : '');
     function nbPb(list, champ, avant) { return list.filter(function(r){ var v = avant ? r.prev[champ] : r[champ]; return v && v !== 'OK' && v !== '-'; }).length; }
     var evo = [];
     [['dot','t\u00eates'],['roll','rollers'],['cell','capteurs'],['imp','tests d\'impression']].forEach(function(c){
@@ -2069,13 +2124,16 @@ function exportWord() {
       + '<b>\u00c9volution depuis le ' + escHtml(ancien) + ' :</b> ' + comp.length + ' machine' + (comp.length > 1 ? 's' : '') + ' compar\u00e9e' + (comp.length > 1 ? 's' : '')
       + ' \u2014 ' + (evo.length ? evo.join(' \u00b7 ') : 'aucun point \u00e0 surveiller')
       + (nbNouv ? ' \u2014 ' + nbNouv + ' nouvelle' + (nbNouv > 1 ? 's' : '') + ' machine' + (nbNouv > 1 ? 's' : '') : '')
-      + (nbAF ? ' \u2014 ' + nbAF + ' non contr\u00f4l\u00e9e' + (nbAF > 1 ? 's' : '') : '')
+      + (nbRet ? ' \u2014 <span style="color:#64748b;">' + nbRet + ' absente' + (nbRet > 1 ? 's' : '') + ' depuis plusieurs pr\u00e9ventives (retir\u00e9e' + (nbRet > 1 ? 's' : '') + ' du tableau)</span>' : '')
+      + (nbAF ? ' \u2014 <b style="color:#b45309;">' + nbAF + ' non vue' + (nbAF > 1 ? 's' : '') + ' / non trouv\u00e9e' + (nbAF > 1 ? 's' : '') + '</b> : ' + escHtml(snNvTxt) : '')
       + '</td></tr>';
   }
   // Synthèse affichée directement dans la dernière cellule du bandeau d'en-tête
-  var syntheseCell = '<b>Synth\u00e8se :</b> ' + data.length + ' \u00e9quipement' + (data.length > 1 ? 's' : '')
+  var syntheseCell = '<b>Synth\u00e8se :</b> ' + lignesData.length + ' \u00e9quipement' + (lignesData.length > 1 ? 's' : '')
     + '<br><b style="color:#16a34a;">' + nbOk + ' OK</b>'
-    + (nbRem ? ' \u2014 <b style="color:#dc2626;">' + nbRem + ' \u00e0 surveiller</b>' + (det.length ? '<br>' + det.join(' \u00b7 ') : '') : '');
+    + (nbRem ? ' \u2014 <b style="color:#dc2626;">' + nbRem + ' \u00e0 surveiller</b>' : '')
+    + (nbAF ? ' \u2014 <b style="color:#b45309;">' + nbAF + ' non vu' + (nbAF > 1 ? 's' : '') + '</b>' : '')
+    + (nbRem && det.length ? '<br>' + det.join(' \u00b7 ') : '');
 
   // ── Construire les FICHES DÉTAILLÉES : 2 par page, pour les machines avec photo(s)
   var fiches = data.filter(function(r){ return r.photos && r.photos.length > 0; });
