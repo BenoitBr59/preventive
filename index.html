@@ -2135,9 +2135,10 @@ function exportWord() {
     + (nbAF ? ' \u2014 <b style="color:#b45309;">' + nbAF + ' non vu' + (nbAF > 1 ? 's' : '') + '</b>' : '')
     + (nbRem && det.length ? '<br>' + det.join(' \u00b7 ') : '');
 
-  // ── Construire les FICHES DÉTAILLÉES, pour les machines avec photo(s) :
-  //    • fiche avec UNE seule photo (et remarque courte) → 4 fiches par page (grille 2 × 2)
-  //    • fiche avec plusieurs photos → 2 fiches par page
+  // ── Construire les FICHES DÉTAILLÉES, pour les machines avec photo(s), dans l'ordre du tableau :
+  //    • fiches à UNE seule photo (remarque courte) consécutives → jusqu'à 4 par page (grille 2 × 2)
+  //    • sinon 2 fiches par page (grand format)
+  //    La répartition en pages minimise le nombre de pages sans jamais changer l'ordre.
   var fiches = data.filter(function(r){ return r.photos && r.photos.length > 0; });
   // Saut de page « en dur » (style en ligne, compris par Word, Word mobile et LibreOffice ; la classe CSS ne l'était pas)
   var SAUT = '<p style="page-break-before:always;margin:0;padding:0;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;">&nbsp;</p>';
@@ -2149,8 +2150,6 @@ function exportWord() {
   function estCompacte(r) { return r.photos.length === 1 && nbLignesRem(r) <= 4; }
 
   if (fiches.length) {
-    var fichesCompactes = fiches.filter(estCompacte);
-    var fichesLarges = fiches.filter(function(r){ return !estCompacte(r); });
     photos = '<h2 style="page-break-before:always;color:#0d1f8c;font-family:Arial,sans-serif;font-size:14pt;margin:0 0 6pt;page-break-after:avoid;">Fiches Détaillées — Imprimantes avec Observations</h2>';
     photos += '<p style="font-family:Arial,sans-serif;font-size:9pt;color:#222;line-height:1.5;margin:0 0 8pt;page-break-after:avoid;">Ci-dessous, le détail des imprimantes présentant un défaut d\'impression à un ou plusieurs endroits soumis à votre attention pour un changement éventuel ou nécessaire, ainsi que les traces de manque de matière.</p>';
 
@@ -2221,33 +2220,49 @@ function exportWord() {
       return f;
     }
 
-    var pagesFiches = 0; // nombre de pages de fiches déjà posées (pour insérer le saut de page entre elles)
-    // Pages de 4 fiches (une seule photo) : grille 2 × 2
-    for (var q4=0; q4<fichesCompactes.length; q4+=4) {
-      if (pagesFiches++ > 0) photos += SAUT;
-      var bloc = fichesCompactes.slice(q4, q4+4);
-      photos += '<table style="border:none;border-collapse:collapse;width:100%;table-layout:fixed;">';
-      for (var lg=0; lg<bloc.length; lg+=2) {
-        photos += '<tr style="page-break-inside:avoid;">';
-        photos += '<td style="border:none;width:50%;vertical-align:top;padding:0 6pt 6pt 0;">' + buildFiche(bloc[lg], true) + '</td>';
-        photos += bloc[lg+1]
-          ? '<td style="border:none;width:50%;vertical-align:top;padding:0 0 6pt 6pt;">' + buildFiche(bloc[lg+1], true) + '</td>'
-          : '<td style="border:none;width:50%;"></td>';
-        photos += '</tr>';
+    // Répartition en pages (programmation dynamique) : page « 4 » = 1 à 4 fiches compactes consécutives, page « 2 » = 1 ou 2 fiches
+    var nF = fiches.length, estComp = fiches.map(estCompacte);
+    var nbPages = [], choix = [];
+    nbPages[nF] = 0;
+    for (var d = nF - 1; d >= 0; d--) {
+      nbPages[d] = Infinity;
+      for (var k4 = 1; k4 <= 4 && d + k4 <= nF; k4++) {
+        if (!estComp[d + k4 - 1]) break;
+        var c4 = 1 + nbPages[d + k4];
+        if (c4 < nbPages[d] || (c4 === nbPages[d] && k4 > choix[d].k)) { nbPages[d] = c4; choix[d] = { k: k4, quad: true }; }
       }
-      photos += '</table>';
+      for (var k2 = 1; k2 <= 2 && d + k2 <= nF; k2++) {
+        var c2 = 1 + nbPages[d + k2];
+        // à nombre de pages égal : on préfère le plus de fiches par page, puis le grand format (photos plus grandes)
+        if (c2 < nbPages[d] || (c2 === nbPages[d] && (k2 > choix[d].k || (k2 === choix[d].k && choix[d].quad)))) { nbPages[d] = c2; choix[d] = { k: k2, quad: false }; }
+      }
     }
-    // Pages de 2 fiches (plusieurs photos ou remarque longue)
-    for (var fi=0; fi<fichesLarges.length; fi+=2) {
+    var pagesFiches = 0; // nombre de pages de fiches déjà posées (pour insérer le saut de page entre elles)
+    for (var pos = 0; pos < nF; ) {
+      var ch = choix[pos], bloc = fiches.slice(pos, pos + ch.k);
+      pos += ch.k;
       if (pagesFiches++ > 0) photos += SAUT;
-      photos += '<table style="border:none;border-collapse:collapse;width:100%;table-layout:fixed;page-break-inside:avoid;mso-break-wrap:none;"><tr style="page-break-inside:avoid;">';
-      photos += '<td style="border:none;width:50%;vertical-align:top;padding:0 6pt 0 0;page-break-inside:avoid;">' + buildFiche(fichesLarges[fi], false) + '</td>';
-      if (fichesLarges[fi+1]) {
-        photos += '<td style="border:none;width:50%;vertical-align:top;padding:0 0 0 6pt;page-break-inside:avoid;">' + buildFiche(fichesLarges[fi+1], false) + '</td>';
+      if (ch.quad) {
+        // Page de 4 fiches (une seule photo chacune) : grille 2 × 2
+        photos += '<table style="border:none;border-collapse:collapse;width:100%;table-layout:fixed;">';
+        for (var lg = 0; lg < bloc.length; lg += 2) {
+          photos += '<tr style="page-break-inside:avoid;">';
+          photos += '<td style="border:none;width:50%;vertical-align:top;padding:0 6pt 6pt 0;">' + buildFiche(bloc[lg], true) + '</td>';
+          photos += bloc[lg + 1]
+            ? '<td style="border:none;width:50%;vertical-align:top;padding:0 0 6pt 6pt;">' + buildFiche(bloc[lg + 1], true) + '</td>'
+            : '<td style="border:none;width:50%;"></td>';
+          photos += '</tr>';
+        }
+        photos += '</table>';
       } else {
-        photos += '<td style="border:none;width:50%;"></td>';
+        // Page de 2 fiches côte à côte (grand format)
+        photos += '<table style="border:none;border-collapse:collapse;width:100%;table-layout:fixed;page-break-inside:avoid;mso-break-wrap:none;"><tr style="page-break-inside:avoid;">';
+        photos += '<td style="border:none;width:50%;vertical-align:top;padding:0 6pt 0 0;page-break-inside:avoid;">' + buildFiche(bloc[0], false) + '</td>';
+        photos += bloc[1]
+          ? '<td style="border:none;width:50%;vertical-align:top;padding:0 0 0 6pt;page-break-inside:avoid;">' + buildFiche(bloc[1], false) + '</td>'
+          : '<td style="border:none;width:50%;"></td>';
+        photos += '</tr></table>';
       }
-      photos += '</tr></table>';
     }
   }
 
