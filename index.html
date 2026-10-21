@@ -130,7 +130,7 @@
   <div id="rappelPrev" class="md:col-span-2" style="display:none;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:6px;padding:8px 10px;font-size:12px;line-height:1.5;"></div>
   <div class="md:col-span-2 grid grid-cols-2 gap-4 bg-white p-3 rounded border border-gray-200">
     <div>
-      <label class="block text-xs font-medium text-gray-700 mb-1">Cellules / Capteurs</label>
+      <label class="block text-xs font-medium text-gray-700 mb-1">Cellules</label>
       <select id="fCell" onchange="majGenAuto()" class="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"><option>OK</option><option>NOK</option><option>-</option></select>
     </div>
     <div>
@@ -745,7 +745,7 @@ function editer(id) {
   var rp = g('rappelPrev');
   if (r.aFaire && r.prev) {
     rp.style.display = 'block';
-    rp.textContent = '\u21ba Pr\u00e9c\u00e9demment' + (ancienDate ? ' (' + ancienDate + ')' : '') + ' : Capteurs ' + r.prev.cell + ' \u00b7 T\u00eate ' + r.prev.dot
+    rp.textContent = '\u21ba Pr\u00e9c\u00e9demment' + (ancienDate ? ' (' + ancienDate + ')' : '') + ' : Cellules ' + r.prev.cell + ' \u00b7 T\u00eate ' + r.prev.dot
       + ' \u00b7 Roller ' + r.prev.roll + ' \u00b7 Test ' + r.prev.imp + ' \u00b7 G\u00e9n\u00e9ral ' + r.prev.gen + (r.prev.rem ? ' \u2014 ' + r.prev.rem : '');
   } else { rp.style.display = 'none'; }
   g('fRem').value    = r.rem    || '';
@@ -2104,7 +2104,7 @@ function exportWord() {
   var nTete = compte('dot'), nRoll = compte('roll'), nCell = compte('cell'), nImp = compte('imp');
   if (nTete) det.push('t\u00eates : ' + nTete);
   if (nRoll) det.push('rollers : ' + nRoll);
-  if (nCell) det.push('capteurs : ' + nCell);
+  if (nCell) det.push('cellules : ' + nCell);
   if (nImp)  det.push('tests d\'impression : ' + nImp);
   // Évolution par rapport au rapport précédent (machines retrouvées par S/N)
   var evolution = '';
@@ -2116,7 +2116,7 @@ function exportWord() {
     var snNvTxt = snNv.slice(0, 8).join(', ') + (snNv.length > 8 ? ' (+' + (snNv.length - 8) + ')' : '');
     function nbPb(list, champ, avant) { return list.filter(function(r){ var v = avant ? r.prev[champ] : r[champ]; return v && v !== 'OK' && v !== '-'; }).length; }
     var evo = [];
-    [['dot','t\u00eates'],['roll','rollers'],['cell','capteurs'],['imp','tests d\'impression']].forEach(function(c){
+    [['dot','t\u00eates'],['roll','rollers'],['cell','cellules'],['imp','tests d\'impression']].forEach(function(c){
       var a = nbPb(comp, c[0], true), b = nbPb(comp, c[0], false);
       if (a || b) evo.push(c[1] + ' : ' + a + ' \u2192 ' + b);
     });
@@ -2135,53 +2135,70 @@ function exportWord() {
     + (nbAF ? ' \u2014 <b style="color:#b45309;">' + nbAF + ' non vu' + (nbAF > 1 ? 's' : '') + '</b>' : '')
     + (nbRem && det.length ? '<br>' + det.join(' \u00b7 ') : '');
 
-  // ── Construire les FICHES DÉTAILLÉES : 2 par page, pour les machines avec photo(s)
+  // ── Construire les FICHES DÉTAILLÉES, pour les machines avec photo(s) :
+  //    • fiche avec UNE seule photo (et remarque courte) → 4 fiches par page (grille 2 × 2)
+  //    • fiche avec plusieurs photos → 2 fiches par page
   var fiches = data.filter(function(r){ return r.photos && r.photos.length > 0; });
-  if (fiches.length) {
-    photos = '<div class="pb"></div>';
-    photos += '<h2 style="color:#0d1f8c;font-family:Arial,sans-serif;font-size:14pt;margin-bottom:6pt;page-break-after:avoid;">Fiches Détaillées — Imprimantes avec Observations</h2>';
-    photos += '<p style="font-family:Arial,sans-serif;font-size:9pt;color:#222;line-height:1.5;margin:0 0 12pt;page-break-after:avoid;">Ci-dessous, le détail des imprimantes présentant un défaut d\'impression à un ou plusieurs endroits soumis à votre attention pour un changement éventuel ou nécessaire, ainsi que les traces de manque de matière.</p>';
+  // Saut de page « en dur » (style en ligne, compris par Word, Word mobile et LibreOffice ; la classe CSS ne l'était pas)
+  var SAUT = '<p style="page-break-before:always;margin:0;padding:0;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;">&nbsp;</p>';
+  // Nombre de lignes estimé de la remarque (une ligne par « - » et par ~85 caractères)
+  function nbLignesRem(r) {
+    if (!r.rem) return 1;
+    return r.rem.split(/(?:^|\s)-\s*/).filter(Boolean).reduce(function(n, seg){ return n + Math.max(1, Math.ceil(seg.length / 85)); }, 0) || 1;
+  }
+  function estCompacte(r) { return r.photos.length === 1 && nbLignesRem(r) <= 4; }
 
-    function buildFiche(r) {
+  if (fiches.length) {
+    var fichesCompactes = fiches.filter(estCompacte);
+    var fichesLarges = fiches.filter(function(r){ return !estCompacte(r); });
+    photos = '<h2 style="page-break-before:always;color:#0d1f8c;font-family:Arial,sans-serif;font-size:14pt;margin:0 0 6pt;page-break-after:avoid;">Fiches Détaillées — Imprimantes avec Observations</h2>';
+    photos += '<p style="font-family:Arial,sans-serif;font-size:9pt;color:#222;line-height:1.5;margin:0 0 8pt;page-break-after:avoid;">Ci-dessous, le détail des imprimantes présentant un défaut d\'impression à un ou plusieurs endroits soumis à votre attention pour un changement éventuel ou nécessaire, ainsi que les traces de manque de matière.</p>';
+
+    function buildFiche(r, compact) {
       var clr = r.gen==='Voir Rem' ? 'color:#dc2626;font-weight:bold' : '';
       var remHtml = r.rem ? escHtml(r.rem).replace(/(^|\s)-\s*/g, '$1<br>- ').replace(/^<br>/, '') : 'Rien à signaler';
+      // Version compacte (4 par page) : marges et polices un peu réduites
+      var hdrPad = compact ? '3pt 6pt' : '5pt 8pt', hdrFont = compact ? '9.5pt' : '10pt';
+      var snPad  = compact ? '2pt 6pt' : '4pt 8pt';
+      var cPad   = compact ? '2pt' : '3pt';
+      var remPad = compact ? '3pt 6pt' : '4pt 8pt', remFont = compact ? '7.5pt' : '8pt';
+      var phPad  = compact ? '3pt' : '5pt';
       var f = '<a name="fiche_'+r.id+'"></a>';
       // Tableau unique à 5 colonnes pour toute la fiche : garantit l'alignement de la ligne
       // d'état avec le reste (titre, S/N+IP, remarques, photos utilisent colspan="5")
       f += '<table style="border:2px solid #0d1f8c;border-collapse:collapse;width:100%;table-layout:fixed;margin-bottom:4pt;page-break-inside:avoid;mso-break-wrap:none;">';
       // En-tête fiche : modèle + S/N + zone/lieu + retour au tableau
-      f += '<tr><td colspan="5" style="background:#0d1f8c;color:#fff;font-weight:bold;font-size:10pt;padding:5pt 8pt;border:none;text-align:left;">'
+      f += '<tr><td colspan="5" style="background:#0d1f8c;color:#fff;font-weight:bold;font-size:'+hdrFont+';padding:'+hdrPad+';border:none;text-align:left;">'
          + escHtml(r.modele||'-') + (r.marque ? ' ('+escHtml(r.marque)+')' : '') + (r.option ? ' ['+escHtml(r.option)+']' : '') + (r.lieu ? ' — '+escHtml(r.lieu) : '') + (r.zone ? ' &#128205; '+escHtml(r.zone) : '')
          + '&nbsp;&nbsp;<a href="#tableau_recap" style="color:#93c5fd;font-size:8pt;font-weight:normal;text-decoration:underline;">&#8593; retour au tableau</a>'
          + '</td></tr>';
       // Ligne info : S/N + IP
-      f += '<tr><td colspan="5" style="font-size:8.5pt;padding:4pt 8pt;border:1px solid #94a3b8;text-align:left;background:#eef0fb;">'
-         + '<b>S/N\u00a0:</b> ' + escHtml(r.serial||'-') + (r.ip ? '  &nbsp;|&nbsp;  <b>IP\u00a0:</b> '+escHtml(r.ip) : '')
+      f += '<tr><td colspan="5" style="font-size:8.5pt;padding:'+snPad+';border:1px solid #94a3b8;text-align:left;background:#eef0fb;">'
+         + '<b>S/N :</b> ' + escHtml(r.serial||'-') + (r.ip ? '  &nbsp;|&nbsp;  <b>IP :</b> '+escHtml(r.ip) : '')
          + '</td></tr>';
       // Ligne état : 5 cellules distinctes, alignées avec le reste car même tableau parent
+      var th = 'width:20%;font-size:7.5pt;padding:'+cPad+';border:1px solid #94a3b8;background:#0d1f8c;color:#fff;';
+      var td = 'width:20%;font-size:8pt;padding:'+cPad+';border:1px solid #94a3b8;';
       f += '<tr>'
-         + '<th style="width:20%;font-size:7.5pt;padding:3pt;border:1px solid #94a3b8;background:#0d1f8c;color:#fff;">Capt.</th>'
-         + '<th style="width:20%;font-size:7.5pt;padding:3pt;border:1px solid #94a3b8;background:#0d1f8c;color:#fff;">Tête</th>'
-         + '<th style="width:20%;font-size:7.5pt;padding:3pt;border:1px solid #94a3b8;background:#0d1f8c;color:#fff;">Roller</th>'
-         + '<th style="width:20%;font-size:7.5pt;padding:3pt;border:1px solid #94a3b8;background:#0d1f8c;color:#fff;">Imp.</th>'
-         + '<th style="width:20%;font-size:7.5pt;padding:3pt;border:1px solid #94a3b8;background:#0d1f8c;color:#fff;">Général</th>'
+         + '<th style="'+th+'">Cell.</th><th style="'+th+'">Tête</th><th style="'+th+'">Roller</th><th style="'+th+'">Imp.</th><th style="'+th+'">Général</th>'
          + '</tr><tr>'
-         + '<td style="width:20%;font-size:8pt;padding:3pt;border:1px solid #94a3b8;">'+escHtml(r.cell||'-')+'</td>'
-         + '<td style="width:20%;font-size:8pt;padding:3pt;border:1px solid #94a3b8;">'+escHtml(r.dot||'-')+'</td>'
-         + '<td style="width:20%;font-size:8pt;padding:3pt;border:1px solid #94a3b8;">'+escHtml(r.roll||'-')+'</td>'
-         + '<td style="width:20%;font-size:8pt;padding:3pt;border:1px solid #94a3b8;">'+escHtml(r.imp||'-')+'</td>'
-         + '<td style="width:20%;font-size:8pt;padding:3pt;border:1px solid #94a3b8;'+clr+'">'+escHtml(r.gen||'-')+'</td>'
+         + '<td style="'+td+'">'+escHtml(r.cell||'-')+'</td>'
+         + '<td style="'+td+'">'+escHtml(r.dot||'-')+'</td>'
+         + '<td style="'+td+'">'+escHtml(r.roll||'-')+'</td>'
+         + '<td style="'+td+'">'+escHtml(r.imp||'-')+'</td>'
+         + '<td style="'+td+clr+'">'+escHtml(r.gen||'-')+'</td>'
          + '</tr>';
       // Remarques
-      f += '<tr><td colspan="5" style="font-size:8pt;padding:4pt 8pt;border:1px solid #94a3b8;text-align:left;line-height:1.3;">'
-         + '<b>Remarques\u00a0:</b> ' + remHtml + '</td></tr>';
+      f += '<tr><td colspan="5" style="font-size:'+remFont+';padding:'+remPad+';border:1px solid #94a3b8;text-align:left;line-height:1.3;">'
+         + '<b>Remarques :</b> ' + remHtml + '</td></tr>';
       // Photos de la fiche (jusqu'à 4), taille calculée pour TOUJOURS tenir sur une page
-      f += '<tr><td colspan="5" style="border:1px solid #94a3b8;padding:5pt;">';
+      f += '<tr><td colspan="5" style="border:1px solid #94a3b8;padding:'+phPad+';">';
       var photosF = r.photos.slice(0, 4);
       var nbP = photosF.length;
-      // Budget de hauteur plafonné pour garantir que la fiche ne déborde jamais sur 2 pages
+      // Budget de hauteur plafonné pour garantir que la fiche ne déborde jamais de sa place
       var pWcm, pHcm, parLigne;
-      if (nbP === 1)      { pWcm = 12; pHcm = 4.8; parLigne = 1; }
+      if (compact)        { pWcm = 9.5; pHcm = 3.3; parLigne = 1; } // 4 fiches par page
+      else if (nbP === 1) { pWcm = 12; pHcm = 4.8; parLigne = 1; }
       else if (nbP === 2) { pWcm = 10; pHcm = 4;   parLigne = 1; } // empilées, réduites pour tenir en hauteur
       else                { pWcm = 6;  pHcm = 2.4; parLigne = 2; } // 3 ou 4 photos
       var pW_PX = Math.round(pWcm*37.795), pH_PX = Math.round(pHcm*37.795);
@@ -2204,14 +2221,29 @@ function exportWord() {
       return f;
     }
 
-    for (var fi=0; fi<fiches.length; fi+=2) {
-      if (fi>0) {
-        photos += '<div class="pb"></div>';
+    var pagesFiches = 0; // nombre de pages de fiches déjà posées (pour insérer le saut de page entre elles)
+    // Pages de 4 fiches (une seule photo) : grille 2 × 2
+    for (var q4=0; q4<fichesCompactes.length; q4+=4) {
+      if (pagesFiches++ > 0) photos += SAUT;
+      var bloc = fichesCompactes.slice(q4, q4+4);
+      photos += '<table style="border:none;border-collapse:collapse;width:100%;table-layout:fixed;">';
+      for (var lg=0; lg<bloc.length; lg+=2) {
+        photos += '<tr style="page-break-inside:avoid;">';
+        photos += '<td style="border:none;width:50%;vertical-align:top;padding:0 6pt 6pt 0;">' + buildFiche(bloc[lg], true) + '</td>';
+        photos += bloc[lg+1]
+          ? '<td style="border:none;width:50%;vertical-align:top;padding:0 0 6pt 6pt;">' + buildFiche(bloc[lg+1], true) + '</td>'
+          : '<td style="border:none;width:50%;"></td>';
+        photos += '</tr>';
       }
+      photos += '</table>';
+    }
+    // Pages de 2 fiches (plusieurs photos ou remarque longue)
+    for (var fi=0; fi<fichesLarges.length; fi+=2) {
+      if (pagesFiches++ > 0) photos += SAUT;
       photos += '<table style="border:none;border-collapse:collapse;width:100%;table-layout:fixed;page-break-inside:avoid;mso-break-wrap:none;"><tr style="page-break-inside:avoid;">';
-      photos += '<td style="border:none;width:50%;vertical-align:top;padding:0 6pt 0 0;page-break-inside:avoid;">' + buildFiche(fiches[fi]) + '</td>';
-      if (fiches[fi+1]) {
-        photos += '<td style="border:none;width:50%;vertical-align:top;padding:0 0 0 6pt;page-break-inside:avoid;">' + buildFiche(fiches[fi+1]) + '</td>';
+      photos += '<td style="border:none;width:50%;vertical-align:top;padding:0 6pt 0 0;page-break-inside:avoid;">' + buildFiche(fichesLarges[fi], false) + '</td>';
+      if (fichesLarges[fi+1]) {
+        photos += '<td style="border:none;width:50%;vertical-align:top;padding:0 0 0 6pt;page-break-inside:avoid;">' + buildFiche(fichesLarges[fi+1], false) + '</td>';
       } else {
         photos += '<td style="border:none;width:50%;"></td>';
       }
@@ -2227,7 +2259,7 @@ function exportWord() {
     +'th{background:#0d1f8c;color:#fff;padding:5px 4px;border:1px solid #94a3b8;font-size:8.5pt;text-align:center}'
     +'td{padding:5px 4px;border:1px solid #94a3b8;font-size:8.5pt;vertical-align:middle;text-align:center}'
     +'.m td{border:1px solid #c7cef5;background:#eef0fb;padding:7px;font-size:9pt}'
-    +'h1{color:#0d1f8c;font-size:16pt;margin:0 0 2px;text-transform:uppercase}.pb{page-break-before:always}'
+    +'h1{color:#0d1f8c;font-size:16pt;margin:0 0 2px;text-transform:uppercase}'
     +'</style></head><body>'
         +'<div class="Section1">'
     +'<table style="margin-bottom:10px;border:none"><tr>'
@@ -2235,42 +2267,42 @@ function exportWord() {
     +'<td style="border:none;vertical-align:middle"><h1>Rapport de Maintenance Préventive</h1>'
     +'<div style="color:#555;font-size:9pt">Nettoyage et Entretien — Parc Imprimantes</div></td></tr></table>'
     +'<a name="tableau_recap"></a>'
-    +'<table cellspacing="0" style="table-layout:fixed;width:100%;border-collapse:collapse;border:1px solid #94a3b8;"><colgroup>'
+    +'<table width="100%" cellspacing="0" cellpadding="0" style="table-layout:fixed;width:100%;border-collapse:collapse;border:1px solid #94a3b8;"><colgroup>'
     +'<col width="17%" style="width:17%"><col width="15%" style="width:15%"><col width="8%" style="width:8%"><col width="10%" style="width:10%">'
     +'<col width="9%" style="width:9%"><col width="8%" style="width:8%"><col width="8%" style="width:8%"><col width="25%" style="width:25%">'
     +'</colgroup>'
     +'<tr style="height:1pt;mso-height-rule:exactly;">'
-    +'<td style="width:17%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
-    +'<td style="width:15%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
-    +'<td style="width:8%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
-    +'<td style="width:10%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
-    +'<td style="width:9%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
-    +'<td style="width:8%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
-    +'<td style="width:8%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
-    +'<td style="width:25%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
+    +'<td width="17%" style="width:17%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
+    +'<td width="15%" style="width:15%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
+    +'<td width="8%" style="width:8%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
+    +'<td width="10%" style="width:10%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
+    +'<td width="9%" style="width:9%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
+    +'<td width="8%" style="width:8%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
+    +'<td width="8%" style="width:8%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
+    +'<td width="25%" style="width:25%;height:1pt;padding:0;border:none;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></td>'
     +'</tr><tr>'
-    +'<td colspan="2" style="width:32%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;vertical-align:top;"><b>Client / Site :</b> '+escHtml(site)+'</td>'
-    +'<td colspan="2" style="width:18%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;vertical-align:top;"><b>Intervenant :</b> '+escHtml(interv)+'</td>'
-    +'<td colspan="3" style="width:25%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;vertical-align:top;"><b>Imprimante :</b> '+escHtml(parc)+'<br><b>Date :</b> '+escHtml(date)+'</td>'
-    +'<td colspan="1" style="width:25%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;vertical-align:top;">'+syntheseCell+'</td>'
+    +'<td colspan="2" width="32%" style="width:32%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;vertical-align:top;"><b>Client / Site :</b> '+escHtml(site)+'</td>'
+    +'<td colspan="2" width="18%" style="width:18%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;vertical-align:top;"><b>Intervenant :</b> '+escHtml(interv)+'</td>'
+    +'<td colspan="3" width="25%" style="width:25%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;vertical-align:top;"><b>Imprimante :</b> '+escHtml(parc)+'<br><b>Date :</b> '+escHtml(date)+'</td>'
+    +'<td colspan="1" width="25%" style="width:25%;background:#eef0fb;border:1px solid #94a3b8;padding:6px 6px;font-size:9pt;text-align:left;vertical-align:top;">'+syntheseCell+'</td>'
     +'</tr>'
     +evolution
     +'</table>'
-    +'<p style="margin:0;padding:0;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;">&nbsp;</p>'
-    +'<table cellspacing="0" style="table-layout:fixed;width:100%;border-collapse:collapse;border:1px solid #94a3b8;border-top:none;"><colgroup>'
+    +'<p style="margin:0;padding:0;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;"></p>'
+    +'<table width="100%" cellspacing="0" cellpadding="0" style="table-layout:fixed;width:100%;border-collapse:collapse;border:1px solid #94a3b8;border-top:none;"><colgroup>'
     +'<col width="17%" style="width:17%"><col width="15%" style="width:15%"><col width="8%" style="width:8%"><col width="10%" style="width:10%">'
     +'<col width="9%" style="width:9%"><col width="8%" style="width:8%"><col width="8%" style="width:8%"><col width="25%" style="width:25%">'
     +'</colgroup><thead><tr>'
-    +'<th style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;border-top:none;padding:5px 4px;font-size:8.5pt;width:17%;text-align:left">Modèle / ID</th>'
-    +'<th style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;border-top:none;padding:5px 4px;font-size:8.5pt;width:15%">S/N — Adresse IP</th>'
-    +'<th style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;border-top:none;padding:5px 4px;font-size:8.5pt;width:8%">Capteurs</th><th style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;border-top:none;padding:5px 4px;font-size:8.5pt;width:10%">État tête d\'impression</th>'
-    +'<th style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;border-top:none;padding:5px 4px;font-size:8.5pt;width:9%">Platen Roller</th><th style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;border-top:none;padding:5px 4px;font-size:8.5pt;width:8%">Test Imp.</th>'
-    +'<th style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;border-top:none;padding:5px 4px;font-size:8.5pt;width:8%">Général</th><th style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;border-top:none;padding:5px 4px;font-size:8.5pt;width:25%;text-align:left">Remarques</th>'
+    +'<th width="17%" style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;border-top:none;padding:5px 4px;font-size:8.5pt;width:17%;text-align:left">Modèle / ID</th>'
+    +'<th width="15%" style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;border-top:none;padding:5px 4px;font-size:8.5pt;width:15%">S/N — Adresse IP</th>'
+    +'<th width="8%" style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;border-top:none;padding:5px 4px;font-size:8.5pt;width:8%">Cellules</th><th width="10%" style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;border-top:none;padding:5px 4px;font-size:8.5pt;width:10%">État tête d\'impression</th>'
+    +'<th width="9%" style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;border-top:none;padding:5px 4px;font-size:8.5pt;width:9%">Platen Roller</th><th width="8%" style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;border-top:none;padding:5px 4px;font-size:8.5pt;width:8%">Test Imp.</th>'
+    +'<th width="8%" style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;border-top:none;padding:5px 4px;font-size:8.5pt;width:8%">Général</th><th width="25%" style="background:#0d1f8c;color:#fff;border:1px solid #94a3b8;border-top:none;padding:5px 4px;font-size:8.5pt;width:25%;text-align:left">Remarques</th>'
     +'</tr></thead><tbody>'+lignes+'</tbody></table>'
     +'<div style="margin-top:14px;font-size:9pt;line-height:1.5;">'
     +'<p style="margin:0 0 4px;text-decoration:underline;font-weight:bold;">Remarque :</p>'
     +'<p style="margin:0 0 6px;">Faire un nettoyage régulier des têtes et rollers, vous permettra de gagner en qualité d\'impression et en longévité des têtes d\'impression.</p>'
-    +'<p style="margin:0;">&#9888;&#65039; Ne pas utiliser de cutter pour enlever les étiquettes collées sur le roller afin de ne pas l\'abimer, utiliser de la bombe décolle étiquettes.</p>'
+    +'<p style="margin:0;">&#9888;&#65039; Ne pas utiliser de cutter pour enlever les étiquettes collées sur le roller afin de ne pas l\'abimer.</p>'
     +'</div>'
     +photos
     +'</div></body></html>';
