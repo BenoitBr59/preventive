@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://api.github.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
+<script>
+// Anti-clickjacking : l'application refuse de s'afficher dans le cadre d'un autre site
+// (GitHub Pages ne permet pas d'envoyer l'en-tête frame-ancestors, on le fait donc ici)
+if (window.top !== window.self) {
+  try { window.top.location = window.self.location; } catch (e) { /* navigation interdite : on masque au moins la page */ }
+  document.documentElement.style.display = 'none';
+}
+</script>
 <title>MDS — Maintenance Préventive</title>
 
 <!-- Favicon & icône PWA -->
@@ -366,6 +374,7 @@
       <span>&#128269; Zoom</span>
       <input type="range" id="zoomRange" min="1" max="1" step="0.1" value="1" oninput="appliquerZoom(this.value)" style="flex:1;">
       <span id="zoomVal" style="min-width:34px;text-align:right;">x1</span>
+      <button type="button" id="zoomAuto" onclick="azBasculer()" title="Zoom automatique : la caméra balaie les niveaux de zoom jusqu'à lire les deux codes" style="border:none;border-radius:4px;padding:4px 8px;font-size:10px;font-weight:bold;letter-spacing:.05em;background:#f5a11c;color:#000;">AUTO</button>
     </div>
     <button type="button" onclick="g('scanPhotoInput').click()" style="width:100%;background:#2563eb;color:#fff;font-weight:bold;font-size:12px;padding:8px;border-radius:4px;border:none;">&#128247; Scanner depuis une photo (&eacute;tiquette difficile d'acc&egrave;s)</button>
     <input type="file" id="scanPhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="scannerPhoto(this.files[0]); this.value='';">
@@ -456,6 +465,7 @@ function showToast(msg) {
 // == DONNÉES ==
 var data = [];
 var photosArr = [];
+var PHOTO_MAX_PX = 1400, PHOTO_QUALITE = 0.85; // dimension max (px) et qualité JPEG des photos enregistrées
 var cropInst = null;
 
 var MODELES = [
@@ -530,19 +540,126 @@ function entreePNOk(v) {
 
 // == SESSION ==
 var ancienDate = ''; // date du rapport précédent quand on repart d'un ancien rapport
-function save() {
+
+// == STOCKAGE DES PHOTOS : IndexedDB ==
+// Le localStorage est limité à ~5 Mo : quelques photos suffisent à le saturer (et plus rien n'était alors sauvegardé).
+// Le texte des machines reste dans le localStorage (écriture instantanée) ; les photos vont dans IndexedDB (centaines de Mo).
+// Si IndexedDB est indisponible, l'application revient automatiquement à l'ancien fonctionnement.
+var photoDB = null;         // connexion IndexedDB (null = indisponible)
+var photosChargees = true;  // false tant que les photos n'ont pas été relues : on n'écrase/supprime alors rien
+var sigPhotos = {};         // signature des photos déjà confirmées dans IndexedDB, par id de machine
+var editReprise = null;     // machine en cours d'édition à rouvrir une fois les photos relues
+function sigPh(r) { var n = 0, l = (r.photos || []); for (var i = 0; i < l.length; i++) n += l[i].length; return l.length + ':' + n; }
+function photoDBOuvrir(fin) {
+  var fait = false;
+  function ok(db) { if (fait) return; fait = true; photoDB = db; fin(); }
   try {
-    localStorage.setItem('mds4', JSON.stringify(data));
-    localStorage.setItem('mds4h', JSON.stringify({
-      s: g('hSite').value, i: g('hInterv').value,
-      b: g('hBrand').value, d: g('hDate').value,
-      e: editId, // Sauvegarde du mode édition
-      p: ancienDate
-    }));
-  } catch(e) {
-    // Quota localStorage dépassé (souvent trop de photos HD) — prévenir sans bloquer
-    showToast('\u26a0\ufe0f Espace de stockage plein \u2014 exportez le rapport bient\u00f4t.');
+    var rq = indexedDB.open('mds_photos', 1);
+    rq.onupgradeneeded = function() { rq.result.createObjectStore('p'); };
+    rq.onsuccess = function() { ok(rq.result); };
+    rq.onerror = function() { ok(null); };
+    rq.onblocked = function() { ok(null); };
+    setTimeout(function() { ok(null); }, 4000); // jamais bloquer le démarrage
+  } catch(e) { ok(null); }
+}
+function photoDBCharger(fin) {
+  var fini = false;
+  function f() { if (fini) return; fini = true; fin(); }
+  if (!photoDB) { f(); return; }
+  try {
+    var tx = photoDB.transaction('p', 'readonly');
+    var rq = tx.objectStore('p').openCursor();
+    rq.onsuccess = function() {
+      var cur = rq.result;
+      if (!cur) return;
+      var r = data.find(function(x){ return x.id === cur.key; });
+      // Les photos encore présentes dans le localStorage (anciennes données) restent prioritaires
+      if (r && (!r.photos || !r.photos.length) && Array.isArray(cur.value)) {
+        r.photos = cur.value.filter(photoOk).slice(0, 12);
+        sigPhotos[r.id] = sigPh(r);
+      }
+      cur.continue();
+    };
+    tx.oncomplete = f; tx.onerror = f; tx.onabort = f;
+  } catch(e) { f(); }
+}
+function photoDBEchec() {
+  if (!photoDB) return;
+  photoDB = null; // repli : les photos retournent dans le localStorage
+  showToast('⚠️ Stockage des photos indisponible — exportez le rapport bientôt.');
+  save();
+}
+// Écrit dans IndexedDB les photos nouvelles ou modifiées, et retire celles des machines supprimées
+function photoDBSauver() {
+  if (!photoDB || !photosChargees) return;
+  var presents = {};
+  data.forEach(function(r){ presents[r.id] = true; });
+  var aEcrire = data.filter(function(r){ return r.photos && r.photos.length && sigPhotos[r.id] !== sigPh(r); });
+  var aSupprimer = Object.keys(sigPhotos).filter(function(k){ return !presents[k]; });
+  if (!aEcrire.length && !aSupprimer.length) return;
+  try {
+    var tx = photoDB.transaction('p', 'readwrite'), st = tx.objectStore('p');
+    var sigs = aEcrire.map(function(r){ return sigPh(r); });
+    aEcrire.forEach(function(r){ st.put(r.photos.slice(), r.id); });
+    aSupprimer.forEach(function(k){ st.delete(Number(k)); });
+    tx.oncomplete = function() {
+      aEcrire.forEach(function(r, i){ sigPhotos[r.id] = sigs[i]; });
+      aSupprimer.forEach(function(k){ delete sigPhotos[k]; });
+      save(); // photos confirmées : on les retire du localStorage
+    };
+    tx.onerror = photoDBEchec; tx.onabort = photoDBEchec;
+  } catch(e) { photoDBEchec(); }
+}
+function photoDBVider() {
+  sigPhotos = {};
+  if (!photoDB) return;
+  try { photoDB.transaction('p', 'readwrite').objectStore('p').clear(); } catch(e) {}
+}
+// Ouvre IndexedDB, relit les photos puis rouvre la machine en cours d'édition
+function demarrerPhotos() {
+  photosChargees = false; sigPhotos = {};
+  function suite() {
+    photoDBCharger(function() {
+      photosChargees = true;
+      majTab();
+      reprendreEdition();
+      photoDBSauver(); // migre vers IndexedDB les photos des anciennes données
+    });
   }
+  if (photoDB) suite(); else photoDBOuvrir(suite);
+}
+function reprendreEdition() {
+  var id = editReprise; editReprise = null;
+  if (id === null || id === undefined) return;
+  if (data.some(function(r){ return r.id === id; })) editer(id); else editId = null;
+}
+
+function ecrireSession(lot) {
+  localStorage.setItem('mds4', JSON.stringify(lot));
+  localStorage.setItem('mds4h', JSON.stringify({
+    s: g('hSite').value, i: g('hInterv').value,
+    b: g('hBrand').value, d: g('hDate').value,
+    e: editId, // Sauvegarde du mode édition
+    p: ancienDate
+  }));
+}
+function save() {
+  // Les photos déjà confirmées dans IndexedDB ne sont pas recopiées dans le localStorage
+  var lot = data.map(function(r) {
+    if (photoDB && r.photos && r.photos.length && sigPhotos[r.id] === sigPh(r)) { var c = Object.assign({}, r); c.photos = []; return c; }
+    return r;
+  });
+  try {
+    ecrireSession(lot);
+  } catch(e) {
+    var repli = false;
+    if (photoDB && photosChargees) {
+      // Quota plein : on réessaie sans aucune photo (elles restent en mémoire et partent dans IndexedDB)
+      try { ecrireSession(data.map(function(r){ var c = Object.assign({}, r); c.photos = []; return c; })); repli = true; } catch(e2) {}
+    }
+    if (!repli) showToast('⚠️ Espace de stockage plein — exportez le rapport bientôt.');
+  }
+  photoDBSauver();
 }
 function loadSession() {
   try {
@@ -556,15 +673,8 @@ function loadSession() {
       g('hBrand').value  = h.b || 'ZEBRA';
       g('hDate').value   = h.d || today();
       ancienDate = txt(h.p, 10);
-      // Restaurer le mode édition si interrompu
-      if (h.e !== null && h.e !== undefined) {
-        editId = h.e;
-        if (editId !== null) {
-          var r = data.find(function(r){ return r.id === editId; });
-          if (r) editer(editId);
-          else editId = null; // L'entrée n'existe plus
-        }
-      }
+      // Mode édition interrompu : rouvert par reprendreEdition() une fois les photos relues
+      if (h.e !== null && h.e !== undefined) { editId = h.e; editReprise = h.e; }
     }
   } catch(e) {}
 }
@@ -938,17 +1048,17 @@ function ouvrirCrop(src) {
 }
 function validerCrop() {
   if (!cropInst) return;
-  // Recadrage haute résolution — pas de limite artificielle
+  // Recadrage limité à PHOTO_MAX_PX : 1400 px = environ 300 dpi à 12 cm, la plus grande taille d'une photo dans le Word.
+  // (Au-delà, le rapport pèse très lourd sans gain visible, et le stockage de l'appareil sature.)
   var cropped = cropInst.getCroppedCanvas({
-    maxWidth: 4096,
-    maxHeight: 4096,
+    maxWidth: PHOTO_MAX_PX,
+    maxHeight: PHOTO_MAX_PX,
     imageSmoothingEnabled: true,
     imageSmoothingQuality: 'high'
   });
-  // Appliquer un filtre de netteté (unsharp mask) via convolution
+  // Filtre de netteté appliqué APRÈS la réduction (plus rapide et plus net pour les détails fins de tête d'impression)
   var sharpened = appliquerNettete(cropped);
-  // JPEG qualité maximale pour les détails fins de tête d'impression
-  var nouvellePhoto = sharpened.toDataURL('image/jpeg', 0.97);
+  var nouvellePhoto = sharpened.toDataURL('image/jpeg', PHOTO_QUALITE);
   photosArr.push(nouvellePhoto);
   rafraichirGaleriePhotos();
   annulerCrop();
@@ -1039,7 +1149,7 @@ var flash=false, lastCode='', lastAt=0;
 
 function ouvrirScanner() {
   snOk=null; pnOk=null; marqueOk=null; dernierPNBrut=null; mode='SN'; manuel=false;
-  lastCode=''; lastAt=0; flash=false;
+  lastCode=''; lastAt=0; flash=false; azOn=true;
   resetScanUI();
   g('scanModal').style.cssText = 'display:flex;visibility:visible;flex-direction:column;position:fixed;inset:0;background:#000;z-index:100;';
   g('vidZone').style.display = 'block';
@@ -1054,7 +1164,7 @@ function ouvrirScanner() {
     v.play().then(function() {
       track = s.getVideoTracks()[0];
       setTimeout(flashOn, 800);
-      setTimeout(initZoom, 300);
+      setTimeout(function(){ initFocus(); initZoom(); }, 300);
       if ('BarcodeDetector' in window) {
         useBD = true;
         det = new BarcodeDetector({formats:['code_128','code_39']});
@@ -1145,7 +1255,7 @@ function traiter(code) {
     g('rawTxt').textContent=brut; g('rawTxt').style.color='#4ade80';
     var sn=extraireSN(brut);
     if (sn) {
-      snOk=sn;
+      snOk=sn; azLecture(2500);
       g('rSN').textContent='✅ '+sn; g('rSN').style.color='#4ade80';
       // Machine « À faire » déjà connue (ancien rapport) : inutile de scanner le P/N, on ouvre directement sa fiche
       if (editId === null && data.some(function(x){ return x.aFaire && x.serial && x.serial.toUpperCase() === sn.toUpperCase(); })) {
@@ -1175,7 +1285,7 @@ function traiter(code) {
       g('rawTxt').textContent='⚠️ P/N non reconnu : '+brut;
       g('rawTxt').style.color='#fbbf24';
       g('btnMan').style.display='block';
-      dernierPNBrut = brut;
+      dernierPNBrut = brut; azLecture(5000);
     }
   }
 }
@@ -1299,6 +1409,7 @@ function fermerScanner() {
   g('scanModal').style.visibility='hidden';
   if (raf) { cancelAnimationFrame(raf); raf=null; }
   if (stream) { stream.getTracks().forEach(function(t){t.stop();}); stream=null; }
+  azStop();
   track=null; det=null; manuel=false;
 }
 function flashOn() {
@@ -1312,11 +1423,20 @@ function flashOn() {
   }
   track.applyConstraints({advanced:[{torch:true}]}).then(function(){flash=true;}).catch(function(){});
 }
+// Mise au point continue (si l'appareil la propose) : la caméra refait le point seule quand on bouge ou qu'on zoome
+function initFocus() {
+  if (!track || !track.getCapabilities) return;
+  var caps = track.getCapabilities();
+  if (caps.focusMode && caps.focusMode.indexOf('continuous') !== -1) {
+    track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(function(){});
+  }
+}
 // Zoom caméra (si supporté par l'appareil)
 function initZoom() {
   var box = g('zoomBox');
   if (!box) return;
   box.style.display = 'none';
+  azStop();
   if (!track || !track.getCapabilities) return;
   var caps = track.getCapabilities();
   if (!caps.zoom) return;
@@ -1327,10 +1447,85 @@ function initZoom() {
   r.value = r.min;
   g('zoomVal').textContent = 'x' + parseFloat(r.value).toFixed(1);
   box.style.display = 'flex';
+  azStart(caps.zoom);
 }
+// Réglage manuel (curseur) : reprend la main, l'automatisme s'arrête
 function appliquerZoom(v) {
+  azOn = false; majAzUI();
   g('zoomVal').textContent = 'x' + parseFloat(v).toFixed(1);
   if (track) track.applyConstraints({advanced:[{zoom:parseFloat(v)}]}).catch(function(){});
+}
+
+// == ZOOM AUTOMATIQUE ==
+// Tant que le code attendu (S/N puis P/N) n'est pas lu, la caméra balaie des paliers de zoom (aller-retour),
+// en laissant ~1,3 s à chaque palier pour que la mise au point se refasse. Un code lu fige le zoom un instant.
+var azOn = true, azTimer = null, azLevels = [], azIdx = 0, azDir = 1, azNext = 0, azHold = 0, azErr = 0;
+var AZ_PAS_MS = 1300;   // durée d'un palier
+var AZ_ZOOM_MAX = 5;    // au-delà l'image devient trop instable à main levée
+function azArrondi(z, zc) {
+  var st = zc.step > 0 ? zc.step : 0.1, mn = zc.min || 1, mx = zc.max || 1;
+  var v = mn + Math.round((z - mn) / st) * st;
+  return Math.round(Math.min(mx, Math.max(mn, v)) * 100) / 100;
+}
+function azPaliers(zc) {
+  var mn = zc.min || 1, bas = Math.max(mn, 1), haut = Math.min(zc.max || 1, AZ_ZOOM_MAX), out = [];
+  if (haut <= bas) return [azArrondi(bas, zc)];
+  for (var z = bas; z < haut * 0.97; z *= 1.4) out.push(azArrondi(z, zc));
+  out.push(azArrondi(haut, zc));
+  return out.filter(function(v, i) { return i === 0 || v !== out[i - 1]; });
+}
+function azStart(zc) {
+  azStop();
+  azLevels = azPaliers(zc); azIdx = 0; azDir = 1; azErr = 0;
+  azHold = Date.now() + 1800;          // d'abord le zoom le plus large : laisse le temps de cadrer l'étiquette
+  azNext = azHold;
+  majAzUI();
+  if (azLevels.length < 2) { azOn = false; majAzUI(); return; }
+  azAppliquer(azLevels[0]);
+  azTimer = setInterval(azTick, 250);
+}
+function azStop() {
+  if (azTimer) { clearInterval(azTimer); azTimer = null; }
+}
+function azAppliquer(z) {
+  g('zoomRange').value = z;
+  g('zoomVal').textContent = 'x' + z.toFixed(1);
+  if (!track) return;
+  track.applyConstraints({advanced:[{zoom:z}]}).then(function() { azErr = 0; }).catch(function() {
+    if (++azErr >= 3) { azOn = false; majAzUI(); }   // l'appareil refuse le zoom : on abandonne l'auto
+  });
+}
+function azTick() {
+  if (!azOn || manuel || !track || !stream || azLevels.length < 2) return;
+  var now = Date.now();
+  if (now < azHold || now < azNext) return;
+  var n = azIdx + azDir;
+  if (n < 0 || n >= azLevels.length) { azDir = -azDir; n = azIdx + azDir; }
+  azIdx = n;
+  azAppliquer(azLevels[azIdx]);
+  azNext = now + AZ_PAS_MS;
+}
+// Un code utile vient d'être lu : on garde ce zoom ms millisecondes (le P/N est juste à côté du S/N), puis on reprend le balayage vers le zoom avant
+function azLecture(ms) {
+  azHold = Date.now() + ms;
+  if (azIdx < azLevels.length - 1) azDir = 1;
+}
+function azBasculer() {
+  azOn = !azOn;
+  if (azOn) {
+    azErr = 0;
+    var z = parseFloat(g('zoomRange').value) || 1, best = 0;
+    azLevels.forEach(function(l, i) { if (Math.abs(l - z) < Math.abs(azLevels[best] - z)) best = i; });
+    azIdx = best; azNext = Date.now() + AZ_PAS_MS;
+  }
+  majAzUI();
+}
+function majAzUI() {
+  var b = g('zoomAuto');
+  if (!b) return;
+  b.style.background = azOn ? '#f5a11c' : '#374151';
+  b.style.color = azOn ? '#000' : '#9ca3af';
+  b.setAttribute('aria-pressed', azOn ? 'true' : 'false');
 }
 
 // Scan depuis une photo : permet de lire une étiquette inaccessible en direct
@@ -2017,6 +2212,7 @@ function pbEtat(r) {
   return ['cell','dot','roll','imp'].some(function(k){ var v = r[k]; return v && v !== 'OK' && v !== '-'; }) || r.gen === 'Voir Rem';
 }
 function exportWord() {
+  if (!photosChargees) { showToast('\u23f3 Chargement des photos en cours, r\u00e9essayez dans un instant.'); return; }
   if (!data.length){alert('Tableau vide.');return;}
   // Machines « À faire » (ancien rapport) jamais scannées : elles restent dans le Word, marquées « Non vu / non trouvé »
   var ctrl = data.filter(function(r){ return !r.aFaire; });   // machines réellement contrôlées
@@ -2335,6 +2531,7 @@ function exportWord() {
     editId = null;
     localStorage.removeItem('mds4');
     localStorage.removeItem('mds4h');
+    photoDBVider();
     ancienDate = '';
 
     // En-tête rapport
@@ -2491,6 +2688,7 @@ window.addEventListener('DOMContentLoaded', function() {
   loadSession();
   if (!g('hDate').value) g('hDate').value = today();
   majTab();
+  demarrerPhotos();
   initPhoto();
   chargerReseaux();
   chargerBasePN();
@@ -2504,6 +2702,7 @@ window.addEventListener('pageshow', function(e) {
     loadSession();
     if (!g('hDate').value) g('hDate').value = today();
     majTab();
+    demarrerPhotos();
     chargerReseaux();
   }
 });
