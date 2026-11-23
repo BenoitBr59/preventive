@@ -5,14 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://api.github.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
-<script>
-// Anti-clickjacking : l'application refuse de s'afficher dans le cadre d'un autre site
-// (GitHub Pages ne permet pas d'envoyer l'en-tête frame-ancestors, on le fait donc ici)
-if (window.top !== window.self) {
-  try { window.top.location = window.self.location; } catch (e) { /* navigation interdite : on masque au moins la page */ }
-  document.documentElement.style.display = 'none';
-}
-</script>
 <title>MDS — Maintenance Préventive</title>
 
 <!-- Favicon & icône PWA -->
@@ -211,7 +203,7 @@ if (window.top !== window.self) {
     </div>
   </div>
   <div class="md:col-span-4 flex justify-end gap-3 mt-2">
-    <button type="button" id="cancelEditBtn" onclick="annulerEdit()" style="display:none;background:#6b7280;color:#fff;font-weight:bold;font-size:14px;padding:8px 20px;border-radius:6px;border:none;align-items:center;gap:6px;">✕ Annuler</button>
+    <button type="button" id="cancelEditBtn" onclick="chaineSN=null; annulerEdit()" style="display:none;background:#6b7280;color:#fff;font-weight:bold;font-size:14px;padding:8px 20px;border-radius:6px;border:none;align-items:center;gap:6px;">✕ Annuler</button>
     <button type="submit" id="submitBtn" class="bp font-bold text-sm px-6 py-2 rounded shadow">Ajouter au tableau</button>
   </div>
 </form>
@@ -270,7 +262,7 @@ if (window.top !== window.self) {
 <div id="repartirModal" style="display:none;visibility:hidden;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;align-items:center;justify-content:center;padding:16px;">
   <div style="background:#fff;border-radius:8px;padding:16px;width:100%;max-width:520px;display:flex;flex-direction:column;max-height:85vh;">
     <h3 style="font-size:13px;font-weight:bold;text-transform:uppercase;margin:0 0 8px;color:#0d1f8c;">Repartir d'un ancien rapport</h3>
-    <p style="font-size:12px;color:#555;margin:0 0 10px;line-height:1.5;">Le parc (zone, mod&egrave;le, S/N, IP, lieu) est recharg&eacute; : toutes les machines passent &laquo;&nbsp;&Agrave; faire&nbsp;&raquo; avec les &eacute;tats remis &agrave; OK. Scannez un S/N pour ouvrir sa fiche.<br><b>Rapport &agrave; deux&nbsp;:</b> cochez (ou choisissez) les archives de chacun pour les fusionner et retrouver <u>toutes</u> les machines, quel que soit le technicien qui les a faites.</p>
+    <p style="font-size:12px;color:#555;margin:0 0 10px;line-height:1.5;">Le parc (zone, mod&egrave;le, S/N, IP, lieu) est recharg&eacute; : toutes les machines passent &laquo;&nbsp;&Agrave; faire&nbsp;&raquo; avec les &eacute;tats remis &agrave; OK. Scannez un S/N : &laquo;&nbsp;Tout OK&nbsp;&raquo; en un geste, ou saisissez les &eacute;tats.<br><b>Rapport &agrave; deux&nbsp;:</b> cochez (ou choisissez) les archives de chacun pour les fusionner et retrouver <u>toutes</u> les machines, quel que soit le technicien qui les a faites.</p>
     <div id="histListe" style="overflow:auto;flex:1;min-height:60px;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:10px;"></div>
     <input type="file" id="repartirFileInput" accept=".json" multiple style="display:none;" onchange="repartirFichier(this.files); this.value='';">
     <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
@@ -313,6 +305,7 @@ if (window.top !== window.self) {
     <div>
       <div style="font-weight:bold;font-size:14px;color:#f5a11c;">&#9889; SCANNER CODE 128</div>
       <div id="stepLbl" style="color:#93c5fd;font-size:12px;margin-top:2px;">&#201;TAPE 1/2 — Pointez sur le S/N</div>
+      <div id="scanCompteur" style="color:#d1d5db;font-size:11px;margin-top:2px;"></div>
     </div>
     <button type="button" onclick="fermerScanner()" style="background:#dc2626;color:#fff;font-weight:bold;font-size:12px;padding:6px 12px;border-radius:4px;border:none;">&#10005; Fermer</button>
   </div>
@@ -327,6 +320,17 @@ if (window.top !== window.self) {
         <line x1="6%" y1="50%" x2="94%" y2="50%" stroke="#ef4444" stroke-width="1.5"><animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite"/></line>
       </svg>
       <div id="scanBadge" style="position:absolute;top:12px;left:50%;transform:translateX(-50%);background:#f5a11c;color:#1a1a1a;font-size:11px;font-weight:900;padding:3px 14px;border-radius:999px;letter-spacing:.1em;">S/N</div>
+    </div>
+    <!-- Carte : machine déjà connue (ancien rapport ou déjà saisie) -->
+    <div id="carteConnue" style="display:none;position:absolute;left:8px;right:8px;bottom:8px;background:#111827;border:2px solid #16a34a;border-radius:10px;padding:10px 12px;z-index:5;">
+      <div id="carteTitre" style="color:#fff;font-weight:bold;font-size:14px;word-break:break-word;"></div>
+      <div id="carteSous" style="color:#9ca3af;font-size:11px;margin-top:2px;word-break:break-word;"></div>
+      <div id="cartePrev" style="color:#fbbf24;font-size:11px;margin-top:2px;word-break:break-word;"></div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button type="button" id="carteOK" onclick="carteToutOK()" style="flex:2;background:#16a34a;color:#fff;font-weight:bold;font-size:15px;padding:12px 6px;border-radius:8px;border:none;">&#9989; TOUT OK</button>
+        <button type="button" id="carteSaisir" onclick="carteSaisir()" style="flex:1.2;background:#374151;color:#fff;font-weight:bold;font-size:12px;padding:12px 6px;border-radius:8px;border:none;">&#9998;&#65039; Saisir</button>
+        <button type="button" id="carteIgnorer" onclick="carteContinuer()" style="display:none;flex:1;background:#4b5563;color:#fff;font-weight:bold;font-size:12px;padding:12px 6px;border-radius:8px;border:none;">Continuer</button>
+      </div>
     </div>
   </div>
   <!-- Zone manuelle -->
@@ -370,6 +374,7 @@ if (window.top !== window.self) {
   </div>
   <!-- Panneau de contrôle -->
   <div id="ctrlPanel" style="background:#111827;padding:12px 16px;display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+    <button type="button" id="btnUndoScan" onclick="annulerDernierOK()" style="display:none;width:100%;background:#7c2d12;color:#fed7aa;font-weight:bold;font-size:12px;padding:8px;border-radius:4px;border:none;word-break:break-word;">&#8617; Annuler la dernière validation</button>
     <div id="zoomBox" style="display:none;align-items:center;gap:8px;color:#9ca3af;font-size:11px;font-weight:bold;">
       <span>&#128269; Zoom</span>
       <input type="range" id="zoomRange" min="1" max="1" step="0.1" value="1" oninput="appliquerZoom(this.value)" style="flex:1;">
@@ -378,7 +383,10 @@ if (window.top !== window.self) {
     </div>
     <button type="button" onclick="g('scanPhotoInput').click()" style="width:100%;background:#2563eb;color:#fff;font-weight:bold;font-size:12px;padding:8px;border-radius:4px;border:none;">&#128247; Scanner depuis une photo (&eacute;tiquette difficile d'acc&egrave;s)</button>
     <input type="file" id="scanPhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="scannerPhoto(this.files[0]); this.value='';">
-    <button type="button" id="btnFlash" onclick="toggleFlash()" class="bs" style="width:100%;font-weight:bold;font-size:12px;padding:8px;border-radius:4px;border:none;text-transform:uppercase;letter-spacing:.05em;">&#9889; Flash ON / OFF</button>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;">
+      <button type="button" id="btnFlash" onclick="toggleFlash()" class="bs" style="width:100%;font-weight:bold;font-size:12px;padding:8px;border-radius:4px;border:none;text-transform:uppercase;letter-spacing:.05em;">&#9889; Flash ON / OFF</button>
+      <button type="button" id="btnChain" onclick="basculerChaine()" title="Enchaîné : après chaque machine, le scanner se rouvre tout seul pour la suivante" style="width:100%;font-weight:bold;font-size:12px;padding:8px;border-radius:4px;border:none;text-transform:uppercase;letter-spacing:.05em;">&#128257; Enchaîné</button>
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
       <div id="cPN" style="background:#1f2937;border-radius:4px;padding:8px;text-align:center;border:1px solid #374151;opacity:0.5;">
         <div id="lblPN" style="font-size:10px;font-weight:bold;text-transform:uppercase;color:#9ca3af;margin-bottom:4px;">&#201;tape 2 — P/N</div>
@@ -420,10 +428,14 @@ if (window.top !== window.self) {
     style="display:none;width:42px;height:42px;border-radius:999px;background:#0d1f8c;color:#fff;border:none;box-shadow:0 2px 8px rgba(0,0,0,0.25);font-size:18px;align-items:center;justify-content:center;">&#8595;</button>
 </div>
 
+<div id="undoBar" style="display:none;position:fixed;left:50%;bottom:24px;transform:translateX(-50%);max-width:92vw;background:#1f2937;color:#fff;font-weight:bold;font-size:13px;padding:10px 12px 10px 16px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.3);z-index:9998;align-items:center;gap:12px;">
+  <span id="undoMsg" style="word-break:break-word;"></span>
+  <button type="button" onclick="annulerDernierOK()" style="background:#f5a11c;color:#000;border:none;border-radius:6px;padding:6px 12px;font-weight:bold;font-size:12px;white-space:nowrap;">&#8617; Annuler</button>
+</div>
 <div id="toast"></div>
 <script>
 // == SERVICE WORKER ==
-if ('serviceWorker' in navigator) {
+try { if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(function(){});
   // Informe l'utilisateur la première fois que l'application est prête pour le mode hors ligne
   navigator.serviceWorker.addEventListener('message', function(e) {
@@ -435,7 +447,7 @@ if ('serviceWorker' in navigator) {
   });
   // Demande au navigateur de ne pas effacer les données de l'application en cas de manque de place
   if (navigator.storage && navigator.storage.persist) { navigator.storage.persist().catch(function(){}); }
-}
+} } catch (errSW) { /* cadre isolé (aperçu) : pas de service worker, l'appli fonctionne quand même */ }
 window.addEventListener('offline', function(){ document.getElementById('offBanner').classList.add('show'); });
 window.addEventListener('online',  function(){ document.getElementById('offBanner').classList.remove('show'); });
 if (!navigator.onLine) document.getElementById('offBanner').classList.add('show');
@@ -744,6 +756,7 @@ var editId = null; // null = mode ajout, sinon = id en cours d'édition
 
 function ajouterEquip(e) {
   e.preventDefault();
+  var snSoumis = g('fSerial').value.trim().toUpperCase();
   if (editId !== null) {
     // Mode modification : mettre à jour l'entrée existante
     var idx = data.findIndex(function(r){ return r.id === editId; });
@@ -808,6 +821,11 @@ function ajouterEquip(e) {
   setTimeout(function(){ g('fSerial').focus(); }, 100);
   // Scroll vers le tableau pour voir l'entrée ajoutée
   g('tbody').scrollIntoView({behavior:'smooth', block:'nearest'});
+  // Scan enchaîné : la machine venait du scanner, on le rouvre pour la suivante
+  if (enchaine && chaineSN && chaineSN === snSoumis) {
+    chaineSN = null;
+    setTimeout(function(){ ouvrirScanner(); }, 600);
+  }
 }
 
 function editer(id) {
@@ -982,6 +1000,7 @@ function majTab() {
         + afBadge
         + lieuLine
         + rappelLine
+        + (r.aFaire ? '<div style="margin-top:5px;"><button type="button" onclick="toutOK('+r.id+')" title="Tout OK : tous les états OK, rien à signaler" style="background:#16a34a;color:#fff;font-size:12px;font-weight:bold;border:none;border-radius:999px;padding:5px 14px;cursor:pointer;white-space:nowrap;">&#10003; Tout OK</button></div>' : '')
         + '</td>'
         + '<td class="px-3 py-2 text-center font-mono font-bold text-gray-700 tracking-wider">'+escHtml(r.serial)+photoBadge+'</td>'
         + '<td class="px-3 py-2 text-center" style="white-space:nowrap;">'
@@ -1148,9 +1167,13 @@ var stream=null, track=null, raf=null, det=null;
 var flash=false, lastCode='', lastAt=0;
 
 function ouvrirScanner() {
+  if (g('scanModal').style.display === 'flex') return;   // déjà ouvert
   snOk=null; pnOk=null; marqueOk=null; dernierPNBrut=null; mode='SN'; manuel=false;
   lastCode=''; lastAt=0; flash=false; azOn=true;
+  attenteChoix=false; dejaVu={sn:'',until:0}; dernierOK=null;
   resetScanUI();
+  g('carteConnue').style.display='none'; g('btnUndoScan').style.display='none';
+  majChaineUI(); majCompteurScan();
   g('scanModal').style.cssText = 'display:flex;visibility:visible;flex-direction:column;position:fixed;inset:0;background:#000;z-index:100;';
   g('vidZone').style.display = 'block';
   g('ctrlPanel').style.cssText = 'background:#111827;padding:12px 16px;display:flex;flex-direction:column;gap:8px;flex-shrink:0;';
@@ -1192,6 +1215,7 @@ function chargerZXing() {
 
 function boucle() {
   if (manuel || !stream) return;
+  if (attenteChoix) { raf=requestAnimationFrame(boucle); return; }  // carte « machine retrouvée » affichée : lecture en pause
   var v = g('scanVid');
   if (v.readyState < 2) { raf=requestAnimationFrame(boucle); return; }
   var cvs=g('scanCvs'), ctx=cvs.getContext('2d', {willReadFrequently:true});
@@ -1246,6 +1270,7 @@ function boucle() {
   }
 }
 function traiter(code) {
+  if (attenteChoix) return;
   var brut=code.trim(), now=Date.now();
   var debounce = (mode==='PN') ? 400 : 1200;
   if (brut===lastCode && (now-lastAt)<debounce) return;
@@ -1255,14 +1280,16 @@ function traiter(code) {
     g('rawTxt').textContent=brut; g('rawTxt').style.color='#4ade80';
     var sn=extraireSN(brut);
     if (sn) {
-      snOk=sn; azLecture(2500);
-      g('rSN').textContent='✅ '+sn; g('rSN').style.color='#4ade80';
-      // Machine « À faire » déjà connue (ancien rapport) : inutile de scanner le P/N, on ouvre directement sa fiche
-      if (editId === null && data.some(function(x){ return x.aFaire && x.serial && x.serial.toUpperCase() === sn.toUpperCase(); })) {
-        g('rawTxt').textContent = '\u2705 Machine retrouv\u00e9e dans l\'ancien rapport';
-        setTimeout(validerScan, 300);
+      // Machine déjà dans le tableau (ancien rapport ou déjà saisie) : inutile de scanner le P/N
+      var connue = (editId === null) ? trouverParSN(sn) : null;
+      if (connue && dejaVu.sn === sn.toUpperCase() && now < dejaVu.until) {
+        dejaVu.until = now + 3000;   // la même étiquette est encore dans le champ : on attend qu'elle en sorte
+        g('rawTxt').textContent = '\u2705 ' + sn + ' d\u00e9j\u00e0 valid\u00e9e \u2014 passez \u00e0 la suivante';
         return;
       }
+      snOk=sn; azLecture(2500);
+      g('rSN').textContent='✅ '+sn; g('rSN').style.color='#4ade80';
+      if (connue) { montrerCarte(connue); return; }
       passerPN();
     } else { var m=identModele(brut); if(m) pnOk=m; }
   } else {
@@ -1363,11 +1390,11 @@ function validerManuel() {
   validerScan();
 }
 // Retrouve une machine déjà présente (ancien rapport ou saisie précédente) par son S/N et ouvre sa fiche
-function ouvrirSiExistante(sn) {
+function ouvrirSiExistante(sn, sansConfirm) {
   if (!sn || editId !== null) return false;
   var r = data.find(function(x){ return x.serial && x.serial.toUpperCase() === sn.toUpperCase(); });
   if (!r) return false;
-  if (!r.aFaire && !confirm('Le S/N ' + sn + ' est d\u00e9j\u00e0 dans le tableau (' + (r.modele || '-') + '). Ouvrir sa fiche pour la modifier ?')) return false;
+  if (!r.aFaire && !sansConfirm && !confirm('Le S/N ' + sn + ' est d\u00e9j\u00e0 dans le tableau (' + (r.modele || '-') + '). Ouvrir sa fiche pour la modifier ?')) return false;
   ['fSerial','fModele','fOption','fMarque','fLieu','fRem'].forEach(function(id){ g(id).value = ''; });
   editer(r.id);
   g('fSerial').scrollIntoView({behavior:'smooth', block:'center'});
@@ -1380,6 +1407,7 @@ function serialSaisi() {
 function validerScan() {
   if (snOk && editId === null) {
     var sn = snOk;
+    if (enchaine) chaineSN = sn.toUpperCase();
     fermerScanner();
     if (ouvrirSiExistante(sn)) return;
     snOk = sn;
@@ -1410,6 +1438,7 @@ function fermerScanner() {
   if (raf) { cancelAnimationFrame(raf); raf=null; }
   if (stream) { stream.getTracks().forEach(function(t){t.stop();}); stream=null; }
   azStop();
+  attenteChoix=false; g('carteConnue').style.display='none';
   track=null; det=null; manuel=false;
 }
 function flashOn() {
@@ -1496,7 +1525,7 @@ function azAppliquer(z) {
   });
 }
 function azTick() {
-  if (!azOn || manuel || !track || !stream || azLevels.length < 2) return;
+  if (!azOn || manuel || attenteChoix || !track || !stream || azLevels.length < 2) return;
   var now = Date.now();
   if (now < azHold || now < azNext) return;
   var n = azIdx + azDir;
@@ -1526,6 +1555,147 @@ function majAzUI() {
   b.style.background = azOn ? '#f5a11c' : '#374151';
   b.style.color = azOn ? '#000' : '#9ca3af';
   b.setAttribute('aria-pressed', azOn ? 'true' : 'false');
+}
+
+// == SCAN ENCHAÎNÉ + « TOUT OK » ==
+// Machine déjà connue : le scanner affiche une carte [TOUT OK] / [Saisir]. « Enchaîné » : le scanner reste ouvert (ou se rouvre
+// après la fiche) pour passer à l'imprimante suivante sans retourner dans le formulaire.
+var enchaine = true;                       // préférence (mémorisée sur l'appareil)
+try { enchaine = localStorage.getItem('mds_chain') !== '0'; } catch (e) {}
+var attenteChoix = false;                  // carte affichée : la lecture est en pause
+var carteId = null;                        // machine affichée dans la carte
+var dejaVu = {sn: '', until: 0};           // évite de relire l'étiquette qu'on vient de valider
+var dernierOK = null;                      // pour pouvoir annuler le dernier « Tout OK »
+var chaineSN = null;                       // S/N venu du scanner : rouvrir le scanner après sa fiche
+var zoneCourante = '';
+var undoTimer = null;
+
+function trouverParSN(sn) {
+  var u = (sn || '').toUpperCase();
+  return data.find(function(x) { return x.serial && x.serial.toUpperCase() === u; }) || null;
+}
+function basculerChaine() {
+  enchaine = !enchaine;
+  try { localStorage.setItem('mds_chain', enchaine ? '1' : '0'); } catch (e) {}
+  majChaineUI();
+}
+function majChaineUI() {
+  var b = g('btnChain');
+  if (!b) return;
+  b.textContent = '\ud83d\udd01 Enchaîné : ' + (enchaine ? 'OUI' : 'NON');
+  b.style.background = enchaine ? '#f5a11c' : '#374151';
+  b.style.color = enchaine ? '#000' : '#9ca3af';
+  b.setAttribute('aria-pressed', enchaine ? 'true' : 'false');
+}
+// Avancement : machines faites / restantes (hors machines « en veille »), et dans la zone en cours
+function majCompteurScan() {
+  var el = g('scanCompteur');
+  if (!el) return;
+  var actifs = data.filter(function(r) { return !estEnVeille(r); });
+  if (!actifs.length) { el.textContent = ''; return; }
+  var rest = actifs.filter(function(r) { return r.aFaire; }).length, faites = actifs.length - rest, t;
+  if (rest > 0) t = '\ud83d\udccb ' + faites + '/' + actifs.length + ' faites \u00b7 reste ' + rest;
+  else if (ancienDate) t = '\ud83c\udf89 Tout est fait (' + faites + '/' + actifs.length + ')';
+  else t = '\ud83d\udccb ' + faites + ' machine' + (faites > 1 ? 's' : '') + ' ajout\u00e9e' + (faites > 1 ? 's' : '');
+  var z = (zoneCourante || g('fZone').value || '').trim();
+  if (z && rest > 0) {
+    var dz = actifs.filter(function(r) { return (r.zone || '') === z; });
+    var rz = dz.filter(function(r) { return r.aFaire; }).length;
+    if (dz.length) t += ' \u00b7 \ud83d\udccd ' + z + ' ' + (dz.length - rz) + '/' + dz.length;
+  }
+  el.textContent = t;
+}
+// Carte « machine retrouvée »
+function montrerCarte(r) {
+  carteId = r.id; attenteChoix = true;
+  var fait = !r.aFaire;
+  g('carteTitre').textContent = (r.modele || '-') + ' \u00b7 S/N ' + r.serial;
+  g('carteSous').textContent = [r.zone, r.lieu].filter(Boolean).join(' \u00b7 ');
+  g('cartePrev').textContent = fait
+    ? '\u2705 D\u00e9j\u00e0 faite \u2014 \u00e9tat g\u00e9n\u00e9ral : ' + (r.gen || '-')
+    : ((r.prev && (r.prev.rem || r.prev.gen === 'Voir Rem')) ? '\u21ba Avant : ' + (r.prev.rem || 'Voir Rem') : '');
+  g('carteOK').style.display = fait ? 'none' : 'block';
+  g('carteIgnorer').style.display = fait ? 'block' : 'none';
+  g('carteSaisir').textContent = fait ? '\u270f\ufe0f Ouvrir la fiche' : '\u270f\ufe0f Saisir';
+  g('rawTxt').textContent = '\u2705 Machine retrouv\u00e9e : ' + r.serial; g('rawTxt').style.color = '#4ade80';
+  g('carteConnue').style.display = 'block';
+}
+function cacherCarte() { attenteChoix = false; carteId = null; g('carteConnue').style.display = 'none'; }
+// Remet le scanner à l'étape 1 pour la machine suivante
+function reinitScan() {
+  cacherCarte();
+  snOk = null; pnOk = null; marqueOk = null; dernierPNBrut = null; mode = 'SN'; lastCode = ''; lastAt = 0;
+  resetScanUI();
+  azLecture(4000);   // laisse le temps de viser l'imprimante suivante au même zoom
+  majCompteurScan();
+}
+function appliquerToutOK(r) {
+  dernierOK = {id: r.id, avant: {cell: r.cell, dot: r.dot, roll: r.roll, imp: r.imp, gen: r.gen, aFaire: r.aFaire, nonVu: r.nonVu || 0}};
+  r.cell = 'OK'; r.dot = 'OK'; r.roll = 'OK'; r.imp = 'OK'; r.gen = 'OK'; r.aFaire = false; r.nonVu = 0;
+}
+function carteToutOK() {
+  var r = data.find(function(x) { return x.id === carteId; });
+  if (!r || !r.aFaire) { reinitScan(); return; }
+  appliquerToutOK(r);
+  save(); majTab();
+  dejaVu = {sn: (r.serial || '').toUpperCase(), until: Date.now() + 6000};
+  zoneCourante = r.zone || '';
+  var lib = (r.modele || '-') + ' \u00b7 ' + r.serial;
+  if (enchaine) {
+    reinitScan();
+    g('rawTxt').textContent = '\u2705 ' + lib + ' \u2014 tout OK. Scannez la suivante.'; g('rawTxt').style.color = '#4ade80';
+    var bu = g('btnUndoScan');
+    bu.textContent = '\u21a9 Annuler : ' + lib;
+    bu.style.display = 'block';
+  } else {
+    fermerScanner();
+    afficherAnnuler('\u2705 ' + lib + ' \u2192 tout OK');
+  }
+}
+function carteSaisir() {
+  var r = data.find(function(x) { return x.id === carteId; });
+  if (!r) { reinitScan(); return; }
+  if (enchaine) chaineSN = (r.serial || '').toUpperCase();
+  cacherCarte();
+  fermerScanner();
+  ouvrirSiExistante(r.serial, true);
+}
+function carteContinuer() {
+  var r = data.find(function(x) { return x.id === carteId; });
+  if (r) dejaVu = {sn: (r.serial || '').toUpperCase(), until: Date.now() + 3000};
+  reinitScan();
+}
+// « ✓ OK » sur une ligne du tableau
+function toutOK(id) {
+  var r = data.find(function(x) { return x.id === id; });
+  if (!r || !r.aFaire) return;
+  if (editId === id) { showToast('\u26a0\ufe0f Cette fiche est en cours de modification \u2014 validez-la ou annulez-la.'); return; }
+  appliquerToutOK(r);
+  save(); majTab();
+  afficherAnnuler('\u2705 ' + (r.modele || '-') + ' \u00b7 ' + r.serial + ' \u2192 tout OK');
+}
+function afficherAnnuler(msg) {
+  g('undoMsg').textContent = msg;
+  g('undoBar').style.display = 'flex';
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(masquerAnnuler, 8000);
+}
+function masquerAnnuler() { clearTimeout(undoTimer); g('undoBar').style.display = 'none'; }
+function annulerDernierOK() {
+  var d = dernierOK;
+  masquerAnnuler(); g('btnUndoScan').style.display = 'none';
+  if (!d) return;
+  var r = data.find(function(x) { return x.id === d.id; });
+  dernierOK = null;
+  if (!r) return;
+  if (r.aFaire || ['cell', 'dot', 'roll', 'imp', 'gen'].some(function(k) { return r[k] !== 'OK'; })) {
+    showToast('\u26a0\ufe0f Cette fiche a \u00e9t\u00e9 modifi\u00e9e depuis \u2014 annulation impossible.'); return;
+  }
+  r.cell = d.avant.cell; r.dot = d.avant.dot; r.roll = d.avant.roll; r.imp = d.avant.imp; r.gen = d.avant.gen;
+  r.aFaire = d.avant.aFaire; r.nonVu = d.avant.nonVu;
+  dejaVu = {sn: (r.serial || '').toUpperCase(), until: Date.now() + 3000};
+  save(); majTab(); majCompteurScan();
+  showToast('\u21a9 Validation annul\u00e9e : ' + r.serial);
 }
 
 // Scan depuis une photo : permet de lire une étiquette inaccessible en direct
@@ -1937,7 +2107,7 @@ function repartirDe(c) {
   var nbV = nouveau.filter(estEnVeille).length;
   showToast('\u2705 ' + (c._fusion ? c._fusion + ' rapports fusionn\u00e9s : ' : '') + nouveau.length + ' machine' + (nouveau.length > 1 ? 's' : '') + ' \u00e0 faire'
     + (nbV ? ' (dont ' + nbV + ' absente' + (nbV > 1 ? 's' : '') + ' depuis plusieurs pr\u00e9ventives, masqu\u00e9e' + (nbV > 1 ? 's' : '') + ')' : '')
-    + '. Scannez un S/N pour ouvrir sa fiche.');
+    + '. Scannez un S/N : \u00ab Tout OK \u00bb en un geste, ou saisissez les \u00e9tats.');
 }
 
 // == PARTAGE DE RAPPORT ENTRE TECHNICIENS (fusion manuelle, hors ligne) ==
