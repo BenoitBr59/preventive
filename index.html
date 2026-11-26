@@ -484,9 +484,10 @@ var MODELES = [
   'ZT111 - 8dots','ZT111 - 12dots','ZT220 - 8dots','ZT220 - 12dots','ZT230 - 8dots','ZT230 - 12dots',
   'ZT231 - 8dots','ZT231 - 12dots','ZT410 - 8dots','ZT410 - 12dots','ZT410 - 24dots',
   'ZT411 - 8dots','ZT411 - 12dots','ZT411 - 24dots','ZT420 - 8dots','ZT420 - 12dots',
-  'ZT421 - 8dots','ZT421 - 12dots','ZT610 - 8dots','ZT610 - 12dots','ZT610 - 24dots',
+  'ZT421 - 8dots','ZT421 - 12dots','ZT510 - 8dots','ZT510 - 12dots','ZT510 - 24dots',
+  'ZT610 - 8dots','ZT610 - 12dots','ZT610 - 24dots',
   'ZT620 - 8dots','ZT620 - 12dots','ZT630 - 8dots','ZD220 - 8dots','ZD230 - 8dots',
-  'ZD421 - 8dots','ZD421 - 12dots','ZD621 - 8dots','ZD621 - 12dots','ZM400 - 8dots','ZM600 - 8dots',
+  'ZD420 - 8dots','ZD420 - 12dots','ZD421 - 8dots','ZD421 - 12dots','ZD620 - 8dots','ZD620 - 12dots','ZD621 - 8dots','ZD621 - 12dots','ZM400 - 8dots','ZM600 - 8dots',
   'ZQ230 - 8dots','ZQ300 - 8dots','ZQ600 - 8dots','ZQ600 - 12dots','S4M+ - 8dots','S4M+ - 12dots',
   'PM42 - 8dots','PM43 - 8dots','PM43c - 8dots','PM45 - 8dots','PD43 - 8dots','PD45 - 8dots',
   'PC43t - 8dots','PF4i - 8dots','PF4i - 12dots','B-EX4T1 - 8dots','B-SA4TM - 8dots','PX4ie - 8dots',
@@ -1820,13 +1821,16 @@ function identModele(pn) {
   if(/^1P/.test(t))          t=t.slice(2);
   else if(/^P1/.test(t))     t=t.slice(2);
   else if(/^P(ZT|ZD|ZM)/.test(t)) t=t.slice(1);
-  var mm=t.match(/^(ZT|ZD|ZM)(\d{2})(\d{2})/);
+  // Entrée ajoutée par l'utilisateur dans sa base P/N : elle prime sur la reconnaissance automatique
+  var perso=basePNModele(t);
+  if(perso) return perso;
+  // Référence Zebra : ZT/ZD/ZM + n° de modèle (3 chiffres) + largeur (1 chiffre) + résolution (1 chiffre)
+  // ex. ZT51042 = ZT510 · 203 dpi ; ZT41143 = ZT411 · 300 dpi ; ZT41146 = ZT411 · 600 dpi
+  // résolution : 2 = 203 dpi (8 dots/mm), 3 = 300 dpi (12 dots), 6 = 600 dpi (24 dots)
+  var mm=t.match(/^(ZT|ZD|ZM)(\d{3})\d(\d)/);
   if(mm){
-    var fam=mm[1],mod=mm[2],res=mm[3];
-    var TBL={ZT:{'23':'ZT231','41':'ZT411','42':'ZT421','61':'ZT610','62':'ZT620','63':'ZT630','30':'ZT230'},ZD:{'42':'ZD421','62':'ZD621','22':'ZD220','23':'ZD230'},ZM:{'40':'ZM400','60':'ZM600'}};
-    var nom=(TBL[fam]||{})[mod]||(fam+mod+'x');
-    var d=res.charAt(1);
-    return nom+' - '+(d==='3'?'12dots':d==='6'?'24dots':'8dots');
+    var rs=mm[3];
+    return mm[1]+mm[2]+' - '+(rs==='3'?'12dots':rs==='6'?'24dots':'8dots');
   }
   var C={'ZT231':'ZT231','ZT230':'ZT230','ZT411':'ZT411','ZT421':'ZT421','ZD421':'ZD421','ZT410':'ZT410','ZT420':'ZT420','ZT610':'ZT610','ZT620':'ZT620','ZT630':'ZT630','ZM400':'ZM400','ZM600':'ZM600'};
   for(var k in C){if(t.startsWith(k)){var dd=t.charAt(6);return C[k]+' - '+(dd==='3'?'12dots':dd==='6'?'24dots':'8dots');}}
