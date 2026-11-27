@@ -195,9 +195,8 @@
     <span class="text-sm font-bold tt">Pièce-jointe photo</span>
     <button type="button" onclick="lancerPhoto()" class="bs font-bold text-xs px-5 py-3 rounded-lg shadow flex items-center gap-2">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-      Appareil photo / Galerie
+      Appareil photo
     </button>
-    <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none;">
     <div id="photoBox" style="display:none;" class="flex flex-wrap items-center gap-2 border-l pl-4 border-blue-200">
       <div id="photoGallery" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
     </div>
@@ -403,6 +402,31 @@
     </div>
     <button type="button" id="btnMan" onclick="ouvrirManuel()" style="display:none;width:100%;background:#4b5563;color:#fff;font-weight:bold;padding:8px;border-radius:4px;border:none;font-size:14px;">&#9000;&#65039; Saisir manuellement</button>
     <button type="button" id="btnVal" onclick="validerScan()" disabled style="width:100%;background:#16a34a;color:#fff;font-weight:bold;padding:10px;border-radius:4px;border:none;font-size:14px;opacity:0.4;">&#10003; Valider et remplir le formulaire</button>
+  </div>
+</div>
+
+<!-- MODAL CAMÉRA PHOTO : le déclencheur envoie la photo directement au recadrage (pas d'aperçu intermédiaire) -->
+<div id="camModal" style="display:none;visibility:hidden;position:fixed;inset:0;background:#000;z-index:150;flex-direction:column;">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;background:#111827;flex-shrink:0;">
+    <span style="color:#e5e7eb;font-weight:bold;font-size:13px;text-transform:uppercase;letter-spacing:.05em;">Photo</span>
+    <button type="button" onclick="camFermer()" style="background:#ef4444;color:#fff;font-weight:bold;font-size:12px;padding:8px 14px;border-radius:4px;border:none;">&#10005; Fermer</button>
+  </div>
+  <div style="flex:1;position:relative;overflow:hidden;background:#000;min-height:0;">
+    <video id="camVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:contain;display:block;"></video>
+    <div id="camMsg" style="position:absolute;left:16px;right:16px;top:40%;text-align:center;color:#e5e7eb;font-size:14px;"></div>
+  </div>
+  <div style="background:#111827;padding:10px 16px 16px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;">
+    <div id="camZoomBox" style="display:none;align-items:center;gap:10px;color:#fff;font-size:12px;">
+      <span>&#128269;</span>
+      <input type="range" id="camZoomRange" min="1" max="1" step="0.1" value="1" oninput="camZoom(this.value)" style="flex:1;">
+      <span id="camZoomVal" style="min-width:34px;text-align:right;">x1</span>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      <span style="flex:1;max-width:110px;"></span>
+      <button type="button" id="camShutter" onclick="camDeclencher()" aria-label="Prendre la photo" style="width:70px;height:70px;border-radius:999px;background:#fff;border:6px solid #9ca3af;flex-shrink:0;"></button>
+      <button type="button" id="camFlash" onclick="camFlash()" style="display:none;flex:1;max-width:110px;background:#374151;color:#e5e7eb;font-weight:bold;font-size:12px;padding:12px 6px;border-radius:6px;border:none;">&#9889; Flash</button>
+      <span id="camFlashPad" style="flex:1;max-width:110px;"></span>
+    </div>
   </div>
 </div>
 
@@ -1034,19 +1058,99 @@ function del(id) {
 }
 
 // == PHOTO ==
+// Caméra intégrée : déclencheur -> recadrage direct. Aucune photo n'est écrite dans la galerie du téléphone (pas d'appareil photo natif, pas de galerie).
+var camStream = null, camTrack = null, camIC = null, camTorch = false, camBusy = false;
 function lancerPhoto() {
-  var inp = g('camInput');
-  inp.value = '';
-  inp.click();
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { showToast('\u26a0\ufe0f Cam\u00e9ra non disponible sur cet appareil.'); return; }
+  camOuvrir();
 }
-function initPhoto() {
-  g('camInput').onchange = function() {
-    var file = this.files[0];
-    if (!file) return;
-    var fr = new FileReader();
-    fr.onload = function(ev) { ouvrirCrop(ev.target.result); };
-    fr.readAsDataURL(file);
-  };
+function camOuvrir() {
+  var m = g('camModal');
+  m.style.display = 'flex'; m.style.visibility = 'visible';
+  g('camMsg').style.display = 'block'; g('camMsg').textContent = 'D\u00e9marrage de la cam\u00e9ra\u2026';
+  camTorch = false; camBusy = false; majCamFlashUI();
+  g('camZoomBox').style.display = 'none'; g('camFlash').style.display = 'none'; g('camFlashPad').style.display = 'block';
+  navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}, width: {ideal: 2560}, height: {ideal: 1440}}, audio: false})
+    .then(function(st) {
+      if (m.style.display !== 'flex') { st.getTracks().forEach(function(t) { t.stop(); }); return; }   // ferm\u00e9e entre-temps
+      camStream = st; camTrack = st.getVideoTracks()[0];
+      var v = g('camVideo'); v.srcObject = st; v.play().catch(function() {});
+      g('camMsg').style.display = 'none';
+      try { camIC = window.ImageCapture ? new ImageCapture(camTrack) : null; } catch (e) { camIC = null; }
+      camReglages();
+    })
+    .catch(function() {
+      g('camMsg').style.display = 'block';
+      g('camMsg').textContent = 'Cam\u00e9ra indisponible. Autorisez l\'acc\u00e8s \u00e0 la cam\u00e9ra dans les r\u00e9glages du navigateur, puis r\u00e9essayez.';
+    });
+}
+function camReglages() {
+  if (!camTrack || !camTrack.getCapabilities) return;
+  var caps = camTrack.getCapabilities();
+  if (caps.focusMode && caps.focusMode.indexOf('continuous') !== -1) {
+    camTrack.applyConstraints({advanced: [{focusMode: 'continuous'}]}).catch(function() {});
+  }
+  if (caps.zoom) {
+    var r = g('camZoomRange');
+    r.min = caps.zoom.min || 1; r.max = Math.min(caps.zoom.max || 1, 8); r.step = caps.zoom.step || 0.1; r.value = r.min;
+    g('camZoomVal').textContent = 'x' + parseFloat(r.value).toFixed(1);
+    g('camZoomBox').style.display = 'flex';
+  }
+  if (caps.torch) { g('camFlash').style.display = 'block'; g('camFlashPad').style.display = 'none'; }
+}
+function camZoom(v) {
+  g('camZoomVal').textContent = 'x' + parseFloat(v).toFixed(1);
+  if (camTrack) camTrack.applyConstraints({advanced: [{zoom: parseFloat(v)}]}).catch(function() {});
+}
+function majCamFlashUI() {
+  var b = g('camFlash');
+  b.style.background = camTorch ? '#f5a11c' : '#374151';
+  b.style.color = camTorch ? '#000' : '#e5e7eb';
+}
+function camFlash() {
+  if (!camTrack) return;
+  camTorch = !camTorch; majCamFlashUI();
+  camTrack.applyConstraints({advanced: [{torch: camTorch}]}).catch(function() { camTorch = false; majCamFlashUI(); });
+}
+function camFermer() {
+  if (camStream) { camStream.getTracks().forEach(function(t) { t.stop(); }); }
+  camStream = null; camTrack = null; camIC = null; camTorch = false; camBusy = false;
+  var v = g('camVideo'); if (v) v.srcObject = null;
+  var m = g('camModal'); m.style.display = 'none'; m.style.visibility = 'hidden';
+  g('camShutter').style.opacity = '1';
+}
+function camDeclencher() {
+  if (camBusy || !camTrack) return;
+  camBusy = true; g('camShutter').style.opacity = '0.5';
+  var v = g('camVideo');
+  function imageVideo() {           // repli : image de la vid\u00e9o (suffisant, la photo finale est limit\u00e9e \u00e0 1400 px)
+    var w = v.videoWidth, h = v.videoHeight;
+    if (!w || !h) return null;
+    var c = document.createElement('canvas'); c.width = w; c.height = h;
+    c.getContext('2d').drawImage(v, 0, 0, w, h);
+    return c.toDataURL('image/jpeg', 0.92);
+  }
+  function envoyer(src) {
+    if (!src) { camBusy = false; g('camShutter').style.opacity = '1'; showToast('\u26a0\ufe0f Photo non prise \u2014 r\u00e9essayez.'); return; }
+    camFermer();
+    ouvrirCrop(src);                // directement la zone de retouche
+  }
+  if (camIC && camIC.takePhoto) {   // photo "appareil" pleine r\u00e9solution quand le navigateur sait la faire
+    var fait = false;
+    var t = setTimeout(function() { if (fait) return; fait = true; envoyer(imageVideo()); }, 4000);
+    camIC.takePhoto().then(function(blob) {
+      if (fait) return; fait = true; clearTimeout(t);
+      var fr = new FileReader();
+      fr.onload = function(e) { envoyer(e.target.result); };
+      fr.onerror = function() { envoyer(imageVideo()); };
+      fr.readAsDataURL(blob);
+    }).catch(function() {
+      if (fait) return; fait = true; clearTimeout(t);
+      envoyer(imageVideo());
+    });
+  } else {
+    envoyer(imageVideo());
+  }
 }
 function ouvrirCrop(src) {
   var img = g('cropImg');
@@ -1131,7 +1235,6 @@ function annulerCrop() {
   g('cropModal').style.display = 'none';
   g('cropModal').style.visibility = 'hidden';
   if (cropInst) { cropInst.destroy(); cropInst = null; }
-  g('camInput').value = '';
 }
 function rafraichirGaleriePhotos() {
   var gal = g('photoGallery');
@@ -2863,7 +2966,6 @@ window.addEventListener('DOMContentLoaded', function() {
   if (!g('hDate').value) g('hDate').value = today();
   majTab();
   demarrerPhotos();
-  initPhoto();
   chargerReseaux();
   chargerBasePN();
   majBoutonsScroll();
